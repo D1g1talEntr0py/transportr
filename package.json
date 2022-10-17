@@ -1,6 +1,6 @@
 {
   "name": "@d1g1tal/transportr",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "JavaScript wrapper for the Fetch API",
   "type": "module",
   "types": "index.d.ts",
@@ -14,6 +14,9 @@
     "transportr.js": "./dist/transportr.js",
     "transportr.min.js": "./dist/transportr.min.js",
     "transportr.min.js.map": "./dist/transportr.min.js.map"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "/src",
