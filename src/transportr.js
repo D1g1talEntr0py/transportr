@@ -1,5 +1,5 @@
-import { SetMultiMap } from '@d1g1tal/collections';
 import { _objectMerge } from '@d1g1tal/chrysalis';
+import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import { MediaType } from '@d1g1tal/media-type';
 import HttpMediaType from './http-media-type.js';
 import HttpRequestHeader from './http-request-headers.js';

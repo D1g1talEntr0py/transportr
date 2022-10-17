@@ -1,6 +1,6 @@
 {
   "name": "@d1g1tal/transportr",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "JavaScript wrapper for the Fetch API",
   "type": "module",
   "types": "index.d.ts",
@@ -64,7 +64,7 @@
   ],
   "dependencies": {
     "@d1g1tal/chrysalis": "^1.1.7",
-    "@d1g1tal/collections": "^0.0.3",
+    "@d1g1tal/collections": "^0.0.4",
     "@d1g1tal/media-type": "^4.0.0"
   }
 }
