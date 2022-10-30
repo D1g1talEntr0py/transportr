@@ -66,6 +66,9 @@ const _handleReadableStream = async (response) => response.body;
 /** @type {ResponseHandler<Document>} */
 const _handleXml = async (response) => new DOMParser().parseFromString(await response.text(), Transportr.MediaType.XML.essence);
 
+/** @type {ResponseHandler<DocumentFragment>} */
+const _handleHtmlFragment = async (response) => document.createRange().createContextualFragment(await response.text());
+
 export default class Transportr {
 	#baseUrl;
 	/**
@@ -304,6 +307,18 @@ export default class Transportr {
 	 */
 	async getHtml(path, options = {}) {
 		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }), _handleText);
+	}
+
+	/**
+	 * TODO - Add way to return portion of the retrieved HTML using a selector. Like jQuery.
+	 *
+	 * @async
+	 * @param {string} path
+	 * @param {RequestOptions} [options = {}]
+	 * @returns {Promise<DocumentFragment>}
+	 */
+	async getHtmlFragment(path, options = {}) {
+		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }), _handleHtmlFragment);
 	}
 
 	/**
