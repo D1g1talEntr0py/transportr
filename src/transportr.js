@@ -1,4 +1,4 @@
-import { _objectMerge } from '@d1g1tal/chrysalis';
+import { _objectMerge, _type } from '@d1g1tal/chrysalis';
 import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import { MediaType } from '@d1g1tal/media-type';
 import HttpMediaType from './http-media-type.js';
@@ -13,7 +13,7 @@ import HttpResponseHeader from './http-response-headers.js';
 
 /** @typedef {Object<string, (boolean|string|number|Array)>} JsonObject */
 /** @typedef {Blob|ArrayBuffer|TypedArray|DataView|FormData|URLSearchParams|string|ReadableStream} RequestBody */
-/** @typedef {Blob|ArrayBuffer|FormData|string|ReadableStream} ResponseBody */
+/** @typedef {JsonObject|Document|DocumentFragment|Blob|ArrayBuffer|FormData|string|ReadableStream<Uint8Array>} ResponseBody */
 /** @typedef {'default'|'force-cache'|'no-cache'|'no-store'|'only-if-cached'|'reload'} RequestCache */
 /** @typedef {'include'|'omit'|'same-origin'} RequestCredentials */
 /** @typedef {Headers|Object<string, string>} RequestHeaders */
@@ -51,76 +51,98 @@ const endsWithSlashRegEx = /\/$/;
 /** @type {ResponseHandler<string>} */
 const _handleText = async (response) => await response.text();
 
+/** @type {ResponseHandler<void>} */
+const _handleScript = async (response) => {
+	const objectURL = URL.createObjectURL(await response.blob());
+
+	document.head.removeChild(document.head.appendChild(Object.assign(document.createElement('script'), { src: objectURL, type: HttpMediaType.JAVA_SCRIPT, async: true })));
+
+	URL.revokeObjectURL(objectURL);
+};
+
+/** @type {ResponseHandler<void>} */
+const _handleCss = async (response) => {
+	const objectURL = URL.createObjectURL(await response.blob());
+
+	document.head.appendChild(Object.assign(document.createElement('link'), { href: objectURL, type: HttpMediaType.CSS, rel: 'stylesheet' }));
+
+	URL.revokeObjectURL(objectURL);
+};
+
 /** @type {ResponseHandler<JsonObject>} */
 const _handleJson = async (response) => await response.json();
 
 /** @type {ResponseHandler<Blob>} */
 const _handleBlob = async (response) => await response.blob();
 
+/** @type {ResponseHandler<string>} */
+const _handleImage = async (response) => URL.createObjectURL(await response.blob());
+
 /** @type {ResponseHandler<ArrayBuffer>} */
 const _handleBuffer = async (response) => await response.arrayBuffer();
 
-/** @type {ResponseHandler<ReadableStream<Uint8Array>} */
+/** @type {ResponseHandler<ReadableStream<Uint8Array>>} */
 const _handleReadableStream = async (response) => response.body;
 
 /** @type {ResponseHandler<Document>} */
 const _handleXml = async (response) => new DOMParser().parseFromString(await response.text(), Transportr.MediaType.XML.essence);
 
+/** @type {ResponseHandler<Document>} */
+const _handleHtml = async (response) => new DOMParser().parseFromString(await response.text(), Transportr.MediaType.HTML.essence);
+
 /** @type {ResponseHandler<DocumentFragment>} */
 const _handleHtmlFragment = async (response) => document.createRange().createContextualFragment(await response.text());
 
 export default class Transportr {
+	/** @type {URL} */
 	#baseUrl;
-	/**
-	 * @static
-	 * @constant {Object<string, MediaType>}
-	 */
-	static #MediaType = {
-		JSON: new MediaType(HttpMediaType.JSON),
-		XML: new MediaType(HttpMediaType.XML),
-		HTML: new MediaType(HttpMediaType.HTML),
-		SCRIPT: new MediaType(HttpMediaType.JAVA_SCRIPT),
-		TEXT: new MediaType(HttpMediaType.TEXT),
-		CSS: new MediaType(HttpMediaType.CSS),
-		WEBP: new MediaType(HttpMediaType.WEBP),
-		PNG: new MediaType(HttpMediaType.PNG),
-		GIF: new MediaType(HttpMediaType.GIF),
-		JPG: new MediaType(HttpMediaType.JPEG),
-		OTF: new MediaType(HttpMediaType.OTF),
-		WOFF: new MediaType(HttpMediaType.WOFF),
-		WOFF2: new MediaType(HttpMediaType.WOFF2),
-		TTF: new MediaType(HttpMediaType.TTF),
-		PDF: new MediaType(HttpMediaType.PDF)
-	};
+	/** @type {RequestOptions} */
+	#options;
+
 	/**
 	 * @static
 	 * @type {SetMultiMap<ResponseHandler<ResponseBody>, string>}
 	 */
 	static #contentTypeHandlers = new SetMultiMap([
-		[_handleJson, Transportr.#MediaType.JSON.subtype],
-		[_handleText, Transportr.#MediaType.HTML.subtype],
-		[_handleText, Transportr.#MediaType.SCRIPT.subtype],
-		[_handleText, Transportr.#MediaType.CSS.subtype],
-		[_handleText, Transportr.#MediaType.TEXT.subtype],
-		[_handleXml, Transportr.#MediaType.XML.subtype],
-		[_handleBlob, Transportr.#MediaType.GIF.subtype],
-		[_handleBlob, Transportr.#MediaType.JPG.subtype],
-		[_handleBlob, Transportr.#MediaType.PNG.subtype]
+		[_handleImage, new MediaType(HttpMediaType.PNG).type],
+		[_handleText, new MediaType(HttpMediaType.TEXT).type]
+	]);
+
+	/**
+	 * @static
+	 * @type {SetMultiMap<ResponseHandler<ResponseBody>, string>}
+	 */
+	static #contentSubtypeHandlers = new SetMultiMap([
+		[_handleJson, new MediaType(HttpMediaType.JSON).subtype],
+		[_handleHtml, new MediaType(HttpMediaType.HTML).subtype],
+		[_handleScript, new MediaType(HttpMediaType.JAVA_SCRIPT).subtype],
+		[_handleCss, new MediaType(HttpMediaType.CSS).subtype],
+		[_handleXml, new MediaType(HttpMediaType.XML).subtype],
+		[_handleReadableStream, new MediaType(HttpMediaType.BIN).subtype]
 	]);
 
 	/**
 	 * Create a new Transportr instance with the provided location or origin and context path.
 	 *
-	 * @param {URL | string} [url = location.origin] The URL for {@link fetch} requests.
+	 * @param {URL | string | RequestOptions} [url = location.origin] The URL for {@link fetch} requests.
+	 * @param {RequestOptions} [options = Transportr.#defaultRequestOptions] The default {@link RequestOptions} for this instance.
 	 */
-	constructor(url = location.origin) {
-		/** @type {URL} */
-		this.#baseUrl = url instanceof URL ? url : url.startsWith('/') ? new URL(url, location.origin) : new URL(url);
+	constructor(url = location.origin, options = Transportr.#defaultRequestOptions) {
+		const type = _type(url);
+		if (type == Object) {
+			options = url;
+			url = location.origin;
+		} else if (type != URL) {
+			url = url.startsWith('/') ? new URL(url, location.origin) : new URL(url);
+		}
+
+		this.#baseUrl = url;
+		this.#options = options;
 	}
 
 	/**
 	 * @static
-	 * @constant {Object<string, 'GET'|'POST'|'PUT'|'PATCH'|'DELETE'|'HEAD'|'OPTIONS'|'TRACE'|'CONNECT'>}
+	 * @constant {Object<string, RequestMethod>}
 	 */
 	static Method = Object.freeze(HttpRequestMethod);
 
@@ -142,6 +164,10 @@ export default class Transportr {
 	 */
 	static ResponseHeader = Object.freeze(HttpResponseHeader);
 
+	/**
+	 * @static
+	 * @constant {Object<string, RequestCache>}
+	 */
 	static CachingPolicy = {
 		DEFAULT: 'default',
 		FORCE_CACHE: 'force-cache',
@@ -153,7 +179,7 @@ export default class Transportr {
 
 	/**
 	 * @static
-	 * @type {Object<string, string>}
+	 * @constant {Object<string, RequestCredentials>}
 	 */
 	static CredentialsPolicy = {
 		INCLUDE: 'include',
@@ -161,19 +187,55 @@ export default class Transportr {
 		SAME_ORIGIN: 'same-origin'
 	};
 
+	/**
+	 * @static
+	 * @constant {Object<string, RequestMode>}
+	 */
+	static RequestMode = {
+		CORS: 'cors',
+		NAVIGATE: 'navigate',
+		NO_CORS: 'no-cors',
+		SAME_ORIGIN: 'same-origin'
+	};
+
+	/**
+	 * @static
+	 * @constant {Object<string, RequestRedirect>}
+	 */
+	static RedirectPolicy = {
+		ERROR: 'error',
+		FOLLOW: 'follow',
+		MANUAL: 'manual'
+	};
+
+	/**
+	 * @static
+	 * @constant {Object<string, ReferrerPolicy>}
+	 */
+	static ReferrerPolicy = {
+		NO_REFERRER: 'no-referrer',
+		NO_REFERRER_WHEN_DOWNGRADE: 'no-referrer-when-downgrade',
+		ORIGIN: 'origin',
+		ORIGIN_WHEN_CROSS_ORIGIN: 'origin-when-cross-origin',
+		SAME_ORIGIN: 'same-origin',
+		STRICT_ORIGIN: 'strict-origin',
+		STRICT_ORIGIN_WHEN_CROSS_ORIGIN: 'strict-origin-when-cross-origin',
+		UNSAFE_URL: 'unsafe-url'
+	};
+
 	/** @type {RequestOptions} */
-	#defaultRequestOptions = {
+	static #defaultRequestOptions = {
 		body: null,
 		cache: Transportr.CachingPolicy.NO_STORE,
-		credentials: 'same-origin',
+		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
 		headers: {},
 		integrity: undefined,
 		keepalive: undefined,
 		method: undefined,
-		mode: 'cors',
-		redirect: 'follow',
+		mode: Transportr.RequestMode.CORS,
+		redirect: Transportr.RedirectPolicy.FOLLOW,
 		referrer: 'about:client',
-		referrerPolicy: 'strict-origin-when-cross-origin',
+		referrerPolicy: Transportr.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
 		signal: null,
 		window: null
 	};
@@ -294,7 +356,7 @@ export default class Transportr {
 	 * @returns {Promise<Document>}
 	 */
 	async getXml(path, options = {}) {
-		return new DOMParser().parseFromString(await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: Transportr.MediaType.XML } }), _handleBlob), HttpMediaType.XML);
+		return await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: Transportr.MediaType.XML } }), _handleXml);
 	}
 
 	/**
@@ -303,10 +365,10 @@ export default class Transportr {
 	 * @async
 	 * @param {string} path
 	 * @param {RequestOptions} [options = {}]
-	 * @returns {Promise<string>}
+	 * @returns {Promise<Document>}
 	 */
 	async getHtml(path, options = {}) {
-		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }), _handleText);
+		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }), _handleHtml);
 	}
 
 	/**
@@ -322,15 +384,26 @@ export default class Transportr {
 	}
 
 	/**
-	 * TODO - Do I need this? What special handling might this need??
+	 * Fetches the script from the provided path. CORS is enabled by default.
 	 *
 	 * @async
 	 * @param {string} path
 	 * @param {RequestOptions} [options = {}]
-	 * @returns {Promise<string>}
+	 * @returns {Promise<void>}
 	 */
 	async getScript(path, options = {}) {
-		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JAVA_SCRIPT } }), _handleText);
+		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JAVA_SCRIPT } }), _handleScript);
+	}
+
+	/**
+	 * Gets a stylesheet from the server, and adds it as a {@link Blob} {@link URL}.
+	 *
+	 * @param {string} path - The path to the stylesheet.
+	 * @param {RequestOptions} [options = {}] - An object containing the following properties:
+	 * @returns {Promise<void>} A promise that resolves to a string containing the contents of the stylesheet.
+	 */
+	async getStylesheet(path, options = {}) {
+		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.CSS } }), _handleCss);
 	}
 
 	/**
@@ -352,7 +425,7 @@ export default class Transportr {
 	 * @returns {Promise<string>}
 	 */
 	async getImage(path, options = {}) {
-		return URL.createObjectURL(await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: 'image/*' } }), _handleBlob));
+		return await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: 'image/*' } }), _handleBlob);
 	}
 
 	/**
@@ -381,7 +454,7 @@ export default class Transportr {
 	 *
 	 * @param {string} path
 	 * @param {RequestOptions} options
-	 * @param {ResponseHandler} responseHandler
+	 * @param {ResponseHandler<ResponseBody>} responseHandler
 	 * @returns
 	 */
 	async #get(path, options, responseHandler) {
@@ -398,10 +471,8 @@ export default class Transportr {
 	 * @returns {Promise<ResponseBody|Response>}
 	 */
 	async #request(path, options, responseHandler) {
-		console.debug(`Calling '${path}'`);
-
 		/** @type {RequestOptions} */
-		const requestOptions = _objectMerge(this.#defaultRequestOptions, options);
+		const requestOptions = _objectMerge(this.#options, options);
 		const headers = new Headers(requestOptions.headers);
 
 		if (headers.get(Transportr.RequestHeader.CONTENT_TYPE) == Transportr.MediaType.JSON) {
@@ -440,11 +511,11 @@ export default class Transportr {
 	 * @returns {URL}
 	 */
 	static #createUrl(url, path, searchParams = {}) {
-		url = new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin);
+		url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
 
 		for (const [ name, value ] of Object.entries(searchParams)) {
-			if (url.searchParams.has(name)) {
-				url.searchParams.set(name, value);
+			if (Array.isArray(value)) {
+				value.forEach((v) => url.searchParams.set(name, v));
 			} else {
 				url.searchParams.append(name, value);
 			}
@@ -464,8 +535,14 @@ export default class Transportr {
 	static async #processResponse(response) {
 		const mediaType = new MediaType(response.headers.get(HttpResponseHeader.CONTENT_TYPE));
 
-		for (const [responseHandler, contentTypes] of Transportr.#contentTypeHandlers.entries()) {
+		for (const [responseHandler, contentTypes] of Transportr.#contentSubtypeHandlers.entries()) {
 			if (contentTypes.has(mediaType.subtype)) {
+				return await responseHandler(response);
+			}
+		}
+
+		for (const [responseHandler, contentTypes] of Transportr.#contentTypeHandlers.entries()) {
+			if (contentTypes.has(mediaType.type)) {
 				return await responseHandler(response);
 			}
 		}
