@@ -1,6 +1,6 @@
 {
   "name": "@d1g1tal/transportr",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "JavaScript wrapper for the Fetch API",
   "type": "module",
   "types": "index.d.ts",
