@@ -474,6 +474,7 @@ export default class Transportr {
 		/** @type {RequestOptions} */
 		const requestOptions = _objectMerge(this.#options, options);
 		const headers = new Headers(requestOptions.headers);
+		const errorMessage = `An error has occurred with your Request: ${path}`;
 
 		if (headers.get(Transportr.RequestHeader.CONTENT_TYPE) == Transportr.MediaType.JSON) {
 			requestOptions.body = JSON.stringify(requestOptions.body);
@@ -483,21 +484,19 @@ export default class Transportr {
 		try {
 			response = await fetch(Transportr.#createUrl(this.#baseUrl, path, requestOptions.searchParams), requestOptions);
 		} catch (error) {
-			console.error(error);
-			// Need to ensure that the process terminates since an error occurred.
-			process.exit(1);
+			console.error(errorMessage, error);
+			throw new HttpError(errorMessage);
 		}
 
 		if (!response.ok) {
-			throw new HttpError(`An error has occurred with your request: ${response.status} - ${await response.text()}`);
+			throw new HttpError(`${errorMessage}. Response: ${response.status} - ${await response.text()}`);
 		}
 
 		try {
 			return await (responseHandler ? responseHandler(response) : Transportr.#processResponse(response));
 		} catch (error) {
-			console.error(error);
-			// Need to ensure that the process terminates since an error occurred.
-			process.exit(1);
+			console.error(errorMessage, error);
+			throw new HttpError(errorMessage);
 		}
 	}
 

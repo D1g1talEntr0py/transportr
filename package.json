@@ -1,6 +1,6 @@
 {
   "name": "@d1g1tal/transportr",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "JavaScript wrapper for the Fetch API",
   "type": "module",
   "types": "index.d.ts",
@@ -47,7 +47,7 @@
   "devDependencies": {
     "@skypack/package-check": "^0.2.2",
     "@xmldom/xmldom": "^0.8.6",
-    "esbuild": "^0.15.13",
+    "esbuild": "^0.15.14",
     "eslint": "^8.27.0",
     "eslint-plugin-compat": "^4.0.2",
     "eslint-plugin-jsdoc": "^39.6.2",
