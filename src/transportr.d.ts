@@ -1,47 +1,26 @@
+/**
+ * A wrapper around the fetch API that makes it easier to make HTTP requests.
+ *
+ * @module Transportr
+ * @author D1g1talEntr0py
+ */
 export default class Transportr {
     /**
-     * @static
-     * @constant {Object<string, MediaType>}
-     */
-    static "__#2@#MediaType": {
-        JSON: MediaType;
-        XML: MediaType;
-        HTML: MediaType;
-        SCRIPT: MediaType;
-        TEXT: MediaType;
-        CSS: MediaType;
-        WEBP: MediaType;
-        PNG: MediaType;
-        GIF: MediaType;
-        JPG: MediaType;
-        OTF: MediaType;
-        WOFF: MediaType;
-        WOFF2: MediaType;
-        TTF: MediaType;
-        PDF: MediaType;
-    };
-    /**
+     * @private
      * @static
      * @type {SetMultiMap<ResponseHandler<ResponseBody>, string>}
      */
-    static "__#2@#contentTypeHandlers": SetMultiMap<ResponseHandler<ResponseBody>, string>;
+    private static "__#3@#contentTypeHandlers";
     /**
      * @static
-     * @constant {Object<string, 'GET'|'POST'|'PUT'|'PATCH'|'DELETE'|'HEAD'|'OPTIONS'|'TRACE'|'CONNECT'>}
+     * @constant {Object<string, RequestMethod>}
      */
     static Method: Readonly<{
         OPTIONS: string;
         GET: string;
         HEAD: string;
         POST: string;
-        PUT: string; /**
-         * TODO - Do I need this? What special handling might this need??
-         *
-         * @async
-         * @param {string} path
-         * @param {RequestOptions} [options = {}]
-         * @returns {Promise<string>}
-         */
+        PUT: string;
         DELETE: string;
         TRACE: string;
         CONNECT: string;
@@ -58,15 +37,21 @@ export default class Transportr {
         AVIF: string;
         AVI: string;
         AZW: string;
-        /** @typedef {Object<string, (boolean|string|number|Array)>} JsonObject */
-        /** @typedef {Blob|ArrayBuffer|TypedArray|DataView|FormData|URLSearchParams|string|ReadableStream} RequestBody */
-        /** @typedef {Blob|ArrayBuffer|FormData|string|ReadableStream} ResponseBody */
-        /** @typedef {'default'|'force-cache'|'no-cache'|'no-store'|'only-if-cached'|'reload'} RequestCache */
-        /** @typedef {'include'|'omit'|'same-origin'} RequestCredentials */
-        /** @typedef {Headers|Object<string, string>} RequestHeaders */
-        /** @typedef {'GET'|'POST'|'PUT'|'PATCH'|'DELETE'|'HEAD'|'OPTIONS'} RequestMethod */
-        /** @typedef {'cors'|'navigate'|'no-cors'|'same-origin'} RequestMode */
+        BIN: string;
+        BMP: string;
+        BZIP: string;
+        BZIP2: string;
+        CDA: string;
+        CSH: string;
+        CSS: string;
+        CSV: string;
+        DOC: string;
+        DOCX: string;
+        EOT: string;
+        EPUB: string;
+        GZIP: string;
         /** @typedef {'error'|'follow'|'manual'} RequestRedirect */
+        /** @typedef {URLSearchParams|FormData|Object<string, string>|string} SearchParameters */
         /** @typedef {''|'no-referrer'|'no-referrer-when-downgrade'|'origin'|'origin-when-cross-origin'|'same-origin'|'strict-origin'|'strict-origin-when-cross-origin'|'unsafe-url'} ReferrerPolicy */
         /** @typedef {Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|Float32Array|Float64Array|BigInt64Array|BigUint64Array} TypedArray */
         /**
@@ -86,21 +71,14 @@ export default class Transportr {
          * @property {ReferrerPolicy} referrerPolicy A referrer policy to set request's referrerPolicy.
          * @property {AbortSignal} signal An AbortSignal to set request's signal.
          * @property {null} window Can only be null. Used to disassociate request from any Window.
+         * @property {SearchParameters} searchParams The parameters to be added to the URL for the request.
          */
-        /** @extends Error */
-        BIN: string;
-        BMP: string; /** @typedef {Object<string, (boolean|string|number|Array)>} JsonObject */
-        BZIP: string;
-        BZIP2: string;
-        CDA: string;
-        CSH: string;
-        CSS: string;
-        CSV: string;
-        DOC: string;
-        DOCX: string;
-        EOT: string;
-        EPUB: string;
-        GZIP: string;
+        /**
+         * @typedef {Object} ResponseStatus
+         * @property {number} code The status code.
+         * @property {string} text The status text.
+         */
+        /** @type {RegExp} */
         GIF: string;
         HTML: string;
         ICO: string;
@@ -251,6 +229,10 @@ export default class Transportr {
         X_CONTENT_TYPE_OPTIONS: string;
         X_POWERED_BY: string;
     }>;
+    /**
+     * @static
+     * @constant {Object<string, RequestCache>}
+     */
     static CachingPolicy: {
         DEFAULT: string;
         FORCE_CACHE: string;
@@ -261,120 +243,191 @@ export default class Transportr {
     };
     /**
      * @static
-     * @type {Object<string, string>}
+     * @constant {Object<string, RequestCredentials>}
      */
     static CredentialsPolicy: {
-        [x: string]: string;
+        INCLUDE: string;
+        OMIT: string;
+        SAME_ORIGIN: string;
     };
     /**
+     * @static
+     * @constant {Object<string, RequestMode>}
+     */
+    static RequestMode: {
+        CORS: string;
+        NAVIGATE: string;
+        NO_CORS: string;
+        SAME_ORIGIN: string;
+    };
+    /**
+     * @static
+     * @constant {Object<string, RequestRedirect>}
+     */
+    static RedirectPolicy: {
+        ERROR: string;
+        FOLLOW: string;
+        MANUAL: string;
+    };
+    /**
+     * @static
+     * @constant {Object<string, ReferrerPolicy>}
+     */
+    static ReferrerPolicy: {
+        NO_REFERRER: string;
+        NO_REFERRER_WHEN_DOWNGRADE: string;
+        ORIGIN: string;
+        ORIGIN_WHEN_CROSS_ORIGIN: string;
+        SAME_ORIGIN: string;
+        STRICT_ORIGIN: string;
+        STRICT_ORIGIN_WHEN_CROSS_ORIGIN: string;
+        UNSAFE_URL: string;
+    };
+    /**
+     * @static
+     * @type {RequestOptions}
+     */
+    static "__#3@#defaultRequestOptions": RequestOptions;
+    /**
+     * It takes a URL, a path, and a set of search parameters, and returns a new URL with the path and
+     * search parameters applied.
      *
      * @private
      * @static
-     * @param {URL} url
-     * @param {string} path
-     * @param {Object} [searchParams = {}]
-     * @returns {URL}
+     * @param {URL} url - The URL to use as a base.
+     * @param {string} path - The path to the resource. This can be a relative path or a full URL.
+     * @param {URLSearchParams} [searchParams=new URLSearchParams()] - An object containing the query parameters to be added to the URL.
+     * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
+     * appended to the end of the pathname.
      */
-    private static "__#2@#createUrl";
+    private static "__#3@#createUrl";
     /**
+     * It takes a response and a handler, and if the handler is not defined, it tries to find a handler
+     * based on the response's content type
      *
      * @private
      * @static
      * @async
-     * @param {Response} response
-     * @returns {Promise<ResponseBody|Response>}
+     * @param {Response} response - The response object returned by the fetch API.
+     * @param {ResponseHandler<ResponseBody>} [handler] - The handler to use for processing the response.
+     * @returns {Promise<ResponseBody>} The response is being returned.
      */
-    private static "__#2@#processResponse";
+    private static "__#3@#processResponse";
+    /**
+     * If the request method is POST, PUT, or PATCH, and the content type is JSON, then the request body
+     * needs to be serialized.
+     *
+     * @private
+     * @static
+     * @param {RequestMethod} method - The HTTP request method.
+     * @param {RequestHeaders} headers - The headers of the request.
+     * @returns {boolean} `true` if the request body needs to be serialized, `false` otherwise.
+     */
+    private static "__#3@#needsSerialization";
     /**
      * Create a new Transportr instance with the provided location or origin and context path.
      *
-     * @param {URL | string} [url = location.origin] The URL for {@link fetch} requests.
+     * @param {URL | string | RequestOptions} [url = location.origin] The URL for {@link fetch} requests.
+     * @param {RequestOptions} [options = Transportr.#defaultRequestOptions] The default {@link RequestOptions} for this instance.
      */
-    constructor(url?: URL | string);
+    constructor(url?: URL | string | RequestOptions, options?: RequestOptions);
     /**
+     * It returns the base {@link URL} for the API.
      *
-     * @returns {URL} The base URL used for requests
+     * @returns {URL} The baseUrl property.
      */
     get baseUrl(): URL;
     /**
+     * This function returns a promise that resolves to the result of a request to the specified path with
+     * the specified options, where the method is GET.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the resource you want to get.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} A promise that resolves to the response of the request.
      */
-    get(path: string, options?: RequestOptions): Promise<any>;
+    get(path: string, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * This function makes a POST request to the given path with the given body and options.
      *
      * @async
-     * @param {string} path
-     * @param {Object} body
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the endpoint you want to call.
+     * @param {Object} body - The body of the request.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} A promise that resolves to the response body.
      */
-    post(path: string, body: any, options?: RequestOptions): Promise<any>;
+    post(path: string, body: any, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * This function returns a promise that resolves to the result of a request to the specified path with
+     * the specified options, where the method is PUT.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the endpoint you want to call.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} The return value of the #request method.
      */
-    put(path: string, options?: RequestOptions): Promise<any>;
+    put(path: string, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * It takes a path and options, and returns a request with the method set to PATCH.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the endpoint you want to hit.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} A promise that resolves to the response of the request.
      */
-    patch(path: string, options?: RequestOptions): Promise<any>;
+    patch(path: string, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * It takes a path and options, and returns a request with the method set to DELETE.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the resource you want to access.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} The result of the request.
      */
-    delete(path: string, options?: RequestOptions): Promise<any>;
+    delete(path: string, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * Returns the response headers of a request to the given path.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the resource you want to access.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} A promise that resolves to the response object.
      */
-    head(path: string, options?: RequestOptions): Promise<any>;
+    head(path: string, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * It takes a path and options, and returns a request with the method set to OPTIONS.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} The return value of the #request method.
      */
-    options(path: string, options?: RequestOptions): Promise<any>;
+    options(path: string, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * It takes a path and options, and makes a request to the server.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<*>}
+     * @param {string} path - The path to the endpoint you want to hit.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ResponseBody>} The return value of the function is the return value of the function that is passed to the `then` method of the promise returned by the `fetch` method.
      */
-    request(path: string, options?: RequestOptions): Promise<any>;
+    request(path: string, options?: RequestOptions): Promise<ResponseBody>;
     /**
+     * It gets a JSON resource from the server.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<JsonObject>}
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options object to pass to the request.
+     * @returns {Promise<JsonObject>} A promise that resolves to the response body as a JSON object.
      */
     getJson(path: string, options?: RequestOptions): Promise<JsonObject>;
     /**
+     * It gets the XML representation of the resource at the given path.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<Document>}
+     * @param {string} path - The path to the resource you want to get.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<Document>} The result of the function call to #get.
      */
     getXml(path: string, options?: RequestOptions): Promise<Document>;
     /**
@@ -383,48 +436,82 @@ export default class Transportr {
      * @async
      * @param {string} path
      * @param {RequestOptions} [options = {}]
-     * @returns {Promise<string>}
+     * @returns {Promise<Document>}
      */
-    getHtml(path: string, options?: RequestOptions): Promise<string>;
     /**
-     * TODO - Do I need this? What special handling might this need??
+     * Get the HTML content of the specified path.
+     *
+     * @todo Add way to return portion of the retrieved HTML using a selector. Like jQuery.
+     * @async
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<Document>} The return value of the function is the return value of the function passed to the `then`
+     * method of the promise returned by the `#get` method.
+     */
+    getHtml(path: string, options?: RequestOptions): Promise<Document>;
+    /**
+     * It returns a promise that resolves to the HTML fragment at the given path.
+     *
+     * @todo - Add way to return portion of the retrieved HTML using a selector. Like jQuery.
+     * @async
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<DocumentFragment>} A promise that resolves to an HTML fragment.
+     */
+    getHtmlFragment(path: string, options?: RequestOptions): Promise<DocumentFragment>;
+    /**
+     * It gets a script from the server, and appends the script to the {@link Document} {@link HTMLHeadElement}
+     * CORS is enabled by default.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<string>}
+     * @param {string} path - The path to the script.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<void>} A promise that has been resolved.
      */
-    getScript(path: string, options?: RequestOptions): Promise<string>;
+    getScript(path: string, options?: RequestOptions): Promise<void>;
     /**
+     * Gets a stylesheet from the server, and adds it as a {@link Blob} {@link URL}.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<Blob>}
+     * @param {string} path - The path to the stylesheet.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<void>} A promise that has been resolved.
+     */
+    getStylesheet(path: string, options?: RequestOptions): Promise<void>;
+    /**
+     * It returns a blob from the specified path.
+     *
+     * @async
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<Blob>} A promise that resolves to a blob.
      */
     getBlob(path: string, options?: RequestOptions): Promise<Blob>;
     /**
+     * It returns a promise that resolves to an object URL.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<string>}
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<string>} A promise that resolves to an object URL.
      */
     getImage(path: string, options?: RequestOptions): Promise<string>;
     /**
+     * It gets a buffer from the specified path
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<ArrayBuffer>}
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ArrayBuffer>} A promise that resolves to a buffer.
      */
     getBuffer(path: string, options?: RequestOptions): Promise<ArrayBuffer>;
     /**
+     * It returns a readable stream of the response body from the specified path.
      *
      * @async
-     * @param {string} path
-     * @param {RequestOptions} [options = {}]
-     * @returns {Promise<ReadableStream<Uint8Array>}
+     * @param {string} path - The path to the resource.
+     * @param {RequestOptions} [options={}] - The options for the request.
+     * @returns {Promise<ReadableStream<Uint8Array>>} A readable stream.
      */
     getStream(path: string, options?: RequestOptions): Promise<ReadableStream<Uint8Array>>;
     #private;
@@ -437,7 +524,7 @@ export type JsonObject = {
     [x: string]: (boolean | string | number | any[]);
 };
 export type RequestBody = Blob | ArrayBuffer | TypedArray | DataView | FormData | URLSearchParams | string | ReadableStream;
-export type ResponseBody = Blob | ArrayBuffer | FormData | string | ReadableStream;
+export type ResponseBody = JsonObject | Document | DocumentFragment | Blob | ArrayBuffer | FormData | string | ReadableStream<Uint8Array>;
 export type RequestCache = 'default' | 'force-cache' | 'no-cache' | 'no-store' | 'only-if-cached' | 'reload';
 export type RequestCredentials = 'include' | 'omit' | 'same-origin';
 export type RequestHeaders = Headers | {
@@ -446,6 +533,9 @@ export type RequestHeaders = Headers | {
 export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS';
 export type RequestMode = 'cors' | 'navigate' | 'no-cors' | 'same-origin';
 export type RequestRedirect = 'error' | 'follow' | 'manual';
+export type SearchParameters = URLSearchParams | FormData | {
+    [x: string]: string;
+} | string;
 export type ReferrerPolicy = '' | 'no-referrer' | 'no-referrer-when-downgrade' | 'origin' | 'origin-when-cross-origin' | 'same-origin' | 'strict-origin' | 'strict-origin-when-cross-origin' | 'unsafe-url';
 export type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | BigInt64Array | BigUint64Array;
 /**
@@ -504,6 +594,19 @@ export type RequestOptions = {
      * Can only be null. Used to disassociate request from any Window.
      */
     window: null;
+    /**
+     * The parameters to be added to the URL for the request.
+     */
+    searchParams: SearchParameters;
 };
-import { MediaType } from "@d1g1tal/media-type";
-import { SetMultiMap } from "@d1g1tal/collections";
+export type ResponseStatus = {
+    /**
+     * The status code.
+     */
+    code: number;
+    /**
+     * The status text.
+     */
+    text: string;
+};
+//# sourceMappingURL=transportr.d.ts.map

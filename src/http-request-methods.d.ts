@@ -10,3 +10,4 @@ declare namespace HttpRequestMethod {
     const CONNECT: string;
     const PATCH: string;
 }
+//# sourceMappingURL=http-request-methods.d.ts.map

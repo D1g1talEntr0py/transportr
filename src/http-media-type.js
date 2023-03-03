@@ -1,3 +1,9 @@
+/**
+ * A constant object that contains all the media types that are supported by the browser.
+ *
+ * @module HttpMediaType
+ * @constant {Object<string, string>}
+ */
 const HttpMediaType = {
 	/** Advanced Audio Coding (AAC) */
 	AAC: 'audio/aac',

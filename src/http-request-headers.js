@@ -1,3 +1,9 @@
+/**
+ * Defining a constant object with all the HTTP request headers.
+ *
+ * @module HttpRequestHeader
+ * @constant {Object<string, string>}
+ */
 const HttpRequestHeader = {
 	/**
 	 * Content-Types that are acceptable for the response. See Content negotiation. Permanent.

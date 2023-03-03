@@ -1,3 +1,9 @@
+/**
+ * Defining a constant object with a bunch of properties.
+ *
+ * @module HttpResponseHeader
+ * @constant {Object<string, string>}
+ */
 const HttpResponseHeader = {
 	/**
 	 * Implemented as a misunderstanding of the HTTP specifications. Common because of mistakes in implementations of early HTTP versions. Has exactly the same functionality as standard Connection field.

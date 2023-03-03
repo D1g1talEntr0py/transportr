@@ -41,3 +41,4 @@ declare namespace HttpRequestHeader {
     const X_ATT_DEVICE_ID: string;
     const X_WAP_PROFILE: string;
 }
+//# sourceMappingURL=http-request-headers.d.ts.map

@@ -4,18 +4,28 @@
 		"es2022": true,
 		"node": true
 	},
-	"plugins": ["compat", "jsdoc"],
-	"extends": ["eslint:recommended", "plugin:compat/recommended", "plugin:jsdoc/recommended"],
+	"plugins": [
+		"compat",
+		"jsdoc"
+	],
+	"extends": [
+		"eslint:recommended",
+		"plugin:compat/recommended",
+		"plugin:jsdoc/recommended"
+	],
+	"overrides": [],
 	"parserOptions": {
 		"ecmaVersion": 2022,
 		"sourceType": "module"
 	},
-	"overrides": [],
 	"rules": {
+		"no-prototype-builtins": "off",
 		"indent": [
 			"error",
 			"tab",
-			{ "SwitchCase": 1 }
+			{
+				"SwitchCase": 1
+			}
 		],
 		"linebreak-style": [
 			"error",
@@ -32,8 +42,19 @@
 	},
 	"settings": {
 		"jsdoc": {
-			"preferredTypes": { "object": "Object", "responseHandler": "ResponseHandler" },
-			"structuredTags": { "template": { "name": "namepath-defining", "type": false } },
+			"mode": "typescript",
+			"preferredTypes": {
+				"object": "Object",
+				"responseHandler": "ResponseHandler",
+				"responseBody": "ResponseBody",
+				"ResponseStatus": "ResponseStatus"
+			},
+			"structuredTags": {
+				"template": {
+					"name": "namepath-defining",
+					"type": false
+				}
+			},
 			"tagNamePreference": {
 				"augments": {
 					"message": "@extends is to be used over @augments as it is more evocative of classes than @augments",

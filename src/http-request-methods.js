@@ -1,3 +1,9 @@
+/**
+ * Defining a constant object with the name HttpRequestMethod.
+ *
+ * @module HttpRequestMethod
+ * @constant {Object<string, string>}
+ */
 const HttpRequestMethod = {
 	/**
 	 * The OPTIONS method represents a request for information about the communication options available on the

@@ -44,3 +44,4 @@ declare namespace HttpResponseHeader {
     const X_CONTENT_TYPE_OPTIONS: string;
     const X_POWERED_BY: string;
 }
+//# sourceMappingURL=http-response-headers.d.ts.map
