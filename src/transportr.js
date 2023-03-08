@@ -1,4 +1,4 @@
-import { _objectMerge, _type } from '@d1g1tal/chrysalis';
+import { _isIterable, _objectMerge, _type } from '@d1g1tal/chrysalis';
 import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import { MediaType } from '@d1g1tal/media-type';
 import HttpError from './http-error.js';
@@ -7,7 +7,6 @@ import HttpRequestHeader from './http-request-headers.js';
 import HttpRequestMethod from './http-request-methods.js';
 import HttpResponseHeader from './http-response-headers.js';
 import ResponseStatus from './response-status.js';
-// import { DOMParser } from '@xmldom/xmldom';
 
 /**
  * @template T extends ResponseBody
@@ -35,6 +34,7 @@ import ResponseStatus from './response-status.js';
  * @property {RequestCache} cache A string indicating how the request will interact with the browser's cache to set request's cache.
  * @property {RequestCredentials} credentials A string indicating whether credentials will be sent with the request always, never, or only when sent to a same-origin URL. Sets request's credentials.
  * @property {RequestHeaders} headers A Headers object, an object literal, or an array of two-item arrays to set request's headers.
+ * @property {SearchParameters} searchParams The parameters to be added to the URL for the request.
  * @property {string} integrity A cryptographic hash of the resource to be fetched by request. Sets request's integrity.
  * @property {boolean} keepalive A boolean to set request's keepalive.
  * @property {RequestMethod} method A string to set request's method.
@@ -44,13 +44,6 @@ import ResponseStatus from './response-status.js';
  * @property {ReferrerPolicy} referrerPolicy A referrer policy to set request's referrerPolicy.
  * @property {AbortSignal} signal An AbortSignal to set request's signal.
  * @property {null} window Can only be null. Used to disassociate request from any Window.
- * @property {SearchParameters} searchParams The parameters to be added to the URL for the request.
- */
-
-/**
- * @typedef {Object} ResponseStatus
- * @property {number} code The status code.
- * @property {string} text The status text.
  */
 
 /** @type {RegExp} */
@@ -97,10 +90,10 @@ const _handleBuffer = async (response) => await response.arrayBuffer();
 const _handleReadableStream = async (response) => response.body;
 
 /** @type {ResponseHandler<Document>} */
-const _handleXml = async (response) => new DOMParser().parseFromString(await response.text(), Transportr.MediaType.XML.essence);
+const _handleXml = async (response) => new DOMParser().parseFromString(await response.text(), HttpMediaType.XML.essence);
 
 /** @type {ResponseHandler<Document>} */
-const _handleHtml = async (response) => new DOMParser().parseFromString(await response.text(), Transportr.MediaType.HTML.essence);
+const _handleHtml = async (response) => new DOMParser().parseFromString(await response.text(), HttpMediaType.HTML.essence);
 
 /** @type {ResponseHandler<DocumentFragment>} */
 const _handleHtmlFragment = async (response) => document.createRange().createContextualFragment(await response.text());
@@ -136,10 +129,10 @@ export default class Transportr {
 	/**
 	 * Create a new Transportr instance with the provided location or origin and context path.
 	 *
-	 * @param {URL | string | RequestOptions} [url = location.origin] The URL for {@link fetch} requests.
-	 * @param {RequestOptions} [options = Transportr.#defaultRequestOptions] The default {@link RequestOptions} for this instance.
+	 * @param {URL | string | RequestOptions} [url=location.origin] The URL for {@link fetch} requests.
+	 * @param {RequestOptions} [options=Transportr.#defaultRequestOptions] The default {@link RequestOptions} for this instance.
 	 */
-	constructor(url = location.origin, options = Transportr.#defaultRequestOptions) {
+	constructor(url = location.origin, options = {}) {
 		const type = _type(url);
 		if (type == Object) {
 			options = url;
@@ -149,30 +142,32 @@ export default class Transportr {
 		}
 
 		this.#baseUrl = url;
-		this.#options = options;
+		// Merge the default options with the provided options.
+		this.#options = _objectMerge(Transportr.#defaultRequestOptions, Transportr.#convertRequestOptions(options, { headers: Object, searchParams: Object }));
 	}
 
 	/**
 	 * @static
-	 * @constant {Object<string, RequestMethod>}
+	 * @constant {Object<string, HttpRequestMethod>}
 	 */
 	static Method = Object.freeze(HttpRequestMethod);
 
 	/**
 	 * @static
-	 * @constant {Object<string, string>}
+	 * @constant {Object<string, HttpMediaType>}
 	 */
-	static MediaType = HttpMediaType;
+	static MediaType = Object.freeze(HttpMediaType);
 
 	/**
 	 * @static
-	 * @constant {Object<string, string>}
+	 * @see {@link HttpRequestHeader}
+	 * @constant {Object<string, HttpRequestHeader>}
 	 */
-	static RequestHeader = HttpRequestHeader;
+	static RequestHeader = Object.freeze(HttpRequestHeader);
 
 	/**
 	 * @static
-	 * @constant {Object<string, string>}
+	 * @constant {Object<string, HttpResponseHeader>}
 	 */
 	static ResponseHeader = Object.freeze(HttpResponseHeader);
 
@@ -180,51 +175,51 @@ export default class Transportr {
 	 * @static
 	 * @constant {Object<string, RequestCache>}
 	 */
-	static CachingPolicy = {
+	static CachingPolicy = Object.freeze({
 		DEFAULT: 'default',
 		FORCE_CACHE: 'force-cache',
 		NO_CACHE: 'no-cache',
 		NO_STORE: 'no-store',
 		ONLY_IF_CACHED: 'only-if-cached',
 		RELOAD: 'reload'
-	};
+	});
 
 	/**
 	 * @static
 	 * @constant {Object<string, RequestCredentials>}
 	 */
-	static CredentialsPolicy = {
+	static CredentialsPolicy = Object.freeze({
 		INCLUDE: 'include',
 		OMIT: 'omit',
 		SAME_ORIGIN: 'same-origin'
-	};
+	});
 
 	/**
 	 * @static
 	 * @constant {Object<string, RequestMode>}
 	 */
-	static RequestMode = {
+	static RequestMode = Object.freeze({
 		CORS: 'cors',
 		NAVIGATE: 'navigate',
 		NO_CORS: 'no-cors',
 		SAME_ORIGIN: 'same-origin'
-	};
+	});
 
 	/**
 	 * @static
 	 * @constant {Object<string, RequestRedirect>}
 	 */
-	static RedirectPolicy = {
+	static RedirectPolicy = Object.freeze({
 		ERROR: 'error',
 		FOLLOW: 'follow',
 		MANUAL: 'manual'
-	};
+	});
 
 	/**
 	 * @static
 	 * @constant {Object<string, ReferrerPolicy>}
 	 */
-	static ReferrerPolicy = {
+	static ReferrerPolicy = Object.freeze({
 		NO_REFERRER: 'no-referrer',
 		NO_REFERRER_WHEN_DOWNGRADE: 'no-referrer-when-downgrade',
 		ORIGIN: 'origin',
@@ -233,27 +228,29 @@ export default class Transportr {
 		STRICT_ORIGIN: 'strict-origin',
 		STRICT_ORIGIN_WHEN_CROSS_ORIGIN: 'strict-origin-when-cross-origin',
 		UNSAFE_URL: 'unsafe-url'
-	};
+	});
 
 	/**
+	 * @private
 	 * @static
 	 * @type {RequestOptions}
 	 */
-	static #defaultRequestOptions = {
+	static #defaultRequestOptions = Object.freeze({
 		body: null,
 		cache: Transportr.CachingPolicy.NO_STORE,
 		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
 		headers: {},
+		searchParams: {},
 		integrity: undefined,
 		keepalive: undefined,
-		method: undefined,
+		method: HttpRequestMethod.GET,
 		mode: Transportr.RequestMode.CORS,
 		redirect: Transportr.RedirectPolicy.FOLLOW,
 		referrer: 'about:client',
 		referrerPolicy: Transportr.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
 		signal: null,
 		window: null
-	};
+	});
 
 	/**
 	 * It returns the base {@link URL} for the API.
@@ -270,11 +267,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource you want to get.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response of the request.
 	 */
-	async get(path, options = {}) {
-		return this.#request(path, _objectMerge(options, { method: HttpRequestMethod.GET }));
+	async get(path, options) {
+		return this.#get(path, options);
 	}
 
 	/**
@@ -282,12 +279,12 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the endpoint you want to call.
-	 * @param {Object} body - The body of the request.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestBody} body - The body of the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response body.
 	 */
-	async post(path, body, options = {}) {
-		return this.#request(path, _objectMerge(options, { body: body, method: HttpRequestMethod.POST }));
+	async post(path, body, options) {
+		return this.#request(path, options, { body: body, method: HttpRequestMethod.POST });
 	}
 
 	/**
@@ -296,11 +293,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the endpoint you want to call.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} The return value of the #request method.
 	 */
-	async put(path, options = {}) {
-		return this.#request(path, _objectMerge(options, { method: HttpRequestMethod.PUT }));
+	async put(path, options) {
+		return this.#request(path, options, { method: HttpRequestMethod.PUT });
 	}
 
 	/**
@@ -308,11 +305,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the endpoint you want to hit.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response of the request.
 	 */
-	async patch(path, options = {}) {
-		return this.#request(path, _objectMerge(options, { method: HttpRequestMethod.PATCH }));
+	async patch(path, options) {
+		return this.#request(path, options, { method: HttpRequestMethod.PATCH });
 	}
 
 	/**
@@ -320,11 +317,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource you want to access.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} The result of the request.
 	 */
-	async delete(path, options = {}) {
-		return this.#request(path, _objectMerge(options, { method: HttpRequestMethod.DELETE }));
+	async delete(path, options) {
+		return this.#request(path, options, { method: HttpRequestMethod.DELETE });
 	}
 
 	/**
@@ -332,11 +329,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource you want to access.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response object.
 	 */
-	async head(path, options = {}) {
-		return this.#request(path, _objectMerge(options, { method: HttpRequestMethod.HEAD }));
+	async head(path, options) {
+		return this.#request(path, options, { method: HttpRequestMethod.HEAD });
 	}
 
 	/**
@@ -344,11 +341,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} The return value of the #request method.
 	 */
-	async options(path, options = {}) {
-		return this.#request(path, _objectMerge(options, { method: HttpRequestMethod.OPTIONS }));
+	async options(path, options) {
+		return this.#request(path, options, { method: HttpRequestMethod.OPTIONS });
 	}
 
 	/**
@@ -356,10 +353,10 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the endpoint you want to hit.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ResponseBody>} The return value of the function is the return value of the function that is passed to the `then` method of the promise returned by the `fetch` method.
 	 */
-	async request(path, options = {}) {
+	async request(path, options) {
 		return this.#request(path, options);
 	}
 
@@ -368,11 +365,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options object to pass to the request.
+	 * @param {RequestOptions} [options] - The options object to pass to the request.
 	 * @returns {Promise<JsonObject>} A promise that resolves to the response body as a JSON object.
 	 */
-	async getJson(path, options = {}) {
-		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: Transportr.MediaType.JSON } }), _handleJson);
+	async getJson(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JSON } }, _handleJson);
 	}
 
 	/**
@@ -380,33 +377,25 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource you want to get.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<Document>} The result of the function call to #get.
 	 */
-	async getXml(path, options = {}) {
-		return await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: Transportr.MediaType.XML } }), _handleXml);
+	async getXml(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.XML } }, _handleXml);
 	}
 
-	/**
-	 * TODO - Add way to return portion of the retrieved HTML using a selector. Like jQuery.
-	 *
-	 * @async
-	 * @param {string} path
-	 * @param {RequestOptions} [options = {}]
-	 * @returns {Promise<Document>}
-	 */
 	/**
 	 * Get the HTML content of the specified path.
 	 *
 	 * @todo Add way to return portion of the retrieved HTML using a selector. Like jQuery.
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<Document>} The return value of the function is the return value of the function passed to the `then`
 	 * method of the promise returned by the `#get` method.
 	 */
-	async getHtml(path, options = {}) {
-		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }), _handleHtml);
+	async getHtml(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }, _handleHtml);
 	}
 
 	/**
@@ -415,11 +404,11 @@ export default class Transportr {
 	 * @todo - Add way to return portion of the retrieved HTML using a selector. Like jQuery.
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<DocumentFragment>} A promise that resolves to an HTML fragment.
 	 */
-	async getHtmlFragment(path, options = {}) {
-		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }), _handleHtmlFragment);
+	async getHtmlFragment(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }, _handleHtmlFragment);
 	}
 
 	/**
@@ -428,11 +417,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the script.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
-	async getScript(path, options = {}) {
-		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JAVA_SCRIPT } }), _handleScript);
+	async getScript(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JAVA_SCRIPT } }, _handleScript);
 	}
 
 	/**
@@ -440,11 +429,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the stylesheet.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
-	async getStylesheet(path, options = {}) {
-		return this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.CSS } }), _handleCss);
+	async getStylesheet(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.CSS } }, _handleCss);
 	}
 
 	/**
@@ -452,11 +441,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<Blob>} A promise that resolves to a blob.
 	 */
-	async getBlob(path, options = {}) {
-		return await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }), _handleBlob);
+	async getBlob(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }, _handleBlob);
 	}
 
 	/**
@@ -464,11 +453,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<string>} A promise that resolves to an object URL.
 	 */
-	async getImage(path, options = {}) {
-		return await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: 'image/*' } }), _handleImage);
+	async getImage(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: 'image/*' } }, _handleImage);
 	}
 
 	/**
@@ -476,11 +465,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ArrayBuffer>} A promise that resolves to a buffer.
 	 */
-	async getBuffer(path, options = {}) {
-		return await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }), _handleBuffer);
+	async getBuffer(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }, _handleBuffer);
 	}
 
 	/**
@@ -488,11 +477,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options={}] - The options for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
 	 * @returns {Promise<ReadableStream<Uint8Array>>} A readable stream.
 	 */
-	async getStream(path, options = {}) {
-		return await this.#get(path, _objectMerge(options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }), _handleReadableStream);
+	async getStream(path, options) {
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }, _handleReadableStream);
 	}
 
 	/**
@@ -502,34 +491,13 @@ export default class Transportr {
 	 * @private
 	 * @async
 	 * @param {string} path - The path to the endpoint you want to call.
-	 * @param {RequestOptions} options - The options for the request.
-	 * @param {ResponseHandler<ResponseBody>} responseHandler - A function that will be called with the response object.
+	 * @param {RequestOptions} [userOptions] - The options passed to the public function to use for the request.
+	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {ResponseHandler<ResponseBody>} [responseHandler] - A function that will be called with the response object.
 	 * @returns {Promise<ResponseBody>} The result of the #request method.
 	 */
-	async #get(path, options, responseHandler) {
-		return this.#request(path, _objectMerge(options, { method: Transportr.Method.GET }), responseHandler);
-	}
-
-	/**
-	 * It takes a URL, a path, and a set of search parameters, and returns a new URL with the path and
-	 * search parameters applied.
-	 *
-	 * @private
-	 * @static
-	 * @param {URL} url - The URL to use as a base.
-	 * @param {string} path - The path to the resource. This can be a relative path or a full URL.
-	 * @param {URLSearchParams} [searchParams=new URLSearchParams()] - An object containing the query parameters to be added to the URL.
-	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
-	 * appended to the end of the pathname.
-	 */
-	static #createUrl(url, path, searchParams = new URLSearchParams()) {
-		url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
-
-		for (const [name, value] of searchParams) {
-			url.searchParams.append(name, value);
-		}
-
-		return url;
+	async #get(path, userOptions, options, responseHandler) {
+		return this.#request(path, userOptions, options, responseHandler);
 	}
 
 	/**
@@ -539,23 +507,19 @@ export default class Transportr {
 	 * @private
 	 * @async
 	 * @param {string} path - The path to the resource you want to access.
-	 * @param {RequestOptions} options - The options to use for the request.
+	 * @param {RequestOptions} [userOptions={}] - The options passed to the public function to use for the request.
+	 * @param {RequestOptions} [options={}] - The options to use for the request.
 	 * @param {ResponseHandler<ResponseBody>} [responseHandler] - A function that will be called with the response body as a parameter. This
 	 * is useful if you want to do something with the response body before returning it.
 	 * @returns {Promise<ResponseBody>} The response from the API call.
 	 */
-	async #request(path, options, responseHandler) {
+	async #request(path, userOptions = {}, options = {}, responseHandler) {
 		/** @type {RequestOptions} */
-		const requestOptions = _objectMerge(this.#options, options);
-		const headers = new Headers(requestOptions.headers);
+		const requestOptions = Transportr.#convertRequestOptions(_objectMerge(this.#options, userOptions, options), { headers: Headers, searchParams: URLSearchParams });
 		const errorMessage = `An error has occurred with your Request: ${path}`;
 
-		if (Transportr.#needsSerialization(options.method, headers)) {
+		if (Transportr.#needsSerialization(requestOptions.method, requestOptions.headers.get(HttpRequestHeader.CONTENT_TYPE))) {
 			requestOptions.body = JSON.stringify(requestOptions.body);
-		}
-
-		if (requestOptions.searchParams && !(requestOptions.searchParams instanceof URLSearchParams)) {
-			requestOptions.searchParams = new URLSearchParams(requestOptions.searchParams);
 		}
 
 		let response;
@@ -609,16 +573,65 @@ export default class Transportr {
 	}
 
 	/**
+	 * It takes a URL, a path, and a set of search parameters, and returns a new URL with the path and
+	 * search parameters applied.
+	 *
+	 * @private
+	 * @static
+	 * @param {URL} url - The URL to use as a base.
+	 * @param {string} path - The path to the resource. This can be a relative path or a full URL.
+	 * @param {URLSearchParams} [searchParams=new URLSearchParams()] - An object containing the query parameters to be added to the URL.
+	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
+	 * appended to the end of the pathname.
+	 */
+	static #createUrl(url, path, searchParams = new URLSearchParams()) {
+		// Create the object URL with a relative or absolute path
+		url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
+
+		searchParams.forEach((value, key) => url.searchParams.append(key, value));
+
+		return url;
+	}
+
+	/**
 	 * If the request method is POST, PUT, or PATCH, and the content type is JSON, then the request body
 	 * needs to be serialized.
 	 *
 	 * @private
 	 * @static
 	 * @param {RequestMethod} method - The HTTP request method.
-	 * @param {RequestHeaders} headers - The headers of the request.
+	 * @param {HttpMediaType} contentType - The headers of the request.
 	 * @returns {boolean} `true` if the request body needs to be serialized, `false` otherwise.
 	 */
-	static #needsSerialization(method, headers) {
-		return [HttpRequestMethod.POST, HttpRequestMethod.PUT, HttpRequestMethod.PATCH].includes(method) && headers.get(Transportr.RequestHeader.CONTENT_TYPE) == Transportr.MediaType.JSON;
+	static #needsSerialization(method, contentType) {
+		return contentType == HttpMediaType.JSON && [HttpRequestMethod.POST, HttpRequestMethod.PUT, HttpRequestMethod.PATCH].includes(method);
+	}
+
+	/**
+	 *
+	 * @param {RequestOptions} options - The options passed to the public function to use for the request.
+	 * @param {Object<string, constructor>} conversionMap - A map of properties to convert to the specified type.
+	 * @returns {RequestOptions} The options to use for the request.
+	 */
+	static #convertRequestOptions(options, conversionMap) {
+		let object;
+		for (const [property, type, option = options[property]] of Object.entries(conversionMap)) {
+			if (option) {
+				object = _isIterable(option) ? Object.fromEntries(option.entries()) : option;
+				options[property] = type == Object ? object : new (type)(object);
+			}
+		}
+
+		return options;
+	}
+
+	/**
+	 * A String value that is used in the creation of the default string
+	 * description of an object. Called by the built-in method {@link Object.prototype.toString}.
+	 *
+	 * @returns {string} The default string description of this object.
+	 */
+	get [Symbol.toStringTag]() {
+		return 'Transportr';
 	}
 }

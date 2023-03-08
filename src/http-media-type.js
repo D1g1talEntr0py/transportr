@@ -133,6 +133,10 @@ const HttpMediaType = {
 	WOFF: 'font/woff',
 	/** Web Open Font Format */
 	WOFF2: 'font/woff2',
+	/** Form - Encoded */
+	FORM: 'application/x-www-form-urlencoded',
+	/** Multipart FormData */
+	MULTIPART_FORM_DATA: 'multipart/form-data',
 	/** XHTML - The Extensible HyperText Markup Language */
 	XHTML: 'application/xhtml+xml',
 	/** Microsoft Excel Document */

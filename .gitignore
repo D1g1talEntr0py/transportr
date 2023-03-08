@@ -15,4 +15,3 @@
 dist
 node_modules
 tests/coverage/
-tests/scratch.js

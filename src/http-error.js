@@ -1,5 +1,5 @@
 /** @typedef {import('./transportr.js').ResponseBody} ResponseBody */
-/** @typedef {import('./transportr.js').ResponseStatus} ResponseStatus */
+/** @typedef {import('./response-status.js').default} ResponseStatus */
 
 /**
  * @typedef {Object} HttpErrorOptions
@@ -13,7 +13,7 @@
  * @extends Error
  * @author D1g1talEntr0py
  */
-class HttpError extends Error {
+export default class HttpError extends Error {
 	/** @type {ResponseBody} */
 	#entity;
 	/** @type {ResponseStatus} */
@@ -21,10 +21,10 @@ class HttpError extends Error {
 
 	/**
 	 * @param {string} [message] The error message.
-	 * @param {HttpErrorOptions} [options] The error options.
-	 * @param {Error} [options.cause] The cause of the error.
-	 * @param {ResponseStatus} [options.status] The response status.
-	 * @param {ResponseBody} [options.entity] The error entity from the server, if any.
+	 * @param {HttpErrorOptions} [httpErrorOptions] The http error options.
+	 * @param {any} [httpErrorOptions.cause] The cause of the error.
+	 * @param {ResponseStatus} [httpErrorOptions.status] The response status.
+	 * @param {ResponseBody} [httpErrorOptions.entity] The error entity from the server, if any.
 	 */
 	constructor(message, { cause, status, entity }) {
 		super(message, { cause });
@@ -58,6 +58,18 @@ class HttpError extends Error {
 	get statusText() {
 		return this.#responseStatus?.text;
 	}
-}
 
-export default HttpError;
+	get name() {
+		return 'HttpError';
+	}
+
+	/**
+	 * A String value that is used in the creation of the default string
+	 * description of an object. Called by the built-in method {@link Object.prototype.toString}.
+	 *
+	 * @returns {string} The default string description of this object.
+	 */
+	get [Symbol.toStringTag]() {
+		return 'HttpError';
+	}
+}
