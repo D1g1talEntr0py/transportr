@@ -15,8 +15,9 @@ test('Transportr', async () => {
 	expect(json2).toStrictEqual(json);
 
 	const post = await transportr.post('/artists', { name: 'The Receiving End of Sirens', age: 3 }, { headers: new Headers({ [Transportr.RequestHeader.CONTENT_TYPE]: Transportr.MediaType.JSON }) });
-	console.log(post);
 	expect(typeof(post)).toBe('object');
+	expect(post).toHaveProperty('id');
+	expect(post).toHaveProperty('name');
 
 	const formData = new FormData();
 	formData.set('name', 'Point North');
@@ -26,7 +27,6 @@ test('Transportr', async () => {
 	var formDataObject = Object.fromEntries(Array.from(formData.keys()).map((key) => [key, formData.getAll(key).length > 1 ? formData.getAll(key) : formData.get(key)]));
 
 	const post2 = await transportr.post('/artists', formDataObject);
-	console.log(post2);
 	expect(typeof (post2)).toBe('object');
 	expect(post2).toHaveProperty('id');
 	expect(post2).toHaveProperty('name');

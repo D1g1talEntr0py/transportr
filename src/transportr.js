@@ -1,4 +1,4 @@
-import { _isIterable, _objectMerge, _type } from '@d1g1tal/chrysalis';
+import { _isIterable, _objectMerge, _type, _construct } from '@d1g1tal/chrysalis';
 import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import { MediaType } from '@d1g1tal/media-type';
 import HttpError from './http-error.js';
@@ -13,6 +13,7 @@ import ResponseStatus from './response-status.js';
  * @typedef {function(Response): Promise<T>} ResponseHandler<T>
  */
 
+/** @typedef {Object.prototype.constructor} Type */
 /** @typedef {Object<string, (boolean|string|number|Array)>} JsonObject */
 /** @typedef {Blob|ArrayBuffer|TypedArray|DataView|FormData|URLSearchParams|string|ReadableStream} RequestBody */
 /** @typedef {JsonObject|Document|DocumentFragment|Blob|ArrayBuffer|FormData|string|ReadableStream<Uint8Array>} ResponseBody */
@@ -610,15 +611,15 @@ export default class Transportr {
 	/**
 	 *
 	 * @param {RequestOptions} options - The options passed to the public function to use for the request.
-	 * @param {Object<string, constructor>} conversionMap - A map of properties to convert to the specified type.
+	 * @param {Object<string, Type>} typeConversionMap - A map of properties to convert to the specified type.
 	 * @returns {RequestOptions} The options to use for the request.
 	 */
-	static #convertRequestOptions(options, conversionMap) {
+	static #convertRequestOptions(options, typeConversionMap) {
 		let object;
-		for (const [property, type, option = options[property]] of Object.entries(conversionMap)) {
+		for (const [property, type, option = options[property]] of Object.entries(typeConversionMap)) {
 			if (option) {
 				object = _isIterable(option) ? Object.fromEntries(option.entries()) : option;
-				options[property] = type == Object ? object : new (type)(object);
+				options[property] = type == Object ? object : _construct(type, [object]);
 			}
 		}
 
