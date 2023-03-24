@@ -102,7 +102,7 @@ const _handleHtmlFragment = async (response) => document.createRange().createCon
 /**
  * A wrapper around the fetch API that makes it easier to make HTTP requests.
  *
- * @module Transportr
+ * @module {Transportr} transportr
  * @author D1g1talEntr0py
  */
 export default class Transportr {
@@ -240,7 +240,7 @@ export default class Transportr {
 		body: null,
 		cache: Transportr.CachingPolicy.NO_STORE,
 		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
-		headers: {},
+		headers: { [HttpRequestHeader.CONTENT_TYPE]: Transportr.MediaType.JSON, [HttpRequestHeader.ACCEPT]: Transportr.MediaType.JSON },
 		searchParams: {},
 		integrity: undefined,
 		keepalive: undefined,

@@ -3,7 +3,7 @@ import { DOMParser } from '@xmldom/xmldom';
 import { expect, test } from '@jest/globals';
 
 test('Transportr', async () => {
-	const transportr = new Transportr('https://mockend.com/D1g1talEntr0py/music-api', { headers: new Headers({ [Transportr.RequestHeader.CONTENT_TYPE]: Transportr.MediaType.JSON }) });
+	const transportr = new Transportr('https://mockend.com/D1g1talEntr0py/music-api');
 
 	expect(transportr).toBeInstanceOf(Transportr);
 
@@ -14,7 +14,7 @@ test('Transportr', async () => {
 	expect(typeof(json2)).toBe('object');
 	expect(json2).toStrictEqual(json);
 
-	const post = await transportr.post('/artists', { name: 'The Receiving End of Sirens', age: 3 }, { headers: new Headers({ [Transportr.RequestHeader.CONTENT_TYPE]: Transportr.MediaType.JSON }) });
+	const post = await transportr.post('/artists', { name: 'The Receiving End of Sirens', age: 3 });
 	expect(typeof(post)).toBe('object');
 	expect(post).toHaveProperty('id');
 	expect(post).toHaveProperty('name');
