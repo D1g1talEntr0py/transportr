@@ -1,4 +1,4 @@
-import { _isIterable, _objectMerge, _type, _construct } from '@d1g1tal/chrysalis';
+import { _objectMerge, _objectIsEmpty, _type } from '@d1g1tal/chrysalis';
 import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import { MediaType } from '@d1g1tal/media-type';
 import HttpError from './http-error.js';
@@ -11,6 +11,18 @@ import ResponseStatus from './response-status.js';
 /**
  * @template T extends ResponseBody
  * @typedef {function(Response): Promise<T>} ResponseHandler<T>
+ */
+
+/**
+ * @template T
+ * @typedef {function(T): Object<string, *>} TypeConverter<T>
+ */
+
+/**
+ * @typedef {Object} PropertyTypeConverter
+ * @property {string} property The name of the property on the {@link RequestOptions} object.
+ * @property {Type} type The type of the property on the {@link RequestOptions} object.
+ * @property {TypeConverter<FormData|URLSearchParams|Headers>} converter A function that converts the property on the {@link RequestOptions} object to the type T.
  */
 
 /** @typedef {Object.prototype.constructor} Type */
@@ -99,11 +111,14 @@ const _handleHtml = async (response) => new DOMParser().parseFromString(await re
 /** @type {ResponseHandler<DocumentFragment>} */
 const _handleHtmlFragment = async (response) => document.createRange().createContextualFragment(await response.text());
 
+/** @type {TypeConverter<FormData|URLSearchParams>} */
+const _typeConverter = (data) => Object.fromEntries(Array.from(data.keys()).map((key, index, keys, value = data.getAll(key)) => [key, value.length > 1 ? value : value[0]]));
+
 /**
  * A wrapper around the fetch API that makes it easier to make HTTP requests.
  *
  * @module {Transportr} transportr
- * @author D1g1talEntr0py
+ * @author d1g1tal <jason.dimeo@gmail.com>
  */
 export default class Transportr {
 	/** @type {URL} */
@@ -128,10 +143,21 @@ export default class Transportr {
 	]);
 
 	/**
+	 * @private
+	 * @static
+	 * @type {Set<PropertyTypeConverter>}
+	 */
+	static #propertyTypeConverters = new Set([
+		[{ property: 'body', type: FormData, converter: _typeConverter }],
+		[{ property: 'searchParams', type: URLSearchParams, converter: _typeConverter }],
+		[{ property: 'headers', type: Headers, converter: Object.fromEntries }]
+	]);
+
+	/**
 	 * Create a new Transportr instance with the provided location or origin and context path.
 	 *
 	 * @param {URL | string | RequestOptions} [url=location.origin] The URL for {@link fetch} requests.
-	 * @param {RequestOptions} [options=Transportr.#defaultRequestOptions] The default {@link RequestOptions} for this instance.
+	 * @param {RequestOptions} [options={}] The default {@link RequestOptions} for this instance.
 	 */
 	constructor(url = location.origin, options = {}) {
 		const type = _type(url);
@@ -144,7 +170,7 @@ export default class Transportr {
 
 		this.#baseUrl = url;
 		// Merge the default options with the provided options.
-		this.#options = _objectMerge(Transportr.#defaultRequestOptions, Transportr.#convertRequestOptions(options, { headers: Object, searchParams: Object }));
+		this.#options = _objectMerge(Transportr.#defaultRequestOptions, Transportr.#convertRequestOptions(options));
 	}
 
 	/**
@@ -285,7 +311,7 @@ export default class Transportr {
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response body.
 	 */
 	async post(path, body, options) {
-		return this.#request(path, options, { body: body, method: HttpRequestMethod.POST });
+		return this.#request(path, { ...options, body }, { method: HttpRequestMethod.POST });
 	}
 
 	/**
@@ -516,11 +542,16 @@ export default class Transportr {
 	 */
 	async #request(path, userOptions = {}, options = {}, responseHandler) {
 		/** @type {RequestOptions} */
-		const requestOptions = Transportr.#convertRequestOptions(_objectMerge(this.#options, userOptions, options), { headers: Headers, searchParams: URLSearchParams });
+		const requestOptions = _objectMerge(this.#options, Transportr.#convertRequestOptions(userOptions), options);
 		const errorMessage = `An error has occurred with your Request: ${path}`;
 
-		if (Transportr.#needsSerialization(requestOptions.method, requestOptions.headers.get(HttpRequestHeader.CONTENT_TYPE))) {
+		// If the request method is POST, PUT, or PATCH, and the content type is JSON, then we need to serialize the body
+		if (Transportr.#needsSerialization(requestOptions.method, requestOptions.headers[HttpRequestHeader.CONTENT_TYPE])) {
 			requestOptions.body = JSON.stringify(requestOptions.body);
+		} else if (requestOptions.method == HttpRequestMethod.GET && requestOptions.headers[HttpRequestHeader.CONTENT_TYPE] != '') {
+			// If the request method is GET, and the content type is not empty, then we need to remove the content type header
+			delete requestOptions.headers[HttpRequestHeader.CONTENT_TYPE];
+			delete requestOptions.body;
 		}
 
 		let response;
@@ -528,7 +559,7 @@ export default class Transportr {
 			response = await fetch(Transportr.#createUrl(this.#baseUrl, path, requestOptions.searchParams), requestOptions);
 		} catch (error) {
 			console.error(errorMessage, error);
-			throw new HttpError(errorMessage, { cause: error, status: new ResponseStatus(response.status, response.statusText) });
+			throw new HttpError(errorMessage, { cause: error, status: response ? new ResponseStatus(response.status, response.statusText) : new ResponseStatus(0, 'Unknown') });
 		}
 
 		if (!response.ok) {
@@ -581,15 +612,15 @@ export default class Transportr {
 	 * @static
 	 * @param {URL} url - The URL to use as a base.
 	 * @param {string} path - The path to the resource. This can be a relative path or a full URL.
-	 * @param {URLSearchParams} [searchParams=new URLSearchParams()] - An object containing the query parameters to be added to the URL.
+	 * @param {Object<string, string>} [searchParams={}] - An object containing the query parameters to be added to the URL.
 	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
 	 * appended to the end of the pathname.
 	 */
-	static #createUrl(url, path, searchParams = new URLSearchParams()) {
+	static #createUrl(url, path, searchParams = {}) {
 		// Create the object URL with a relative or absolute path
 		url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
 
-		searchParams.forEach((value, key) => url.searchParams.append(key, value));
+		Object.entries(searchParams).forEach(([key, value]) => url.searchParams.append(key, value));
 
 		return url;
 	}
@@ -611,15 +642,14 @@ export default class Transportr {
 	/**
 	 *
 	 * @param {RequestOptions} options - The options passed to the public function to use for the request.
-	 * @param {Object<string, Type>} typeConversionMap - A map of properties to convert to the specified type.
 	 * @returns {RequestOptions} The options to use for the request.
 	 */
-	static #convertRequestOptions(options, typeConversionMap) {
-		let object;
-		for (const [property, type, option = options[property]] of Object.entries(typeConversionMap)) {
-			if (option) {
-				object = _isIterable(option) ? Object.fromEntries(option.entries()) : option;
-				options[property] = type == Object ? object : _construct(type, [object]);
+	static #convertRequestOptions(options) {
+		if (!_objectIsEmpty(options)) {
+			for (const [{ property, type, converter }, option = options[property]] of Transportr.#propertyTypeConverters) {
+				if (option instanceof type) {
+					options[property] = converter(option);
+				}
 			}
 		}
 

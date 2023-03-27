@@ -2,7 +2,8 @@
 	"env": {
 		"browser": true,
 		"es2022": true,
-		"node": true
+		"node": true,
+		"jest": true
 	},
 	"plugins": [
 		"compat",
@@ -15,7 +16,7 @@
 	],
 	"overrides": [],
 	"parserOptions": {
-		"ecmaVersion": 2022,
+		"ecmaVersion": "latest",
 		"sourceType": "module"
 	},
 	"rules": {
@@ -47,7 +48,9 @@
 				"object": "Object",
 				"responseHandler": "ResponseHandler",
 				"responseBody": "ResponseBody",
-				"ResponseStatus": "ResponseStatus"
+				"responseStatus": "ResponseStatus",
+				"typeConverter": "TypeConverter",
+				"propertyTypeConverter": "PropertyTypeConverter"
 			},
 			"structuredTags": {
 				"template": {
