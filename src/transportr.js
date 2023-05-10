@@ -1,12 +1,14 @@
-import { _objectMerge, _objectIsEmpty, _type } from '@d1g1tal/chrysalis';
+import { _objectIsEmpty, _objectMerge, _type } from '@d1g1tal/chrysalis';
 import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import { MediaType } from '@d1g1tal/media-type';
+import Subscribr from '@d1g1tal/subscribr';
 import HttpError from './http-error.js';
 import HttpMediaType from './http-media-type.js';
 import HttpRequestHeader from './http-request-headers.js';
 import HttpRequestMethod from './http-request-methods.js';
 import HttpResponseHeader from './http-response-headers.js';
 import ResponseStatus from './response-status.js';
+import SignalController from './signal-controller.js';
 
 /**
  * @template T extends ResponseBody
@@ -25,8 +27,21 @@ import ResponseStatus from './response-status.js';
  * @property {TypeConverter<FormData|URLSearchParams|Headers>} converter A function that converts the property on the {@link RequestOptions} object to the type T.
  */
 
+/**
+ * @typedef {Object} ContextEventHandler
+ * @property {*} context The context object.
+ * @property {function(*): void} eventHandler The event handler.
+ */
+
+/**
+ * @typedef {Object} EventRegistration
+ * @property {string} eventName The name of the event to subscribe to.
+ * @property {ContextEventHandler} contextEventHandler The context event handler.
+ */
+
 /** @typedef {Object.prototype.constructor} Type */
 /** @typedef {Object<string, (boolean|string|number|Array)>} JsonObject */
+/** @typedef {'configured'|'success'|'error'|'aborted'|'timeout'|'complete'} TransportrEvent */
 /** @typedef {Blob|ArrayBuffer|TypedArray|DataView|FormData|URLSearchParams|string|ReadableStream} RequestBody */
 /** @typedef {JsonObject|Document|DocumentFragment|Blob|ArrayBuffer|FormData|string|ReadableStream<Uint8Array>} ResponseBody */
 /** @typedef {'default'|'force-cache'|'no-cache'|'no-store'|'only-if-cached'|'reload'} RequestCache */
@@ -55,6 +70,7 @@ import ResponseStatus from './response-status.js';
  * @property {RequestRedirect} redirect A string indicating whether request follows redirects, results in an error upon encountering a redirect, or returns the redirect (in an opaque fashion). Sets request's redirect.
  * @property {string} referrer A string whose value is a same-origin URL, "about:client", or the empty string, to set request's referrer.
  * @property {ReferrerPolicy} referrerPolicy A referrer policy to set request's referrerPolicy.
+ * @property {number} timeout A number representing a timeout in milliseconds for request.
  * @property {AbortSignal} signal An AbortSignal to set request's signal.
  * @property {null} window Can only be null. Used to disassociate request from any Window.
  */
@@ -118,14 +134,17 @@ const _typeConverter = (data) => Object.fromEntries(Array.from(data.keys()).map(
  * A wrapper around the fetch API that makes it easier to make HTTP requests.
  *
  * @module {Transportr} transportr
- * @author d1g1tal <jason.dimeo@gmail.com>
+ * @author D1g1talEntr0py <jason.dimeo@gmail.com>
  */
 export default class Transportr {
 	/** @type {URL} */
 	#baseUrl;
 	/** @type {RequestOptions} */
 	#options;
-
+	/** @type {Subscribr} */
+	#subscribr;
+	/** @type {Subscribr} */
+	static #globalSubscribr = new Subscribr();
 	/**
 	 * @private
 	 * @static
@@ -141,7 +160,6 @@ export default class Transportr {
 		[_handleXml, new MediaType(HttpMediaType.XML).subtype],
 		[_handleReadableStream, new MediaType(HttpMediaType.BIN).subtype]
 	]);
-
 	/**
 	 * @private
 	 * @static
@@ -156,7 +174,7 @@ export default class Transportr {
 	/**
 	 * Create a new Transportr instance with the provided location or origin and context path.
 	 *
-	 * @param {URL | string | RequestOptions} [url=location.origin] The URL for {@link fetch} requests.
+	 * @param {URL|string|RequestOptions} [url=location.origin] The URL for {@link fetch} requests.
 	 * @param {RequestOptions} [options={}] The default {@link RequestOptions} for this instance.
 	 */
 	constructor(url = location.origin, options = {}) {
@@ -171,6 +189,42 @@ export default class Transportr {
 		this.#baseUrl = url;
 		// Merge the default options with the provided options.
 		this.#options = _objectMerge(Transportr.#defaultRequestOptions, Transportr.#convertRequestOptions(options));
+		this.#subscribr = new Subscribr();
+	}
+
+	/**
+	 * Returns a {@link SignalController} used for aborting requests.
+	 *
+	 * @static
+	 * @param {AbortSignal} [signal] The optional {@link AbortSignal} to used for chaining.
+	 * @returns {SignalController} A new {@link SignalController} instance.
+	 */
+	static signalController(signal) {
+		return new SignalController(signal);
+	}
+
+	/**
+	 * Returns a {@link EventRegistration} used for subscribing to global events.
+	 *
+	 * @static
+	 * @param {TransportrEvent} event The event to subscribe to.
+	 * @param {function(Event, *): void} handler The event handler.
+	 * @param {*} context The context to bind the handler to.
+	 * @returns {EventRegistration} A new {@link EventRegistration} instance.
+	 */
+	static register(event, handler, context) {
+		return Transportr.#globalSubscribr.subscribe(event, handler, context);
+	}
+
+	/**
+	 * Removes a {@link EventRegistration} from the global event handler.
+	 *
+	 * @static
+	 * @param {EventRegistration} eventRegistration The {@link EventRegistration} to remove.
+	 * @returns {boolean} True if the {@link EventRegistration} was removed, false otherwise.
+	 */
+	static unregister(eventRegistration) {
+		return Transportr.#globalSubscribr.unsubscribe(eventRegistration);
 	}
 
 	/**
@@ -258,6 +312,19 @@ export default class Transportr {
 	});
 
 	/**
+	 * @static
+	 * @constant {Object<string, TransportrEvent>}
+	 */
+	static Events = Object.freeze({
+		CONFIGURED: 'configured',
+		SUCCESS: 'success',
+		ERROR: 'error',
+		ABORTED: 'aborted',
+		TIMEOUT: 'timeout',
+		COMPLETE: 'complete'
+	});
+
+	/**
 	 * @private
 	 * @static
 	 * @type {RequestOptions}
@@ -275,9 +342,20 @@ export default class Transportr {
 		redirect: Transportr.RedirectPolicy.FOLLOW,
 		referrer: 'about:client',
 		referrerPolicy: Transportr.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
-		signal: null,
+		signal: undefined,
+		timeout: 10000,
 		window: null
 	});
+
+	/**
+	 * @private
+	 * @static
+	 * @type {Map<TransportrEvent, ResponseStatus>}
+	 */
+	static #eventResponseStatuses = new Map([
+		[Transportr.Events.ABORTED, new ResponseStatus(499, 'Aborted')],
+		[Transportr.Events.TIMEOUT, new ResponseStatus(504, 'Gateway Timeout')]
+	]);
 
 	/**
 	 * It returns the base {@link URL} for the API.
@@ -286,6 +364,28 @@ export default class Transportr {
 	 */
 	get baseUrl() {
 		return this.#baseUrl;
+	}
+
+	/**
+	 * Registers an event handler with a {@link Transportr} instance.
+	 *
+	 * @param {TransportrEvent} event The name of the event to listen for.
+	 * @param {function(Event, *): void} handler The function to call when the event is triggered.
+	 * @param {*} [context] The context to bind to the handler.
+	 * @returns {EventRegistration} An object that can be used to remove the event handler.
+	 */
+	register(event, handler, context) {
+		return this.#subscribr.subscribe(event, handler, context);
+	}
+
+	/**
+	 * Unregisters an event handler from a {@link Transportr} instance.
+	 *
+	 * @param {EventRegistration} eventRegistration The event registration to remove.
+	 * @returns {void}
+	 */
+	unregister(eventRegistration) {
+		this.#subscribr.unsubscribe(eventRegistration);
 	}
 
 	/**
@@ -541,33 +641,106 @@ export default class Transportr {
 	 * @returns {Promise<ResponseBody>} The response from the API call.
 	 */
 	async #request(path, userOptions = {}, options = {}, responseHandler) {
-		/** @type {RequestOptions} */
 		const requestOptions = _objectMerge(this.#options, Transportr.#convertRequestOptions(userOptions), options);
-		const errorMessage = `An error has occurred with your Request: ${path}`;
+		const url = Transportr.#createUrl(this.#baseUrl, path, requestOptions.searchParams);
+		const signalController = new SignalController(requestOptions.signal);
+		requestOptions.signal = signalController.signal;
 
 		// If the request method is POST, PUT, or PATCH, and the content type is JSON, then we need to serialize the body
 		if (Transportr.#needsSerialization(requestOptions.method, requestOptions.headers[HttpRequestHeader.CONTENT_TYPE])) {
-			requestOptions.body = JSON.stringify(requestOptions.body);
+			try {
+				requestOptions.body = JSON.stringify(requestOptions.body);
+			} catch (error) {
+				this.#throwHttpError(url, { cause: error });
+			}
 		} else if (requestOptions.method == HttpRequestMethod.GET && requestOptions.headers[HttpRequestHeader.CONTENT_TYPE] != '') {
 			// If the request method is GET, and the content type is not empty, then we need to remove the content type header
 			delete requestOptions.headers[HttpRequestHeader.CONTENT_TYPE];
 			delete requestOptions.body;
 		}
 
-		let response;
+		requestOptions.signal.addEventListener('abort', (event) => this.#publish(Transportr.Events.ABORTED, event));
+		requestOptions.signal.addEventListener('timeout', (event) => this.#publish(Transportr.Events.TIMEOUT, event));
+
+		this.#publish(Transportr.Events.CONFIGURED, requestOptions);
+
+		let result, timeoutId, response;
+
 		try {
-			response = await fetch(Transportr.#createUrl(this.#baseUrl, path, requestOptions.searchParams), requestOptions);
-		} catch (error) {
-			console.error(errorMessage, error);
-			throw new HttpError(errorMessage, { cause: error, status: response ? new ResponseStatus(response.status, response.statusText) : new ResponseStatus(0, 'Unknown') });
+			try {
+				timeoutId = setTimeout(() => {
+					const cause = new DOMException(`The call to '${url}' timed-out after ${requestOptions.timeout / 1000} seconds`, 'TimeoutError');
+					signalController.abort(cause);
+					requestOptions.signal.dispatchEvent(new CustomEvent(Transportr.Events.TIMEOUT, { detail: { url, options: requestOptions, cause } }));
+				}, requestOptions.timeout);
+
+				response = await fetch(url, requestOptions);
+			} catch (error) {
+				this.#throwHttpError(url, { cause: error, status: Transportr.#generateResponseStatusFromError(error.name, response) });
+			}
+
+			if (!response.ok) {
+				// The API call returned an error, check for a response entity and return it in the HttpError
+				this.#throwHttpError(url, { status: Transportr.#generateResponseStatusFromError('ResponseError', response), entity: await Transportr.#processResponse(response) });
+			}
+
+			result = await Transportr.#processResponse(response, responseHandler);
+
+			this.#publish(Transportr.Events.SUCCESS, result);
+		} finally {
+			clearTimeout(timeoutId);
+			if (!requestOptions.signal.aborted) {
+				this.#publish(Transportr.Events.COMPLETE, response);
+			}
 		}
 
-		if (!response.ok) {
-			// The API call returned an error, check for a reponse entity and return it in the HttpError
-			throw new HttpError(errorMessage, { status: new ResponseStatus(response.status, response.statusText), entity: await Transportr.#processResponse(response) });
-		}
+		return result;
+	}
 
-		return await Transportr.#processResponse(response, responseHandler);
+	/**
+	 * Handles an error by logging it and throwing it.
+	 *
+	 * @private
+	 * @param {URL} url The path to the resource you want to access.
+	 * @param {import('./http-error.js').HttpErrorOptions} options The options for the HttpError.
+	 * @returns {void}
+	 */
+	#throwHttpError(url, options) {
+		const error = new HttpError(`An error has occurred with your request to: '${url}'`, options);
+		this.#publish(Transportr.Events.ERROR, error);
+
+		throw error;
+	}
+
+	/**
+	 * Publishes an event to the global and instance subscribers.
+	 *
+	 * @private
+	 * @param {string} eventName The name of the event.
+	 * @param {Event} event The event object.
+	 * @param {*} data The data to pass to the subscribers.
+	 * @returns {void}
+	 */
+	#publish(eventName, event, data) {
+		Transportr.#globalSubscribr.publish(eventName, event, data);
+		this.#subscribr.publish(eventName, event, data);
+	}
+
+	/**
+	 * Generates a ResponseStatus object based on the error name and the response.
+	 *
+	 * @private
+	 * @static
+	 * @param {string} errorName The name of the error.
+	 * @param {Response} response The response object returned by the fetch API.
+	 * @returns {ResponseStatus} The response status object.
+	 */
+	static #generateResponseStatusFromError(errorName, response) {
+		switch (errorName) {
+			case 'AbortError': return Transportr.#eventResponseStatuses.get(Transportr.Events.ABORTED);
+			case 'TimeoutError': return Transportr.#eventResponseStatuses.get(Transportr.Events.TIMEOUT);
+			default: return response ? new ResponseStatus(response.status, response.statusText) : new ResponseStatus(500, 'Internal Server Error');
+		}
 	}
 
 	/**

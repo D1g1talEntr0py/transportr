@@ -20,6 +20,7 @@
 		"sourceType": "module"
 	},
 	"rules": {
+		"jsdoc/tag-lines": 0,
 		"no-prototype-builtins": "off",
 		"indent": [
 			"error",

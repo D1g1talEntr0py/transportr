@@ -11,7 +11,7 @@
 /**
  * @module HttpError
  * @extends Error
- * @author D1g1talEntr0py
+ * @author D1g1talEntr0py <jason.dimeo@gmail.com>
  */
 export default class HttpError extends Error {
 	/** @type {ResponseBody} */

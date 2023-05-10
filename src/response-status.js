@@ -2,7 +2,7 @@
  * A class that holds a status code and a status text
  *
  * @module ResponseStatus
- * @author D1g1talEntr0py
+ * @author D1g1talEntr0py <jason.dimeo@gmail.com>
  */
 export default class ResponseStatus {
 	/** @type {number} */
