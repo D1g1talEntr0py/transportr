@@ -78,6 +78,9 @@ test.concurrent('Transportr Add Event Listeners', async () => {
 	const completeEventListener = jest.fn();
 	transportr.register(Transportr.Events.COMPLETE, completeEventListener);
 
+	const allCompleteEventListener = jest.fn();
+	transportr.register(Transportr.Events.ALL_COMPLETE, allCompleteEventListener);
+
 	const image = await transportr.getImage('/240');
 	expect(typeof (image)).toBe('string');
 	expect(image).toMatch(/^blob:nodedata:([0-9a-fA-F]{8})-(([0-9a-fA-F]{4}-){3})([0-9a-fA-F]{12})$/i);
@@ -87,6 +90,7 @@ test.concurrent('Transportr Add Event Listeners', async () => {
 	expect(abortEventListener).toHaveBeenCalledTimes(0);
 	expect(timeoutEventListener).toHaveBeenCalledTimes(0);
 	expect(completeEventListener).toHaveBeenCalledTimes(1);
+	expect(allCompleteEventListener).toHaveBeenCalledTimes(0);
 });
 
 test.concurrent('SignalController Abort', async () => {

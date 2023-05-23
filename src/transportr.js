@@ -70,13 +70,27 @@ import SignalController from './signal-controller.js';
  * @property {RequestRedirect} redirect A string indicating whether request follows redirects, results in an error upon encountering a redirect, or returns the redirect (in an opaque fashion). Sets request's redirect.
  * @property {string} referrer A string whose value is a same-origin URL, "about:client", or the empty string, to set request's referrer.
  * @property {ReferrerPolicy} referrerPolicy A referrer policy to set request's referrerPolicy.
- * @property {number} timeout A number representing a timeout in milliseconds for request.
  * @property {AbortSignal} signal An AbortSignal to set request's signal.
+ * @property {number} timeout A number representing a timeout in milliseconds for request.
+ * @property {boolean} global If true, it will trigger the global event handlers. Defaults to true.
  * @property {null} window Can only be null. Used to disassociate request from any Window.
  */
 
 /** @type {RegExp} */
 const endsWithSlashRegEx = /\/$/;
+/** @type {string} */
+const charset = 'utf-8';
+
+const _mediaTypes = new Map([
+	[HttpMediaType.PNG, new MediaType(HttpMediaType.PNG)],
+	[HttpMediaType.TEXT, new MediaType(HttpMediaType.TEXT, { charset })],
+	[HttpMediaType.JSON, new MediaType(HttpMediaType.JSON, { charset })],
+	[HttpMediaType.HTML, new MediaType(HttpMediaType.HTML, { charset })],
+	[HttpMediaType.JAVA_SCRIPT, new MediaType(HttpMediaType.JAVA_SCRIPT, { charset })],
+	[HttpMediaType.CSS, new MediaType(HttpMediaType.CSS, { charset })],
+	[HttpMediaType.XML, new MediaType(HttpMediaType.XML, { charset })],
+	[HttpMediaType.BIN, new MediaType(HttpMediaType.BIN)]
+]);
 
 /** @type {ResponseHandler<string>} */
 const _handleText = async (response) => await response.text();
@@ -119,10 +133,10 @@ const _handleBuffer = async (response) => await response.arrayBuffer();
 const _handleReadableStream = async (response) => response.body;
 
 /** @type {ResponseHandler<Document>} */
-const _handleXml = async (response) => new DOMParser().parseFromString(await response.text(), HttpMediaType.XML.essence);
+const _handleXml = async (response) => new DOMParser().parseFromString(await response.text(), HttpMediaType.XML);
 
 /** @type {ResponseHandler<Document>} */
-const _handleHtml = async (response) => new DOMParser().parseFromString(await response.text(), HttpMediaType.HTML.essence);
+const _handleHtml = async (response) => new DOMParser().parseFromString(await response.text(), HttpMediaType.HTML);
 
 /** @type {ResponseHandler<DocumentFragment>} */
 const _handleHtmlFragment = async (response) => document.createRange().createContextualFragment(await response.text());
@@ -145,20 +159,22 @@ export default class Transportr {
 	#subscribr;
 	/** @type {Subscribr} */
 	static #globalSubscribr = new Subscribr();
+	/** @type {Array<SignalController>} */
+	static #activeRequests = [];
 	/**
 	 * @private
 	 * @static
 	 * @type {SetMultiMap<ResponseHandler<ResponseBody>, string>}
 	 */
 	static #contentTypeHandlers = new SetMultiMap([
-		[_handleImage, new MediaType(HttpMediaType.PNG).type],
-		[_handleText, new MediaType(HttpMediaType.TEXT).type],
-		[_handleJson, new MediaType(HttpMediaType.JSON).subtype],
-		[_handleHtml, new MediaType(HttpMediaType.HTML).subtype],
-		[_handleScript, new MediaType(HttpMediaType.JAVA_SCRIPT).subtype],
-		[_handleCss, new MediaType(HttpMediaType.CSS).subtype],
-		[_handleXml, new MediaType(HttpMediaType.XML).subtype],
-		[_handleReadableStream, new MediaType(HttpMediaType.BIN).subtype]
+		[_handleImage, _mediaTypes.get(HttpMediaType.PNG).type],
+		[_handleText, _mediaTypes.get(HttpMediaType.TEXT).type],
+		[_handleJson, _mediaTypes.get(HttpMediaType.JSON).subtype],
+		[_handleHtml, _mediaTypes.get(HttpMediaType.HTML).subtype],
+		[_handleScript, _mediaTypes.get(HttpMediaType.JAVA_SCRIPT).subtype],
+		[_handleCss, _mediaTypes.get(HttpMediaType.CSS).subtype],
+		[_handleXml, _mediaTypes.get(HttpMediaType.XML).subtype],
+		[_handleReadableStream, _mediaTypes.get(HttpMediaType.BIN).subtype]
 	]);
 	/**
 	 * @private
@@ -225,6 +241,24 @@ export default class Transportr {
 	 */
 	static unregister(eventRegistration) {
 		return Transportr.#globalSubscribr.unsubscribe(eventRegistration);
+	}
+
+	/**
+	 * Aborts all active requests.
+	 * This is useful for when the user navigates away from the current page.
+	 * This will also clear the {@link Transportr#activeRequests} array.
+	 * This is called automatically when the {@link Transportr#abort} method is called.
+	 *
+	 * @static
+	 * @returns {void}
+	 */
+	static abortAll() {
+		for (const signalController of this.#activeRequests) {
+			signalController.abort();
+		}
+
+		// Clear the array after aborting all requests
+		this.#activeRequests = [];
 	}
 
 	/**
@@ -321,7 +355,8 @@ export default class Transportr {
 		ERROR: 'error',
 		ABORTED: 'aborted',
 		TIMEOUT: 'timeout',
-		COMPLETE: 'complete'
+		COMPLETE: 'complete',
+		ALL_COMPLETE: 'all-complete'
 	});
 
 	/**
@@ -333,7 +368,7 @@ export default class Transportr {
 		body: null,
 		cache: Transportr.CachingPolicy.NO_STORE,
 		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
-		headers: { [HttpRequestHeader.CONTENT_TYPE]: Transportr.MediaType.JSON, [HttpRequestHeader.ACCEPT]: Transportr.MediaType.JSON },
+		headers: { [HttpRequestHeader.CONTENT_TYPE]: _mediaTypes.get(HttpMediaType.JSON).toString(), [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.JSON).toString() },
 		searchParams: {},
 		integrity: undefined,
 		keepalive: undefined,
@@ -344,6 +379,7 @@ export default class Transportr {
 		referrerPolicy: Transportr.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
 		signal: undefined,
 		timeout: 10000,
+		global: true,
 		window: null
 	});
 
@@ -496,7 +532,7 @@ export default class Transportr {
 	 * @returns {Promise<JsonObject>} A promise that resolves to the response body as a JSON object.
 	 */
 	async getJson(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JSON } }, _handleJson);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.JSON).toString() } }, _handleJson);
 	}
 
 	/**
@@ -508,7 +544,7 @@ export default class Transportr {
 	 * @returns {Promise<Document>} The result of the function call to #get.
 	 */
 	async getXml(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.XML } }, _handleXml);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.XML).toString() } }, _handleXml);
 	}
 
 	/**
@@ -522,7 +558,7 @@ export default class Transportr {
 	 * method of the promise returned by the `#get` method.
 	 */
 	async getHtml(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }, _handleHtml);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtml);
 	}
 
 	/**
@@ -535,7 +571,7 @@ export default class Transportr {
 	 * @returns {Promise<DocumentFragment>} A promise that resolves to an HTML fragment.
 	 */
 	async getHtmlFragment(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.HTML } }, _handleHtmlFragment);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtmlFragment);
 	}
 
 	/**
@@ -548,7 +584,7 @@ export default class Transportr {
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getScript(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JAVA_SCRIPT } }, _handleScript);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.JAVA_SCRIPT).toString() } }, _handleScript);
 	}
 
 	/**
@@ -560,7 +596,7 @@ export default class Transportr {
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getStylesheet(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.CSS } }, _handleCss);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.CSS).toString() } }, _handleCss);
 	}
 
 	/**
@@ -644,53 +680,60 @@ export default class Transportr {
 		const requestOptions = _objectMerge(this.#options, Transportr.#convertRequestOptions(userOptions), options);
 		const url = Transportr.#createUrl(this.#baseUrl, path, requestOptions.searchParams);
 		const signalController = new SignalController(requestOptions.signal);
+
+		Transportr.#activeRequests.push(signalController);
 		requestOptions.signal = signalController.signal;
 
-		// If the request method is POST, PUT, or PATCH, and the content type is JSON, then we need to serialize the body
 		if (Transportr.#needsSerialization(requestOptions.method, requestOptions.headers[HttpRequestHeader.CONTENT_TYPE])) {
 			try {
 				requestOptions.body = JSON.stringify(requestOptions.body);
 			} catch (error) {
-				this.#throwHttpError(url, { cause: error });
+				return Promise.reject(new HttpError(url, { cause: error })); // reject a promise instead of throwing error
 			}
 		} else if (requestOptions.method == HttpRequestMethod.GET && requestOptions.headers[HttpRequestHeader.CONTENT_TYPE] != '') {
-			// If the request method is GET, and the content type is not empty, then we need to remove the content type header
 			delete requestOptions.headers[HttpRequestHeader.CONTENT_TYPE];
 			delete requestOptions.body;
 		}
 
-		requestOptions.signal.addEventListener('abort', (event) => this.#publish(Transportr.Events.ABORTED, event));
-		requestOptions.signal.addEventListener('timeout', (event) => this.#publish(Transportr.Events.TIMEOUT, event));
+		requestOptions.signal.addEventListener('abort', (event) => this.#publish(Transportr.Events.ABORTED, requestOptions.global, event));
+		requestOptions.signal.addEventListener('timeout', (event) => this.#publish(Transportr.Events.TIMEOUT, requestOptions.global, event));
 
-		this.#publish(Transportr.Events.CONFIGURED, requestOptions);
+		this.#publish(Transportr.Events.CONFIGURED, requestOptions.global, requestOptions);
 
 		let result, timeoutId, response;
 
 		try {
-			try {
-				timeoutId = setTimeout(() => {
-					const cause = new DOMException(`The call to '${url}' timed-out after ${requestOptions.timeout / 1000} seconds`, 'TimeoutError');
-					signalController.abort(cause);
-					requestOptions.signal.dispatchEvent(new CustomEvent(Transportr.Events.TIMEOUT, { detail: { url, options: requestOptions, cause } }));
-				}, requestOptions.timeout);
+			timeoutId = setTimeout(() => {
+				const cause = new DOMException(`The call to '${url}' timed-out after ${requestOptions.timeout / 1000} seconds`, 'TimeoutError');
+				signalController.abort(cause);
+				requestOptions.signal.dispatchEvent(new CustomEvent(Transportr.Events.TIMEOUT, { detail: { url, options: requestOptions, cause } }));
+			}, requestOptions.timeout);
 
-				response = await fetch(url, requestOptions);
-			} catch (error) {
-				this.#throwHttpError(url, { cause: error, status: Transportr.#generateResponseStatusFromError(error.name, response) });
-			}
+			response = await fetch(url, requestOptions);
 
 			if (!response.ok) {
-				// The API call returned an error, check for a response entity and return it in the HttpError
-				this.#throwHttpError(url, { status: Transportr.#generateResponseStatusFromError('ResponseError', response), entity: await Transportr.#processResponse(response) });
+				// reject a promise instead of throwing error
+				return Promise.reject(this.#handleError(url, { status: Transportr.#generateResponseStatusFromError('ResponseError', response), entity: await this.#processResponse(response, url) }));
 			}
 
-			result = await Transportr.#processResponse(response, responseHandler);
-
-			this.#publish(Transportr.Events.SUCCESS, result);
+			result = await this.#processResponse(response, url, responseHandler);
+			this.#publish(Transportr.Events.SUCCESS, requestOptions.global, result);
+		} catch (error) {
+			return Promise.reject(this.#handleError(url, { cause: error, status: Transportr.#generateResponseStatusFromError(error.name, response) }));
 		} finally {
 			clearTimeout(timeoutId);
 			if (!requestOptions.signal.aborted) {
-				this.#publish(Transportr.Events.COMPLETE, response);
+				this.#publish(Transportr.Events.COMPLETE, requestOptions.global, response);
+
+				// Remove the completed request's signalController from the array
+				const index = Transportr.#activeRequests.indexOf(signalController);
+				if (index > -1) {
+					Transportr.#activeRequests.splice(index, 1);
+				}
+
+				if (Transportr.#activeRequests.length === 0) {
+					this.#publish(Transportr.Events.ALL_COMPLETE, requestOptions.global, response);
+				}
 			}
 		}
 
@@ -703,13 +746,13 @@ export default class Transportr {
 	 * @private
 	 * @param {URL} url The path to the resource you want to access.
 	 * @param {import('./http-error.js').HttpErrorOptions} options The options for the HttpError.
-	 * @returns {void}
+	 * @returns {HttpError} The HttpError.
 	 */
-	#throwHttpError(url, options) {
+	#handleError(url, options) {
 		const error = new HttpError(`An error has occurred with your request to: '${url}'`, options);
-		this.#publish(Transportr.Events.ERROR, error);
+		this.#publish(Transportr.Events.ERROR, true, error);
 
-		throw error;
+		return error;
 	}
 
 	/**
@@ -717,12 +760,15 @@ export default class Transportr {
 	 *
 	 * @private
 	 * @param {string} eventName The name of the event.
-	 * @param {Event} event The event object.
-	 * @param {*} data The data to pass to the subscribers.
+	 * @param {boolean} global Whether or not to publish the event to the global subscribers.
+	 * @param {Event} [event] The event object.
+	 * @param {*} [data] The data to pass to the subscribers.
 	 * @returns {void}
 	 */
-	#publish(eventName, event, data) {
-		Transportr.#globalSubscribr.publish(eventName, event, data);
+	#publish(eventName, global, event, data) {
+		if (global) {
+			Transportr.#globalSubscribr.publish(eventName, event, data);
+		}
 		this.#subscribr.publish(eventName, event, data);
 	}
 
@@ -751,13 +797,15 @@ export default class Transportr {
 	 * @static
 	 * @async
 	 * @param {Response} response - The response object returned by the fetch API.
+	 * @param {URL} url - The path to the resource you want to access. Used for error handling.
 	 * @param {ResponseHandler<ResponseBody>} [handler] - The handler to use for processing the response.
 	 * @returns {Promise<ResponseBody>} The response is being returned.
 	 */
-	static async #processResponse(response, handler) {
+	async #processResponse(response, url, handler) {
 		try {
+			let mediaType;
 			if (!handler) {
-				const mediaType = new MediaType(response.headers.get(HttpResponseHeader.CONTENT_TYPE));
+				mediaType = MediaType.parse(response.headers.get(HttpResponseHeader.CONTENT_TYPE));
 
 				if (mediaType) {
 					for (const [responseHandler, contentTypes] of Transportr.#contentTypeHandlers) {
@@ -771,9 +819,8 @@ export default class Transportr {
 
 			return (handler ?? _handleText)(response);
 		} catch (error) {
-			const errorMessage = 'Unable to process response.';
-			console.error(errorMessage, error, response);
-			throw new HttpError(errorMessage, { cause: error });
+			console.error('Unable to process response.', error, response);
+			return Promise.reject(this.#handleError(url, { cause: error }));
 		}
 	}
 
@@ -790,8 +837,10 @@ export default class Transportr {
 	 * appended to the end of the pathname.
 	 */
 	static #createUrl(url, path, searchParams = {}) {
-		// Create the object URL with a relative or absolute path
-		url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
+		if (path) {
+			// Create the object URL with a relative or absolute path
+			url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
+		}
 
 		Object.entries(searchParams).forEach(([key, value]) => url.searchParams.append(key, value));
 
@@ -809,7 +858,7 @@ export default class Transportr {
 	 * @returns {boolean} `true` if the request body needs to be serialized, `false` otherwise.
 	 */
 	static #needsSerialization(method, contentType) {
-		return contentType == HttpMediaType.JSON && [HttpRequestMethod.POST, HttpRequestMethod.PUT, HttpRequestMethod.PATCH].includes(method);
+		return (_mediaTypes.get(contentType) ?? new MediaType(contentType)).essence == HttpMediaType.JSON && [HttpRequestMethod.POST, HttpRequestMethod.PUT, HttpRequestMethod.PATCH].includes(method);
 	}
 
 	/**
