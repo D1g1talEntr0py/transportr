@@ -378,7 +378,7 @@ export default class Transportr {
 		referrer: 'about:client',
 		referrerPolicy: Transportr.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
 		signal: undefined,
-		timeout: 10000,
+		timeout: 30000,
 		global: true,
 		window: null
 	});

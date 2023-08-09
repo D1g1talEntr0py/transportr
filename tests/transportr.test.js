@@ -51,8 +51,8 @@ test.concurrent('Transportr XML', async () => {
 test.concurrent('Transportr Image', async () => {
 	globalThis.location = new URL('https://picsum.photos');
 
-	const imageTransportr = new Transportr();
-	const image = await imageTransportr.getImage('/240');
+	const imageTransportr = new Transportr(globalThis.location, { searchParams: { blur: 2 } });
+	const image = await imageTransportr.getImage('/240', { searchParams: { blur: 5, greyscale: true } });
 	expect(typeof(image)).toBe('string');
 	expect(image).toMatch(/^blob:nodedata:([0-9a-fA-F]{8})-(([0-9a-fA-F]{4}-){3})([0-9a-fA-F]{12})$/i);
 });

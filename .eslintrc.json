@@ -21,6 +21,7 @@
 	},
 	"rules": {
 		"jsdoc/tag-lines": 0,
+		"jsdoc/no-defaults": 0,
 		"no-unused-vars": "off",
 		"no-prototype-builtins": "off",
 		"indent": [
