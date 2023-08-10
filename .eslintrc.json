@@ -41,7 +41,11 @@
 		],
 		"semi": [
 			"error",
-			"always"
+			"always",
+			{
+				"omitLastInOneLineBlock": true,
+				"omitLastInOneLineClassBody": true
+			}
 		]
 	},
 	"settings": {

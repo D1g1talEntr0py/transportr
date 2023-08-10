@@ -429,8 +429,8 @@ export default class Transportr {
 	 * the specified options, where the method is GET.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource you want to get.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource you want to get.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response of the request.
 	 */
 	async get(path, options) {
@@ -441,9 +441,9 @@ export default class Transportr {
 	 * This function makes a POST request to the given path with the given body and options.
 	 *
 	 * @async
-	 * @param {string} path - The path to the endpoint you want to call.
-	 * @param {RequestBody} body - The body of the request.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the endpoint you want to call.
+	 * @param {RequestBody} body The body of the request.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response body.
 	 */
 	async post(path, body, options) {
@@ -455,8 +455,8 @@ export default class Transportr {
 	 * the specified options, where the method is PUT.
 	 *
 	 * @async
-	 * @param {string} path - The path to the endpoint you want to call.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the endpoint you want to call.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} The return value of the #request method.
 	 */
 	async put(path, options) {
@@ -467,8 +467,8 @@ export default class Transportr {
 	 * It takes a path and options, and returns a request with the method set to PATCH.
 	 *
 	 * @async
-	 * @param {string} path - The path to the endpoint you want to hit.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the endpoint you want to hit.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response of the request.
 	 */
 	async patch(path, options) {
@@ -479,8 +479,8 @@ export default class Transportr {
 	 * It takes a path and options, and returns a request with the method set to DELETE.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource you want to access.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource you want to access.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} The result of the request.
 	 */
 	async delete(path, options) {
@@ -491,8 +491,8 @@ export default class Transportr {
 	 * Returns the response headers of a request to the given path.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource you want to access.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource you want to access.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response object.
 	 */
 	async head(path, options) {
@@ -503,8 +503,8 @@ export default class Transportr {
 	 * It takes a path and options, and returns a request with the method set to OPTIONS.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} The return value of the #request method.
 	 */
 	async options(path, options) {
@@ -515,8 +515,8 @@ export default class Transportr {
 	 * It takes a path and options, and makes a request to the server.
 	 *
 	 * @async
-	 * @param {string} path - The path to the endpoint you want to hit.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the endpoint you want to hit.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} The return value of the function is the return value of the function that is passed to the `then` method of the promise returned by the `fetch` method.
 	 */
 	async request(path, options) {
@@ -527,8 +527,8 @@ export default class Transportr {
 	 * It gets a JSON resource from the server.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options object to pass to the request.
+	 * @param {string} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options object to pass to the request.
 	 * @returns {Promise<JsonObject>} A promise that resolves to the response body as a JSON object.
 	 */
 	async getJson(path, options) {
@@ -539,8 +539,8 @@ export default class Transportr {
 	 * It gets the XML representation of the resource at the given path.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource you want to get.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource you want to get.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<Document>} The result of the function call to #get.
 	 */
 	async getXml(path, options) {
@@ -552,8 +552,8 @@ export default class Transportr {
 	 *
 	 * @todo Add way to return portion of the retrieved HTML using a selector. Like jQuery.
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<Document>} The return value of the function is the return value of the function passed to the `then`
 	 * method of the promise returned by the `#get` method.
 	 */
@@ -564,10 +564,10 @@ export default class Transportr {
 	/**
 	 * It returns a promise that resolves to the HTML fragment at the given path.
 	 *
-	 * @todo - Add way to return portion of the retrieved HTML using a selector. Like jQuery.
+	 * @todo Add way to return portion of the retrieved HTML using a selector. Like jQuery.
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<DocumentFragment>} A promise that resolves to an HTML fragment.
 	 */
 	async getHtmlFragment(path, options) {
@@ -579,8 +579,8 @@ export default class Transportr {
 	 * CORS is enabled by default.
 	 *
 	 * @async
-	 * @param {string} path - The path to the script.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the script.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getScript(path, options) {
@@ -591,8 +591,8 @@ export default class Transportr {
 	 * Gets a stylesheet from the server, and adds it as a {@link Blob} {@link URL}.
 	 *
 	 * @async
-	 * @param {string} path - The path to the stylesheet.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the stylesheet.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getStylesheet(path, options) {
@@ -603,8 +603,8 @@ export default class Transportr {
 	 * It returns a blob from the specified path.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<Blob>} A promise that resolves to a blob.
 	 */
 	async getBlob(path, options) {
@@ -615,8 +615,8 @@ export default class Transportr {
 	 * It returns a promise that resolves to an object URL.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string|RequestOptions} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<string>} A promise that resolves to an object URL.
 	 */
 	async getImage(path, options) {
@@ -627,8 +627,8 @@ export default class Transportr {
 	 * It gets a buffer from the specified path
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ArrayBuffer>} A promise that resolves to a buffer.
 	 */
 	async getBuffer(path, options) {
@@ -639,8 +639,8 @@ export default class Transportr {
 	 * It returns a readable stream of the response body from the specified path.
 	 *
 	 * @async
-	 * @param {string} path - The path to the resource.
-	 * @param {RequestOptions} [options] - The options for the request.
+	 * @param {string} [path] The path to the resource.
+	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ReadableStream<Uint8Array>>} A readable stream.
 	 */
 	async getStream(path, options) {
@@ -653,13 +653,15 @@ export default class Transportr {
 	 *
 	 * @private
 	 * @async
-	 * @param {string} path - The path to the endpoint you want to call.
-	 * @param {RequestOptions} [userOptions] - The options passed to the public function to use for the request.
-	 * @param {RequestOptions} [options] - The options for the request.
-	 * @param {ResponseHandler<ResponseBody>} [responseHandler] - A function that will be called with the response object.
+	 * @param {string} [path] The path to the endpoint you want to call.
+	 * @param {RequestOptions} [userOptions] The options passed to the public function to use for the request.
+	 * @param {RequestOptions} [options] The options for the request.
+	 * @param {ResponseHandler<ResponseBody>} [responseHandler] A function that will be called with the response object.
 	 * @returns {Promise<ResponseBody>} The result of the #request method.
 	 */
 	async #get(path, userOptions, options, responseHandler) {
+		delete userOptions?.method;
+
 		return this.#request(path, userOptions, options, responseHandler);
 	}
 
@@ -669,14 +671,19 @@ export default class Transportr {
 	 *
 	 * @private
 	 * @async
-	 * @param {string} path - The path to the resource you want to access.
-	 * @param {RequestOptions} [userOptions={}] - The options passed to the public function to use for the request.
-	 * @param {RequestOptions} [options={}] - The options to use for the request.
-	 * @param {ResponseHandler<ResponseBody>} [responseHandler] - A function that will be called with the response body as a parameter. This
+	 * @param {string} [path] The path to the resource you want to access.
+	 * @param {RequestOptions} [userOptions={}] The options passed to the public function to use for the request.
+	 * @param {RequestOptions} [options={}] The options to use for the request.
+	 * @param {ResponseHandler<ResponseBody>} [responseHandler] A function that will be called with the response body as a parameter. This
 	 * is useful if you want to do something with the response body before returning it.
 	 * @returns {Promise<ResponseBody>} The response from the API call.
 	 */
 	async #request(path, userOptions = {}, options = {}, responseHandler) {
+		if (_type(path) == Object) {
+			userOptions = path;
+			path = undefined;
+		}
+
 		const requestOptions = _objectMerge(this.#options, Transportr.#convertRequestOptions(userOptions), options);
 		const url = Transportr.#createUrl(this.#baseUrl, path, requestOptions.searchParams);
 		const signalController = new SignalController(requestOptions.signal);
@@ -796,9 +803,9 @@ export default class Transportr {
 	 * @private
 	 * @static
 	 * @async
-	 * @param {Response} response - The response object returned by the fetch API.
-	 * @param {URL} url - The path to the resource you want to access. Used for error handling.
-	 * @param {ResponseHandler<ResponseBody>} [handler] - The handler to use for processing the response.
+	 * @param {Response} response The response object returned by the fetch API.
+	 * @param {URL} url The path to the resource you want to access. Used for error handling.
+	 * @param {ResponseHandler<ResponseBody>} [handler] The handler to use for processing the response.
 	 * @returns {Promise<ResponseBody>} The response is being returned.
 	 */
 	async #processResponse(response, url, handler) {
@@ -830,21 +837,25 @@ export default class Transportr {
 	 *
 	 * @private
 	 * @static
-	 * @param {URL} url - The URL to use as a base.
-	 * @param {string} path - The path to the resource. This can be a relative path or a full URL.
-	 * @param {Object<string, string>} [searchParams={}] - An object containing the query parameters to be added to the URL.
+	 * @param {URL} url The URL to use as a base.
+	 * @param {string} [path] The path to the resource. This can be a relative path or a full URL.
+	 * @param {Object<string, string>} [searchParams={}] An object containing the query parameters to be added to the URL.
 	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
 	 * appended to the end of the pathname.
 	 */
 	static #createUrl(url, path, searchParams = {}) {
+		let _url;
 		if (path) {
 			// Create the object URL with a relative or absolute path
-			url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
+			_url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
+		} else {
+			// Create a new URL object from the existing URL
+			_url = new URL(url);
 		}
 
-		Object.entries(searchParams).forEach(([key, value]) => url.searchParams.append(key, value));
+		Object.entries(searchParams).forEach(([key, value]) => _url.searchParams.append(key, value));
 
-		return url;
+		return _url;
 	}
 
 	/**
@@ -853,8 +864,8 @@ export default class Transportr {
 	 *
 	 * @private
 	 * @static
-	 * @param {RequestMethod} method - The HTTP request method.
-	 * @param {HttpMediaType} contentType - The headers of the request.
+	 * @param {RequestMethod} method The HTTP request method.
+	 * @param {HttpMediaType} contentType The headers of the request.
 	 * @returns {boolean} `true` if the request body needs to be serialized, `false` otherwise.
 	 */
 	static #needsSerialization(method, contentType) {
@@ -863,7 +874,7 @@ export default class Transportr {
 
 	/**
 	 *
-	 * @param {RequestOptions} options - The options passed to the public function to use for the request.
+	 * @param {RequestOptions} options The options passed to the public function to use for the request.
 	 * @returns {RequestOptions} The options to use for the request.
 	 */
 	static #convertRequestOptions(options) {
