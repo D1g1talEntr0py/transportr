@@ -5,7 +5,7 @@ test('Global Event Listener', async () => {
 	const imageTransportr = new Transportr('https://picsum.photos');
 
 	const globalConfiguredEventHandler = jest.fn();
-	Transportr.register(Transportr.Events.CONFIGURED, globalConfiguredEventHandler);
+	Transportr.register(Transportr.RequestEvents.CONFIGURED, globalConfiguredEventHandler);
 
 	const image = await imageTransportr.getImage('/320/240');
 

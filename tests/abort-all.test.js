@@ -1,6 +1,5 @@
-import { describe, beforeAll, expect, jest } from '@jest/globals';
+import { beforeAll, describe, expect, jest } from '@jest/globals';
 import Transportr from '../src/transportr.js';
-import SignalController from '../src/signal-controller.js';
 
 describe('Transportr', () => {
 	/** @type {Transportr} */
@@ -21,8 +20,8 @@ describe('Transportr', () => {
 	});
 
 	it('should cancel all requests when abortAll is called', async () => {
-		// Spy on SignalController.abort
-		const abortSpy = jest.spyOn(SignalController.prototype, 'abort');
+		const abortedEventListener = jest.fn();
+		transportr.register(Transportr.RequestEvents.ABORTED, abortedEventListener);
 
 		// Initiate multiple requests
 		transportr.getImage('/320/240');
@@ -33,10 +32,7 @@ describe('Transportr', () => {
 		Transportr.abortAll();
 
 		// Ensure all requests have been cancelled
-		expect(abortSpy).toHaveBeenCalledTimes(3);
-
-		// Clean up the spy
-		abortSpy.mockRestore();
+		expect(abortedEventListener).toHaveBeenCalledTimes(3);
 	});
 
 	afterAll(() => {

@@ -5,25 +5,25 @@ test('All Complete Event', async () => {
 	const transportr = new Transportr('https://picsum.photos');
 
 	const configuredEventListener = jest.fn();
-	transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
+	transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
 
 	const successEventListener = jest.fn();
-	transportr.register(Transportr.Events.SUCCESS, successEventListener);
+	transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
 
 	const errorEventListener = jest.fn();
-	transportr.register(Transportr.Events.ERROR, errorEventListener);
+	transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
 
 	const abortEventListener = jest.fn();
-	transportr.register(Transportr.Events.ABORTED, abortEventListener);
+	transportr.register(Transportr.RequestEvents.ABORTED, abortEventListener);
 
 	const timeoutEventListener = jest.fn();
-	transportr.register(Transportr.Events.TIMEOUT, timeoutEventListener);
+	transportr.register(Transportr.RequestEvents.TIMEOUT, timeoutEventListener);
 
 	const completeEventListener = jest.fn();
-	transportr.register(Transportr.Events.COMPLETE, completeEventListener);
+	transportr.register(Transportr.RequestEvents.COMPLETE, completeEventListener);
 
 	const allCompleteEventListener = jest.fn();
-	transportr.register(Transportr.Events.ALL_COMPLETE, allCompleteEventListener);
+	transportr.register(Transportr.RequestEvents.ALL_COMPLETE, allCompleteEventListener);
 
 	try {
 		const results = await Promise.allSettled([transportr.getImage('/240'), transportr.getImage('/360'), transportr.getImage('/480')]);

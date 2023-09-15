@@ -1,6 +1,4 @@
-import { _objectIsEmpty, _objectMerge, _type } from '@d1g1tal/chrysalis';
 import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
-import { MediaType } from '@d1g1tal/media-type';
 import Subscribr from '@d1g1tal/subscribr';
 import HttpError from './http-error.js';
 import HttpMediaType from './http-media-type.js';
@@ -8,23 +6,15 @@ import HttpRequestHeader from './http-request-headers.js';
 import HttpRequestMethod from './http-request-methods.js';
 import HttpResponseHeader from './http-response-headers.js';
 import ResponseStatus from './response-status.js';
-import SignalController from './signal-controller.js';
+import ParameterMap from './parameter-map.js';
+import AbortSignal from './abort-signal.js';
+import { MediaType } from '@d1g1tal/media-type';
+import { _objectMerge, _objectIsEmpty, _type } from '@d1g1tal/chrysalis';
+import { mediaTypes, endsWithSlashRegEx, RequestEvents, SignalEvents, abortEvent, requestBodyMethods } from './constants.js';
 
 /**
  * @template T extends ResponseBody
  * @typedef {function(Response): Promise<T>} ResponseHandler<T>
- */
-
-/**
- * @template T
- * @typedef {function(T): Object<string, *>} TypeConverter<T>
- */
-
-/**
- * @typedef {Object} PropertyTypeConverter
- * @property {string} property The name of the property on the {@link RequestOptions} object.
- * @property {Type} type The type of the property on the {@link RequestOptions} object.
- * @property {TypeConverter<FormData|URLSearchParams|Headers>} converter A function that converts the property on the {@link RequestOptions} object to the type T.
  */
 
 /**
@@ -76,22 +66,6 @@ import SignalController from './signal-controller.js';
  * @property {null} window Can only be null. Used to disassociate request from any Window.
  */
 
-/** @type {RegExp} */
-const endsWithSlashRegEx = /\/$/;
-/** @type {string} */
-const charset = 'utf-8';
-
-const _mediaTypes = new Map([
-	[HttpMediaType.PNG, new MediaType(HttpMediaType.PNG)],
-	[HttpMediaType.TEXT, new MediaType(HttpMediaType.TEXT, { charset })],
-	[HttpMediaType.JSON, new MediaType(HttpMediaType.JSON, { charset })],
-	[HttpMediaType.HTML, new MediaType(HttpMediaType.HTML, { charset })],
-	[HttpMediaType.JAVA_SCRIPT, new MediaType(HttpMediaType.JAVA_SCRIPT, { charset })],
-	[HttpMediaType.CSS, new MediaType(HttpMediaType.CSS, { charset })],
-	[HttpMediaType.XML, new MediaType(HttpMediaType.XML, { charset })],
-	[HttpMediaType.BIN, new MediaType(HttpMediaType.BIN)]
-]);
-
 /** @type {ResponseHandler<string>} */
 const _handleText = async (response) => await response.text();
 
@@ -141,9 +115,6 @@ const _handleHtml = async (response) => new DOMParser().parseFromString(await re
 /** @type {ResponseHandler<DocumentFragment>} */
 const _handleHtmlFragment = async (response) => document.createRange().createContextualFragment(await response.text());
 
-/** @type {TypeConverter<FormData|URLSearchParams>} */
-const _typeConverter = (data) => Object.fromEntries(Array.from(data.keys()).map((key, index, keys, value = data.getAll(key)) => [key, value.length > 1 ? value : value[0]]));
-
 /**
  * A wrapper around the fetch API that makes it easier to make HTTP requests.
  *
@@ -159,32 +130,18 @@ export default class Transportr {
 	#subscribr;
 	/** @type {Subscribr} */
 	static #globalSubscribr = new Subscribr();
-	/** @type {Array<SignalController>} */
-	static #activeRequests = [];
-	/**
-	 * @private
-	 * @static
-	 * @type {SetMultiMap<ResponseHandler<ResponseBody>, string>}
-	 */
+	/** @type {Set<AbortSignal>} */
+	static #activeRequests = new Set();
+	/** @type {SetMultiMap<ResponseHandler<ResponseBody>, string>} */
 	static #contentTypeHandlers = new SetMultiMap([
-		[_handleImage, _mediaTypes.get(HttpMediaType.PNG).type],
-		[_handleText, _mediaTypes.get(HttpMediaType.TEXT).type],
-		[_handleJson, _mediaTypes.get(HttpMediaType.JSON).subtype],
-		[_handleHtml, _mediaTypes.get(HttpMediaType.HTML).subtype],
-		[_handleScript, _mediaTypes.get(HttpMediaType.JAVA_SCRIPT).subtype],
-		[_handleCss, _mediaTypes.get(HttpMediaType.CSS).subtype],
-		[_handleXml, _mediaTypes.get(HttpMediaType.XML).subtype],
-		[_handleReadableStream, _mediaTypes.get(HttpMediaType.BIN).subtype]
-	]);
-	/**
-	 * @private
-	 * @static
-	 * @type {Set<PropertyTypeConverter>}
-	 */
-	static #propertyTypeConverters = new Set([
-		[{ property: 'body', type: FormData, converter: _typeConverter }],
-		[{ property: 'searchParams', type: URLSearchParams, converter: _typeConverter }],
-		[{ property: 'headers', type: Headers, converter: Object.fromEntries }]
+		[_handleImage, mediaTypes.get(HttpMediaType.PNG).type],
+		[_handleText, mediaTypes.get(HttpMediaType.TEXT).type],
+		[_handleJson, mediaTypes.get(HttpMediaType.JSON).subtype],
+		[_handleHtml, mediaTypes.get(HttpMediaType.HTML).subtype],
+		[_handleScript, mediaTypes.get(HttpMediaType.JAVA_SCRIPT).subtype],
+		[_handleCss, mediaTypes.get(HttpMediaType.CSS).subtype],
+		[_handleXml, mediaTypes.get(HttpMediaType.XML).subtype],
+		[_handleReadableStream, mediaTypes.get(HttpMediaType.BIN).subtype]
 	]);
 
 	/**
@@ -193,72 +150,12 @@ export default class Transportr {
 	 * @param {URL|string|RequestOptions} [url=location.origin] The URL for {@link fetch} requests.
 	 * @param {RequestOptions} [options={}] The default {@link RequestOptions} for this instance.
 	 */
-	constructor(url = location.origin, options = {}) {
-		const type = _type(url);
-		if (type == Object) {
-			options = url;
-			url = location.origin;
-		} else if (type != URL) {
-			url = url.startsWith('/') ? new URL(url, location.origin) : new URL(url);
-		}
+	constructor(url = globalThis.location.origin, options = {}) {
+		if (_type(url) == Object) { [ url, options ] = [ globalThis.location.origin, url ] }
 
-		this.#baseUrl = url;
-		// Merge the default options with the provided options.
-		this.#options = _objectMerge(Transportr.#defaultRequestOptions, Transportr.#convertRequestOptions(options));
+		this.#baseUrl = Transportr.#getBaseUrl(url);
+		this.#options = Transportr.#createOptions(options, Transportr.#defaultRequestOptions);
 		this.#subscribr = new Subscribr();
-	}
-
-	/**
-	 * Returns a {@link SignalController} used for aborting requests.
-	 *
-	 * @static
-	 * @param {AbortSignal} [signal] The optional {@link AbortSignal} to used for chaining.
-	 * @returns {SignalController} A new {@link SignalController} instance.
-	 */
-	static signalController(signal) {
-		return new SignalController(signal);
-	}
-
-	/**
-	 * Returns a {@link EventRegistration} used for subscribing to global events.
-	 *
-	 * @static
-	 * @param {TransportrEvent} event The event to subscribe to.
-	 * @param {function(Event, *): void} handler The event handler.
-	 * @param {*} context The context to bind the handler to.
-	 * @returns {EventRegistration} A new {@link EventRegistration} instance.
-	 */
-	static register(event, handler, context) {
-		return Transportr.#globalSubscribr.subscribe(event, handler, context);
-	}
-
-	/**
-	 * Removes a {@link EventRegistration} from the global event handler.
-	 *
-	 * @static
-	 * @param {EventRegistration} eventRegistration The {@link EventRegistration} to remove.
-	 * @returns {boolean} True if the {@link EventRegistration} was removed, false otherwise.
-	 */
-	static unregister(eventRegistration) {
-		return Transportr.#globalSubscribr.unsubscribe(eventRegistration);
-	}
-
-	/**
-	 * Aborts all active requests.
-	 * This is useful for when the user navigates away from the current page.
-	 * This will also clear the {@link Transportr#activeRequests} array.
-	 * This is called automatically when the {@link Transportr#abort} method is called.
-	 *
-	 * @static
-	 * @returns {void}
-	 */
-	static abortAll() {
-		for (const signalController of this.#activeRequests) {
-			signalController.abort();
-		}
-
-		// Clear the array after aborting all requests
-		this.#activeRequests = [];
 	}
 
 	/**
@@ -349,15 +246,7 @@ export default class Transportr {
 	 * @static
 	 * @constant {Object<string, TransportrEvent>}
 	 */
-	static Events = Object.freeze({
-		CONFIGURED: 'configured',
-		SUCCESS: 'success',
-		ERROR: 'error',
-		ABORTED: 'aborted',
-		TIMEOUT: 'timeout',
-		COMPLETE: 'complete',
-		ALL_COMPLETE: 'all-complete'
-	});
+	static RequestEvents = RequestEvents;
 
 	/**
 	 * @private
@@ -368,7 +257,7 @@ export default class Transportr {
 		body: null,
 		cache: Transportr.CachingPolicy.NO_STORE,
 		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
-		headers: { [HttpRequestHeader.CONTENT_TYPE]: _mediaTypes.get(HttpMediaType.JSON).toString(), [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.JSON).toString() },
+		headers: { [HttpRequestHeader.CONTENT_TYPE]: mediaTypes.get(HttpMediaType.JSON).toString(), [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.JSON).toString() },
 		searchParams: {},
 		integrity: undefined,
 		keepalive: undefined,
@@ -389,9 +278,60 @@ export default class Transportr {
 	 * @type {Map<TransportrEvent, ResponseStatus>}
 	 */
 	static #eventResponseStatuses = new Map([
-		[Transportr.Events.ABORTED, new ResponseStatus(499, 'Aborted')],
-		[Transportr.Events.TIMEOUT, new ResponseStatus(504, 'Gateway Timeout')]
+		[RequestEvents.ABORTED, new ResponseStatus(499, 'Aborted')],
+		[RequestEvents.TIMEOUT, new ResponseStatus(504, 'Gateway Timeout')]
 	]);
+
+	/**
+	 * Returns a {@link AbortSignal} used for aborting requests.
+	 *
+	 * @static
+	 * @returns {AbortSignal} A new {@link AbortSignal} instance.
+	 */
+	static abortSignal() {
+		return new AbortSignal();
+	}
+
+	/**
+	 * Returns a {@link EventRegistration} used for subscribing to global events.
+	 *
+	 * @static
+	 * @param {TransportrEvent} event The event to subscribe to.
+	 * @param {function(Event, *): void} handler The event handler.
+	 * @param {*} context The context to bind the handler to.
+	 * @returns {EventRegistration} A new {@link EventRegistration} instance.
+	 */
+	static register(event, handler, context) {
+		return Transportr.#globalSubscribr.subscribe(event, handler, context);
+	}
+
+	/**
+	 * Removes a {@link EventRegistration} from the global event handler.
+	 *
+	 * @static
+	 * @param {EventRegistration} eventRegistration The {@link EventRegistration} to remove.
+	 * @returns {boolean} True if the {@link EventRegistration} was removed, false otherwise.
+	 */
+	static unregister(eventRegistration) {
+		return Transportr.#globalSubscribr.unsubscribe(eventRegistration);
+	}
+
+	/**
+	 * Aborts all active requests.
+	 * This is useful for when the user navigates away from the current page.
+	 * This will also clear the {@link Transportr#activeRequests} set.
+	 *
+	 * @static
+	 * @returns {void}
+	 */
+	static abortAll() {
+		for (const abortSignal of this.#activeRequests) {
+			abortSignal.abort(abortEvent);
+		}
+
+		// Clear the array after aborting all requests
+		this.#activeRequests.clear();
+	}
 
 	/**
 	 * It returns the base {@link URL} for the API.
@@ -500,15 +440,17 @@ export default class Transportr {
 	}
 
 	/**
-	 * It takes a path and options, and returns a request with the method set to OPTIONS.
+	 * It returns a promise that resolves to the allowed request methods for the given resource path.
 	 *
 	 * @async
 	 * @param {string} [path] The path to the resource.
 	 * @param {RequestOptions} [options] The options for the request.
-	 * @returns {Promise<ResponseBody>} The return value of the #request method.
+	 * @returns {Promise<string[]>} A promise that resolves to an array of allowed request methods for this resource.
 	 */
 	async options(path, options) {
-		return this.#request(path, options, { method: HttpRequestMethod.OPTIONS });
+		const response = await this.#request(path, options, { method: HttpRequestMethod.OPTIONS });
+
+		return response.headers.get('allow').split(',').map((method) => method.trim());
 	}
 
 	/**
@@ -516,11 +458,11 @@ export default class Transportr {
 	 *
 	 * @async
 	 * @param {string} [path] The path to the endpoint you want to hit.
-	 * @param {RequestOptions} [options] The options for the request.
+	 * @param {RequestOptions} [userOptions] The options for the request.
 	 * @returns {Promise<ResponseBody>} The return value of the function is the return value of the function that is passed to the `then` method of the promise returned by the `fetch` method.
 	 */
-	async request(path, options) {
-		return this.#request(path, options);
+	async request(path, userOptions) {
+		return this.#request(path, userOptions, {}, (response) => response);
 	}
 
 	/**
@@ -532,7 +474,7 @@ export default class Transportr {
 	 * @returns {Promise<JsonObject>} A promise that resolves to the response body as a JSON object.
 	 */
 	async getJson(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.JSON).toString() } }, _handleJson);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.JSON).toString() } }, _handleJson);
 	}
 
 	/**
@@ -544,7 +486,7 @@ export default class Transportr {
 	 * @returns {Promise<Document>} The result of the function call to #get.
 	 */
 	async getXml(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.XML).toString() } }, _handleXml);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.XML).toString() } }, _handleXml);
 	}
 
 	/**
@@ -558,7 +500,7 @@ export default class Transportr {
 	 * method of the promise returned by the `#get` method.
 	 */
 	async getHtml(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtml);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtml);
 	}
 
 	/**
@@ -571,7 +513,7 @@ export default class Transportr {
 	 * @returns {Promise<DocumentFragment>} A promise that resolves to an HTML fragment.
 	 */
 	async getHtmlFragment(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtmlFragment);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtmlFragment);
 	}
 
 	/**
@@ -584,7 +526,7 @@ export default class Transportr {
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getScript(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.JAVA_SCRIPT).toString() } }, _handleScript);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.JAVA_SCRIPT).toString() } }, _handleScript);
 	}
 
 	/**
@@ -596,7 +538,7 @@ export default class Transportr {
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getStylesheet(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: _mediaTypes.get(HttpMediaType.CSS).toString() } }, _handleCss);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.CSS).toString() } }, _handleCss);
 	}
 
 	/**
@@ -660,9 +602,7 @@ export default class Transportr {
 	 * @returns {Promise<ResponseBody>} The result of the #request method.
 	 */
 	async #get(path, userOptions, options, responseHandler) {
-		delete userOptions?.method;
-
-		return this.#request(path, userOptions, options, responseHandler);
+		return this.#request(path, userOptions, { ...options, method: HttpRequestMethod.GET }, responseHandler);
 	}
 
 	/**
@@ -679,67 +619,49 @@ export default class Transportr {
 	 * @returns {Promise<ResponseBody>} The response from the API call.
 	 */
 	async #request(path, userOptions = {}, options = {}, responseHandler) {
-		if (_type(path) == Object) {
-			userOptions = path;
-			path = undefined;
-		}
-
-		const requestOptions = _objectMerge(this.#options, Transportr.#convertRequestOptions(userOptions), options);
-		const url = Transportr.#createUrl(this.#baseUrl, path, requestOptions.searchParams);
-		const signalController = new SignalController(requestOptions.signal);
-
-		Transportr.#activeRequests.push(signalController);
-		requestOptions.signal = signalController.signal;
-
-		if (Transportr.#needsSerialization(requestOptions.method, requestOptions.headers[HttpRequestHeader.CONTENT_TYPE])) {
-			try {
-				requestOptions.body = JSON.stringify(requestOptions.body);
-			} catch (error) {
-				return Promise.reject(new HttpError(url, { cause: error })); // reject a promise instead of throwing error
-			}
-		} else if (requestOptions.method == HttpRequestMethod.GET && requestOptions.headers[HttpRequestHeader.CONTENT_TYPE] != '') {
-			delete requestOptions.headers[HttpRequestHeader.CONTENT_TYPE];
-			delete requestOptions.body;
-		}
-
-		requestOptions.signal.addEventListener('abort', (event) => this.#publish(Transportr.Events.ABORTED, requestOptions.global, event));
-		requestOptions.signal.addEventListener('timeout', (event) => this.#publish(Transportr.Events.TIMEOUT, requestOptions.global, event));
-
-		this.#publish(Transportr.Events.CONFIGURED, requestOptions.global, requestOptions);
-
-		let result, timeoutId, response;
+		if (_type(path) == Object) { [ path, userOptions ] = [ undefined, path ] }
 
 		try {
-			timeoutId = setTimeout(() => {
-				const cause = new DOMException(`The call to '${url}' timed-out after ${requestOptions.timeout / 1000} seconds`, 'TimeoutError');
-				signalController.abort(cause);
-				requestOptions.signal.dispatchEvent(new CustomEvent(Transportr.Events.TIMEOUT, { detail: { url, options: requestOptions, cause } }));
-			}, requestOptions.timeout);
+			options = this.#processRequestOptions(userOptions, options);
+		} catch (cause) {
+			return Promise.reject(new HttpError('Unable to process request options', { cause }));
+		}
 
-			response = await fetch(url, requestOptions);
+		this.#publish({ name: RequestEvents.CONFIGURED, data: options, global: options.global });
 
-			if (!response.ok) {
-				// reject a promise instead of throwing error
-				return Promise.reject(this.#handleError(url, { status: Transportr.#generateResponseStatusFromError('ResponseError', response), entity: await this.#processResponse(response, url) }));
+		const url = Transportr.#createUrl(this.#baseUrl, path);
+		if (_type(options.signal) != AbortSignal) { options.signal = new AbortSignal(options.signal) }
+		options.signal.addEventListener(SignalEvents.ABORT, (event) => this.#publish({ name: RequestEvents.ABORTED, event, global: options.global }));
+		options.signal.addEventListener(SignalEvents.TIMEOUT, (event) => this.#publish({ name: RequestEvents.TIMEOUT, event, global: options.global }));
+
+		Transportr.#activeRequests.add(options.signal);
+
+		let response, result;
+		try {
+			// Proxy the options and trap for the signal to be accessed to start the timeout timer
+			response = await fetch(url, new Proxy(options, { get: Transportr.#requestOptionsProxyHandler(options.timeout) }));
+
+			if (!responseHandler && response.status != 204 && response.headers.has(HttpResponseHeader.CONTENT_TYPE)) {
+				responseHandler = this.#getResponseHandler(response.headers.get(HttpResponseHeader.CONTENT_TYPE));
 			}
 
-			result = await this.#processResponse(response, url, responseHandler);
-			this.#publish(Transportr.Events.SUCCESS, requestOptions.global, result);
+			result = await responseHandler?.(response) ?? response;
+
+			if (!response.ok) {
+				return Promise.reject(this.#handleError(url, { status: Transportr.#generateResponseStatusFromError('ResponseError', response), entity: result }));
+			}
+			this.#publish({ name: RequestEvents.SUCCESS, data: result, global: options.global });
 		} catch (error) {
 			return Promise.reject(this.#handleError(url, { cause: error, status: Transportr.#generateResponseStatusFromError(error.name, response) }));
 		} finally {
-			clearTimeout(timeoutId);
-			if (!requestOptions.signal.aborted) {
-				this.#publish(Transportr.Events.COMPLETE, requestOptions.global, response);
+			options.signal.clearTimeout();
+			if (!options.signal.aborted) {
+				this.#publish({ name: RequestEvents.COMPLETE, data: response, global: options.global });
 
-				// Remove the completed request's signalController from the array
-				const index = Transportr.#activeRequests.indexOf(signalController);
-				if (index > -1) {
-					Transportr.#activeRequests.splice(index, 1);
-				}
+				Transportr.#activeRequests.delete(options.signal);
 
-				if (Transportr.#activeRequests.length === 0) {
-					this.#publish(Transportr.Events.ALL_COMPLETE, requestOptions.global, response);
+				if (Transportr.#activeRequests.size === 0) {
+					this.#publish({ name: RequestEvents.ALL_COMPLETE, global: options.global });
 				}
 			}
 		}
@@ -748,35 +670,128 @@ export default class Transportr {
 	}
 
 	/**
-	 * Handles an error by logging it and throwing it.
+	 * Creates the options for a {@link Transportr} instance.
 	 *
 	 * @private
-	 * @param {URL} url The path to the resource you want to access.
-	 * @param {import('./http-error.js').HttpErrorOptions} options The options for the HttpError.
-	 * @returns {HttpError} The HttpError.
+	 * @static
+	 * @param {RequestOptions} userOptions The {@link RequestOptions} to convert.
+	 * @param {RequestOptions} options The default {@link RequestOptions}.
+	 * @returns {RequestOptions} The converted {@link RequestOptions}.
 	 */
-	#handleError(url, options) {
-		const error = new HttpError(`An error has occurred with your request to: '${url}'`, options);
-		this.#publish(Transportr.Events.ERROR, true, error);
-
-		return error;
+	static #createOptions({ body, headers: userHeaders, searchParams: userSearchParams, ...userOptions }, { headers, searchParams, ...options }) {
+		return _objectMerge(options, userOptions, {
+			body: [FormData, URLSearchParams, Object].includes(_type(body)) ? new ParameterMap(body) : body,
+			headers: Transportr.#mergeOptions(new Headers(), userHeaders, headers),
+			searchParams: Transportr.#mergeOptions(new URLSearchParams(), userSearchParams, searchParams)
+		});
 	}
 
 	/**
-	 * Publishes an event to the global and instance subscribers.
+	 * Merge the user options and request options into the target.
 	 *
 	 * @private
-	 * @param {string} eventName The name of the event.
-	 * @param {boolean} global Whether or not to publish the event to the global subscribers.
-	 * @param {Event} [event] The event object.
-	 * @param {*} [data] The data to pass to the subscribers.
-	 * @returns {void}
+	 * @static
+	 * @param {Headers|URLSearchParams|FormData} target The target to merge the options into.
+	 * @param {Headers|URLSearchParams|FormData|Object} userOption The user options to merge into the target.
+	 * @param {Headers|URLSearchParams|FormData|Object} requestOption The request options to merge into the target.
+	 * @returns {Headers|URLSearchParams} The target.
 	 */
-	#publish(eventName, global, event, data) {
-		if (global) {
-			Transportr.#globalSubscribr.publish(eventName, event, data);
+	static #mergeOptions(target, userOption = {}, requestOption = {}) {
+		for (const option of [userOption, requestOption]) {
+			for (const [name, value] of option.entries?.() ?? Object.entries(option)) {	target.set(name, value) }
 		}
-		this.#subscribr.publish(eventName, event, data);
+
+		return target;
+	}
+
+	/**
+	 * Merges the user options and request options with the instance options into a new object that is used for the request.
+	 *
+	 * @private
+	 * @param {RequestOptions} userOptions The user options to merge into the request options.
+	 * @param {RequestOptions} options The request options to merge into the user options.
+	 * @returns {RequestOptions} The merged options.
+	 */
+	#processRequestOptions({ body: userBody, headers: userHeaders, searchParams: userSearchParams, ...userOptions }, { headers, searchParams, ...options }) {
+		const requestOptions = _objectMerge(this.#options, userOptions, options, {
+			headers: Transportr.#mergeOptions(new Headers(this.#options.headers), userHeaders, headers),
+			searchParams: Transportr.#mergeOptions(new URLSearchParams(this.#options.searchParams), userSearchParams, searchParams)
+		});
+
+		if (requestBodyMethods.includes(requestOptions.method)) {
+			if ([ParameterMap, FormData, URLSearchParams, Object].includes(_type(userBody))) {
+				const contentType = requestOptions.headers.get(HttpRequestHeader.CONTENT_TYPE);
+				const mediaType = (mediaTypes.get(contentType) ?? MediaType.parse(contentType))?.subtype;
+				if (mediaType == HttpMediaType.MULTIPART_FORM_DATA) {
+					requestOptions.body = Transportr.#mergeOptions(new FormData(requestOptions.body), userBody);
+				} else if (mediaType == HttpMediaType.FORM) {
+					requestOptions.body = Transportr.#mergeOptions(new URLSearchParams(requestOptions.body), userBody);
+				} else if (mediaType.includes('json')) {
+					requestOptions.body = JSON.stringify(Transportr.#mergeOptions(new ParameterMap(requestOptions.body), userBody));
+				} else {
+					requestOptions.body = Transportr.#mergeOptions(new ParameterMap(requestOptions.body), userBody);
+				}
+			} else {
+				requestOptions.body = userBody;
+			}
+		} else {
+			requestOptions.headers.delete(HttpRequestHeader.CONTENT_TYPE);
+			if (!requestOptions.body?.isEmpty()) {
+				Transportr.#mergeOptions(requestOptions.searchParams, requestOptions.body);
+			}
+			requestOptions.body = undefined;
+		}
+
+		return requestOptions;
+	}
+
+	/**
+	 * Returns a Proxy of the options object that traps for 'signal' access.
+	 * If the signal has not been aborted, then it will return a new signal with a timeout.
+	 *
+	 * @private
+	 * @static
+	 * @param {number} timeout The timeout in milliseconds before the signal is aborted.
+	 * @returns {Proxy<RequestOptions>} A proxy for the options object.
+	 */
+	static #requestOptionsProxyHandler(timeout) {
+		return (target, property) => {
+			const value = Reflect.get(target, property);
+			return property == 'signal' && !value.aborted ? value.withTimeout(timeout) : value;
+		};
+	}
+
+	/**
+	 * It takes a url or a string, and returns a {@link URL} instance.
+	 * If the url is a string and starts with a slash, then the origin of the current page is used as the base url.
+	 *
+	 * @private
+	 * @static
+	 * @param {URL|string} url The URL to convert to a {@link URL} instance.
+	 * @returns {URL} A {@link URL} instance.
+	 * @throws {TypeError} If the url is not a string or {@link URL} instance.
+	 */
+	static #getBaseUrl(url) {
+		switch (_type(url)) {
+			case URL: return url;
+			case String: return new URL(url, url.startsWith('/') ? globalThis.location.origin : undefined);
+			default: throw new TypeError('Invalid URL');
+		}
+	}
+
+	/**
+	 * It takes a URL, a path, and a set of search parameters, and returns a new URL with the path and
+	 * search parameters applied.
+	 *
+	 * @private
+	 * @static
+	 * @param {URL} url The URL to use as a base.
+	 * @param {string} [path] The optional, relative path to the resource. This MUST be a relative path, otherwise, you should create a new {@link Transportr} instance.
+	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
+	 * appended to the end of the pathname.
+	 */
+	static #createUrl(url, path) {
+		return path ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(url);
 	}
 
 	/**
@@ -790,103 +805,64 @@ export default class Transportr {
 	 */
 	static #generateResponseStatusFromError(errorName, response) {
 		switch (errorName) {
-			case 'AbortError': return Transportr.#eventResponseStatuses.get(Transportr.Events.ABORTED);
-			case 'TimeoutError': return Transportr.#eventResponseStatuses.get(Transportr.Events.TIMEOUT);
+			case 'AbortError': return Transportr.#eventResponseStatuses.get(RequestEvents.ABORTED);
+			case 'TimeoutError': return Transportr.#eventResponseStatuses.get(RequestEvents.TIMEOUT);
 			default: return response ? new ResponseStatus(response.status, response.statusText) : new ResponseStatus(500, 'Internal Server Error');
 		}
 	}
 
 	/**
-	 * It takes a response and a handler, and if the handler is not defined, it tries to find a handler
-	 * based on the response's content type
+	 * Handles an error by logging it and throwing it.
 	 *
 	 * @private
-	 * @static
-	 * @async
-	 * @param {Response} response The response object returned by the fetch API.
-	 * @param {URL} url The path to the resource you want to access. Used for error handling.
-	 * @param {ResponseHandler<ResponseBody>} [handler] The handler to use for processing the response.
-	 * @returns {Promise<ResponseBody>} The response is being returned.
+	 * @param {URL} url The path to the resource you want to access.
+	 * @param {import('./http-error.js').HttpErrorOptions} options The options for the HttpError.
+	 * @returns {HttpError} The HttpError.
 	 */
-	async #processResponse(response, url, handler) {
-		try {
-			let mediaType;
-			if (!handler) {
-				mediaType = MediaType.parse(response.headers.get(HttpResponseHeader.CONTENT_TYPE));
+	#handleError(url, options) {
+		const error = new HttpError(`An error has occurred with your request to: '${url}'`, options);
+		this.#publish({ name: RequestEvents.ERROR, data: error });
 
-				if (mediaType) {
-					for (const [responseHandler, contentTypes] of Transportr.#contentTypeHandlers) {
-						if (contentTypes.has(mediaType.type) || contentTypes.has(mediaType.subtype)) {
-							handler = responseHandler;
-							break;
-						}
-					}
-				}
-			}
-
-			return (handler ?? _handleText)(response);
-		} catch (error) {
-			console.error('Unable to process response.', error, response);
-			return Promise.reject(this.#handleError(url, { cause: error }));
-		}
+		return error;
 	}
 
 	/**
-	 * It takes a URL, a path, and a set of search parameters, and returns a new URL with the path and
-	 * search parameters applied.
+	 * Publishes an event to the global and instance subscribers.
 	 *
 	 * @private
-	 * @static
-	 * @param {URL} url The URL to use as a base.
-	 * @param {string} [path] The path to the resource. This can be a relative path or a full URL.
-	 * @param {Object<string, string>} [searchParams={}] An object containing the query parameters to be added to the URL.
-	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
-	 * appended to the end of the pathname.
+	 * @param {Object} options The options for the event.
+	 * @param {string} options.name The name of the event.
+	 * @param {Event} [options.event] The event object.
+	 * @param {*} [options.data] The data to pass to the subscribers.
+	 * @param {boolean} [options.global=true] Whether or not to publish the event to the global subscribers.
+	 * @returns {void}
 	 */
-	static #createUrl(url, path, searchParams = {}) {
-		let _url;
-		if (path) {
-			// Create the object URL with a relative or absolute path
-			_url = path.startsWith('/') ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(path);
-		} else {
-			// Create a new URL object from the existing URL
-			_url = new URL(url);
-		}
-
-		Object.entries(searchParams).forEach(([key, value]) => _url.searchParams.append(key, value));
-
-		return _url;
+	#publish({ name, event = new CustomEvent(name), data, global = true } = {}) {
+		if (global) {	Transportr.#globalSubscribr.publish(name, event, data) }
+		this.#subscribr.publish(name, event, data);
 	}
 
 	/**
-	 * If the request method is POST, PUT, or PATCH, and the content type is JSON, then the request body
-	 * needs to be serialized.
+	 * Returns a response handler for the given content type.
 	 *
 	 * @private
-	 * @static
-	 * @param {RequestMethod} method The HTTP request method.
-	 * @param {HttpMediaType} contentType The headers of the request.
-	 * @returns {boolean} `true` if the request body needs to be serialized, `false` otherwise.
+	 * @param {string} contentType The content type of the response.
+	 * @returns {ResponseHandler<ResponseBody>} The response handler.
 	 */
-	static #needsSerialization(method, contentType) {
-		return (_mediaTypes.get(contentType) ?? new MediaType(contentType)).essence == HttpMediaType.JSON && [HttpRequestMethod.POST, HttpRequestMethod.PUT, HttpRequestMethod.PATCH].includes(method);
-	}
+	#getResponseHandler(contentType) {
+		let handler;
+		const mediaType = MediaType.parse(contentType);
 
-	/**
-	 *
-	 * @param {RequestOptions} options The options passed to the public function to use for the request.
-	 * @returns {RequestOptions} The options to use for the request.
-	 */
-	static #convertRequestOptions(options) {
-		if (!_objectIsEmpty(options)) {
-			for (const [{ property, type, converter }, option = options[property]] of Transportr.#propertyTypeConverters) {
-				if (option instanceof type) {
-					options[property] = converter(option);
+		if (mediaType) {
+			for (const [responseHandler, contentTypes] of Transportr.#contentTypeHandlers) {
+				if (contentTypes.has(mediaType.type) || contentTypes.has(mediaType.subtype)) {
+					handler = responseHandler;
+					break;
 				}
 			}
 		}
 
-		return options;
+		return handler;
 	}
 
 	/**

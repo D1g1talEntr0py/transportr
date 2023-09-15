@@ -2,11 +2,11 @@
 	"compilerOptions": {
 		"baseUrl": "./src",
 		"checkJs": false,
-		"module": "ES2022",
-		"target": "ES2022",
+		"module": "NodeNext",
+		"target": "ESNext",
 		"experimentalDecorators": true,
 		"allowSyntheticDefaultImports": true,
-		"moduleResolution": "NodeNext"
+		"moduleResolution": "NodeNext",
 	},
 	"include": [ "src/**/*" ],
 	"exclude": [ "node_modules", "dist" ]

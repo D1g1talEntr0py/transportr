@@ -57,7 +57,9 @@
 				"responseBody": "ResponseBody",
 				"responseStatus": "ResponseStatus",
 				"typeConverter": "TypeConverter",
-				"propertyTypeConverter": "PropertyTypeConverter"
+				"propertyTypeConverter": "PropertyTypeConverter",
+				"Iterable": "Iterable",
+				"IterableIterator": "IterableIterator"
 			},
 			"structuredTags": {
 				"template": {

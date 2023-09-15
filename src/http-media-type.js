@@ -61,6 +61,8 @@ const HttpMediaType = {
 	JSON: 'application/json',
 	/** JavaScript Object Notation LD Format */
 	JSON_LD: 'application/ld+json',
+	/** JavaScript Object Notation (JSON) Merge Patch */
+	JSON_MERGE_PATCH: 'application/merge-patch+json',
 	/** Musical Instrument Digital Interface (MIDI) */
 	MID: 'audio/midi',
 	/** Musical Instrument Digital Interface (MIDI) */
