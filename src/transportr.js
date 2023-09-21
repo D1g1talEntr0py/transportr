@@ -246,7 +246,7 @@ export default class Transportr {
 	 * @static
 	 * @constant {Object<string, TransportrEvent>}
 	 */
-	static RequestEvents = RequestEvents;
+	static Events = RequestEvents;
 
 	/**
 	 * @private
