@@ -1,11 +1,11 @@
-import { describe, beforeAll, afterAll, it, expect, jest, test } from '@jest/globals';
+import { describe, expect, it, jest, test } from '@jest/globals';
 import { DOMParser } from '@xmldom/xmldom';
 import HttpError from '../src/http-error.js';
-import Transportr from '../src/transportr.js';
-import HttpRequestHeader from '../src/http-request-headers.js';
-import HttpResponseHeader from '../src/http-response-headers.js';
 import HttpMediaType from '../src/http-media-type.js';
+import HttpRequestHeader from '../src/http-request-headers.js';
 import HttpRequestMethod from '../src/http-request-methods.js';
+import HttpResponseHeader from '../src/http-response-headers.js';
+import Transportr from '../src/transportr.js';
 
 describe('Transportr', () => {
 	describe('Transportr.prototype.constructor', () => {
@@ -300,25 +300,25 @@ describe('Transportr', () => {
 		const transportr = new Transportr('https://picsum.photos');
 
 		const configuredEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
+		transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
 
 		const successEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
+		transportr.register(Transportr.Events.SUCCESS, successEventListener);
 
 		const errorEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
+		transportr.register(Transportr.Events.ERROR, errorEventListener);
 
 		const abortEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ABORTED, abortEventListener);
+		transportr.register(Transportr.Events.ABORTED, abortEventListener);
 
 		const timeoutEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.TIMEOUT, timeoutEventListener);
+		transportr.register(Transportr.Events.TIMEOUT, timeoutEventListener);
 
 		const completeEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.COMPLETE, completeEventListener);
+		transportr.register(Transportr.Events.COMPLETE, completeEventListener);
 
 		const allCompleteEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ALL_COMPLETE, allCompleteEventListener);
+		transportr.register(Transportr.Events.ALL_COMPLETE, allCompleteEventListener);
 
 		const image = await transportr.getImage('/240');
 		expect(typeof (image)).toBe('string');
@@ -337,22 +337,22 @@ describe('Transportr', () => {
 		const transportr = new Transportr('https://picsum.photos');
 
 		const configuredEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
+		transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
 
 		const successEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
+		transportr.register(Transportr.Events.SUCCESS, successEventListener);
 
 		const errorEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
+		transportr.register(Transportr.Events.ERROR, errorEventListener);
 
 		const abortedEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ABORTED, abortedEventListener);
+		transportr.register(Transportr.Events.ABORTED, abortedEventListener);
 
 		const timeoutEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.TIMEOUT, timeoutEventListener);
+		transportr.register(Transportr.Events.TIMEOUT, timeoutEventListener);
 
 		const completeEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.COMPLETE, completeEventListener);
+		transportr.register(Transportr.Events.COMPLETE, completeEventListener);
 
 		const abortListener = jest.fn();
 		// Test adding an event listener to the signal
@@ -381,22 +381,22 @@ describe('Transportr', () => {
 		const transportr = new Transportr('https://picsum.photos');
 
 		const configuredEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
+		transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
 
 		const successEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
+		transportr.register(Transportr.Events.SUCCESS, successEventListener);
 
 		const errorEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
+		transportr.register(Transportr.Events.ERROR, errorEventListener);
 
 		const abortedEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ABORTED, abortedEventListener);
+		transportr.register(Transportr.Events.ABORTED, abortedEventListener);
 
 		const timeoutEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.TIMEOUT, timeoutEventListener);
+		transportr.register(Transportr.Events.TIMEOUT, timeoutEventListener);
 
 		const completeEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.COMPLETE, completeEventListener);
+		transportr.register(Transportr.Events.COMPLETE, completeEventListener);
 
 		const abortListener = jest.fn();
 		// Test adding an event listener to the signal
@@ -424,24 +424,24 @@ describe('Transportr', () => {
 		const transportr = new Transportr(url, { timeout });
 
 		const configuredEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
+		transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
 
 		const successEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
+		transportr.register(Transportr.Events.SUCCESS, successEventListener);
 
 		const errorEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
+		transportr.register(Transportr.Events.ERROR, errorEventListener);
 
 		const abortedEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ABORTED, abortedEventListener);
+		transportr.register(Transportr.Events.ABORTED, abortedEventListener);
 
 		const timeoutEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.TIMEOUT, timeoutEventListener);
+		transportr.register(Transportr.Events.TIMEOUT, timeoutEventListener);
 
 		const completeEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.COMPLETE, completeEventListener);
+		transportr.register(Transportr.Events.COMPLETE, completeEventListener);
 
-		transportr.register(Transportr.RequestEvents.TIMEOUT, (event) => {
+		transportr.register(Transportr.Events.TIMEOUT, (event) => {
 			expect(event).toBeInstanceOf(CustomEvent);
 			expect(event.target).toBeInstanceOf(globalThis.AbortSignal);
 			expect(event.target.aborted).toBe(true);
@@ -471,24 +471,24 @@ describe('Transportr', () => {
 		const transportr = new Transportr(url.origin, { timeout });
 
 		const configuredEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
+		transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
 
 		const successEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
+		transportr.register(Transportr.Events.SUCCESS, successEventListener);
 
 		const errorEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
+		transportr.register(Transportr.Events.ERROR, errorEventListener);
 
 		const abortedEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ABORTED, abortedEventListener);
+		transportr.register(Transportr.Events.ABORTED, abortedEventListener);
 
 		const timeoutEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.TIMEOUT, timeoutEventListener);
+		transportr.register(Transportr.Events.TIMEOUT, timeoutEventListener);
 
 		const completeEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.COMPLETE, completeEventListener);
+		transportr.register(Transportr.Events.COMPLETE, completeEventListener);
 
-		transportr.register(Transportr.RequestEvents.TIMEOUT, (event) => {
+		transportr.register(Transportr.Events.TIMEOUT, (event) => {
 			expect(event).toBeInstanceOf(CustomEvent);
 			expect(event.detail).toHaveProperty('timeout', timeout);
 			expect(event.detail).toHaveProperty('cause');

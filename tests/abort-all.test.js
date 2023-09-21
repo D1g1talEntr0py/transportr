@@ -21,7 +21,7 @@ describe('Transportr', () => {
 
 	it('should cancel all requests when abortAll is called', async () => {
 		const abortedEventListener = jest.fn();
-		transportr.register(Transportr.RequestEvents.ABORTED, abortedEventListener);
+		transportr.register(Transportr.Events.ABORTED, abortedEventListener);
 
 		// Initiate multiple requests
 		transportr.getImage('/320/240');

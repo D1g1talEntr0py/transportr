@@ -629,7 +629,7 @@ export default class Transportr {
 
 		this.#publish({ name: RequestEvents.CONFIGURED, data: options, global: options.global });
 
-		const url = Transportr.#createUrl(this.#baseUrl, path);
+		const url = Transportr.#createUrl(this.#baseUrl, path, options.searchParams);
 		if (_type(options.signal) != AbortSignal) { options.signal = new AbortSignal(options.signal) }
 		options.signal.addEventListener(SignalEvents.ABORT, (event) => this.#publish({ name: RequestEvents.ABORTED, event, global: options.global }));
 		options.signal.addEventListener(SignalEvents.TIMEOUT, (event) => this.#publish({ name: RequestEvents.TIMEOUT, event, global: options.global }));
@@ -736,7 +736,7 @@ export default class Transportr {
 			}
 		} else {
 			requestOptions.headers.delete(HttpRequestHeader.CONTENT_TYPE);
-			if (!requestOptions.body?.isEmpty()) {
+			if (requestOptions.body) {
 				Transportr.#mergeOptions(requestOptions.searchParams, requestOptions.body);
 			}
 			requestOptions.body = undefined;
@@ -787,11 +787,15 @@ export default class Transportr {
 	 * @static
 	 * @param {URL} url The URL to use as a base.
 	 * @param {string} [path] The optional, relative path to the resource. This MUST be a relative path, otherwise, you should create a new {@link Transportr} instance.
-	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter
-	 * appended to the end of the pathname.
+	 * @param {URLSearchParams} [searchParams] The optional search parameters to append to the URL.
+	 * @returns {URL} A new URL object with the pathname and origin of the url parameter, and the path parameter appended to the end of the pathname.
 	 */
-	static #createUrl(url, path) {
-		return path ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(url);
+	static #createUrl(url, path, searchParams) {
+		const requestUrl = path ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(url);
+
+		searchParams?.forEach((value, key) => requestUrl.searchParams.append(key, value));
+
+		return requestUrl;
 	}
 
 	/**
