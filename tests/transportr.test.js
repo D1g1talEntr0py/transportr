@@ -8,6 +8,8 @@ import HttpResponseHeader from '../src/http-response-headers.js';
 import Transportr from '../src/transportr.js';
 
 describe('Transportr', () => {
+	beforeEach(async () => await new Promise((_) => setTimeout(_, 1500)));
+
 	describe('Transportr.prototype.constructor', () => {
 		it.concurrent('should create a new Transportr instance', async () => {
 			const transportr = new Transportr('https://transportr.wiremockapi.cloud');
@@ -195,23 +197,6 @@ describe('Transportr', () => {
 			removeChildSpy.mockRestore();
 		});
 
-		// it.only('should make script GET request', async () => {
-		// 	globalThis.DOMParser = DOMParser;
-		// 	globalThis.document = new DOMParser().parseFromString('<!DOCTYPE html><html></html>', HttpMediaType.HTML);
-		// 	document.head = document.createElement('head');
-
-		// 	// globalThis.document.documentElement.appendChild(globalThis.document.createElement('head'));
-		// 	// globalThis.document.documentElement.appendChild(globalThis.document.createElement('head'));
-		// 	// globalThis.document.documentElement.appendChild(globalThis.document.createElement('body'));
-
-
-		// 	const options = { method: HttpRequestMethod.GET, headers: { [HttpRequestHeader.CONTENT_TYPE]: HttpMediaType.JAVA_SCRIPT, [HttpRequestHeader.ACCEPT]: HttpMediaType.JAVA_SCRIPT } };
-
-		// 	await new Transportr().getScript('/script/1');
-
-		// 	expect(document.head.childNodes[0]).toHaveProperty('src', 'https://transportr.wiremockapi.cloud/script/1');
-		// });
-
 		it.concurrent('should make a PUT request', async () => {
 			const body = { id: 678910, value: 'jkl-mno-pqr' };
 			const options = { method: HttpRequestMethod.PUT, body };
@@ -332,50 +317,6 @@ describe('Transportr', () => {
 		expect(allCompleteEventListener).toHaveBeenCalledTimes(0);
 	});
 
-	test.concurrent('AbortSignal Abort', async () => {
-		const signal = Transportr.abortSignal();
-		const transportr = new Transportr('https://picsum.photos');
-
-		const configuredEventListener = jest.fn();
-		transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
-
-		const successEventListener = jest.fn();
-		transportr.register(Transportr.Events.SUCCESS, successEventListener);
-
-		const errorEventListener = jest.fn();
-		transportr.register(Transportr.Events.ERROR, errorEventListener);
-
-		const abortedEventListener = jest.fn();
-		transportr.register(Transportr.Events.ABORTED, abortedEventListener);
-
-		const timeoutEventListener = jest.fn();
-		transportr.register(Transportr.Events.TIMEOUT, timeoutEventListener);
-
-		const completeEventListener = jest.fn();
-		transportr.register(Transportr.Events.COMPLETE, completeEventListener);
-
-		const abortListener = jest.fn();
-		// Test adding an event listener to the signal
-		signal.addEventListener('abort', abortListener);
-
-		const imagePromise = transportr.getImage('/320/240', { signal });
-		signal.abort();
-
-		await expect(async () => await imagePromise).rejects.toThrow(HttpError);
-		await expect(async () => await imagePromise).rejects.toThrow(/[AbortError]/);
-		expect(signal.aborted).toBe(true);
-		expect(signal.reason).toBeInstanceOf(DOMException);
-		expect(signal.reason).toHaveProperty('name', 'AbortError');
-
-		expect(configuredEventListener).toHaveBeenCalledTimes(1);
-		expect(successEventListener).toHaveBeenCalledTimes(0);
-		expect(errorEventListener).toHaveBeenCalledTimes(1);
-		expect(abortedEventListener).toHaveBeenCalledTimes(1);
-		expect(timeoutEventListener).toHaveBeenCalledTimes(0);
-		expect(completeEventListener).toHaveBeenCalledTimes(0);
-		expect(abortListener).toHaveBeenCalledTimes(1);
-	});
-
 	test.concurrent('AbortController Abort', async () => {
 		const controller = new AbortController();
 		const transportr = new Transportr('https://picsum.photos');
@@ -464,11 +405,8 @@ describe('Transportr', () => {
 		expect(completeEventListener).toHaveBeenCalledTimes(0);
 	});
 
-	test.concurrent('Abort Signal Request Timeout', async () => {
-		const timeout = 1;
-		const signal = Transportr.abortSignal();
-		const url = new URL('https://picsum.photos/320/240');
-		const transportr = new Transportr(url.origin, { timeout });
+	test.concurrent('No Timeout', async () => {
+		const transportr = new Transportr('https://transportr.wiremockapi.cloud', { timeout: Infinity });
 
 		const configuredEventListener = jest.fn();
 		transportr.register(Transportr.Events.CONFIGURED, configuredEventListener);
@@ -488,27 +426,16 @@ describe('Transportr', () => {
 		const completeEventListener = jest.fn();
 		transportr.register(Transportr.Events.COMPLETE, completeEventListener);
 
-		transportr.register(Transportr.Events.TIMEOUT, (event) => {
-			expect(event).toBeInstanceOf(CustomEvent);
-			expect(event.detail).toHaveProperty('timeout', timeout);
-			expect(event.detail).toHaveProperty('cause');
-			expect(event.detail.cause).toBeInstanceOf(DOMException);
-			expect(event.detail.cause).toHaveProperty('name', 'TimeoutError');
-		});
+		const json = await transportr.getJson('/delayed');
 
-		const imagePromise = transportr.getImage('/320/240', { signal });
-
-		await expect(async () => await imagePromise).rejects.toThrow(HttpError);
-		await expect(async () => await imagePromise).rejects.toThrow(/[TimeoutError]/);
-		expect(signal.aborted).toBe(true);
-		expect(signal.reason).toBeInstanceOf(DOMException);
-		expect(signal.reason).toHaveProperty('name', 'TimeoutError');
+		expect(typeof (json)).toBe('object');
+		expect(json).toEqual({ 'text': 'This will appear after about 2 seconds!' });
 
 		expect(configuredEventListener).toHaveBeenCalledTimes(1);
-		expect(successEventListener).toHaveBeenCalledTimes(0);
-		expect(errorEventListener).toHaveBeenCalledTimes(1);
-		expect(abortedEventListener).toHaveBeenCalledTimes(1);
-		expect(timeoutEventListener).toHaveBeenCalledTimes(1);
-		expect(completeEventListener).toHaveBeenCalledTimes(0);
+		expect(successEventListener).toHaveBeenCalledTimes(1);
+		expect(errorEventListener).toHaveBeenCalledTimes(0);
+		expect(abortedEventListener).toHaveBeenCalledTimes(0);
+		expect(timeoutEventListener).toHaveBeenCalledTimes(0);
+		expect(completeEventListener).toHaveBeenCalledTimes(1);
 	});
 });

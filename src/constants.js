@@ -1,4 +1,5 @@
 import HttpRequestMethod from './http-request-methods.js';
+import ResponseStatus from './response-status.js';
 import { MediaType } from '@d1g1tal/media-type';
 import HttpMediaType from './http-media-type.js';
 
@@ -47,4 +48,14 @@ const _abortEvent = new CustomEvent(SignalEvents.ABORT, { detail: { cause: new D
 
 const requestBodyMethods = [ HttpRequestMethod.POST, HttpRequestMethod.PUT, HttpRequestMethod.PATCH ];
 
-export { defaultCharset, endsWithSlashRegEx, mediaTypes, RequestEvents, SignalEvents, _abortEvent as abortEvent, requestBodyMethods };
+const internalServerError = new ResponseStatus(500, 'Internal Server Error');
+
+const eventResponseStatuses = Object.freeze({
+	[RequestEvents.ABORTED]: new ResponseStatus(499, 'Aborted'),
+	[RequestEvents.TIMEOUT]: new ResponseStatus(504, 'Request Timeout')
+});
+
+/** @type {ProxyHandler<import('./transportr.js').RequestOptions>} */
+const abortSignalProxyHandler = { get: (target, property) => property == 'signal' ? target.signal.timeout(target.timeout) : Reflect.get(target, property) };
+
+export { defaultCharset, endsWithSlashRegEx, mediaTypes, RequestEvents, SignalEvents, _abortEvent as abortEvent, requestBodyMethods, internalServerError, eventResponseStatuses, abortSignalProxyHandler };

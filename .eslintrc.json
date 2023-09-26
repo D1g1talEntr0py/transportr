@@ -59,7 +59,8 @@
 				"typeConverter": "TypeConverter",
 				"propertyTypeConverter": "PropertyTypeConverter",
 				"Iterable": "Iterable",
-				"IterableIterator": "IterableIterator"
+				"IterableIterator": "IterableIterator",
+				"ProxyHandler": "ProxyHandler"
 			},
 			"structuredTags": {
 				"template": {

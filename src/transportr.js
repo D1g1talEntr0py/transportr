@@ -1,16 +1,16 @@
 import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import Subscribr from '@d1g1tal/subscribr';
+import AbortSignal from './abort-signal.js';
 import HttpError from './http-error.js';
 import HttpMediaType from './http-media-type.js';
 import HttpRequestHeader from './http-request-headers.js';
 import HttpRequestMethod from './http-request-methods.js';
 import HttpResponseHeader from './http-response-headers.js';
-import ResponseStatus from './response-status.js';
 import ParameterMap from './parameter-map.js';
-import AbortSignal from './abort-signal.js';
+import ResponseStatus from './response-status.js';
 import { MediaType } from '@d1g1tal/media-type';
-import { _objectMerge, _objectIsEmpty, _type } from '@d1g1tal/chrysalis';
-import { mediaTypes, endsWithSlashRegEx, RequestEvents, SignalEvents, abortEvent, requestBodyMethods } from './constants.js';
+import { _objectMerge, _type } from '@d1g1tal/chrysalis';
+import { RequestEvents, abortEvent, abortSignalProxyHandler, endsWithSlashRegEx, eventResponseStatuses, internalServerError, mediaTypes, requestBodyMethods } from './constants.js';
 
 /**
  * @template T extends ResponseBody
@@ -271,26 +271,6 @@ export default class Transportr {
 		global: true,
 		window: null
 	});
-
-	/**
-	 * @private
-	 * @static
-	 * @type {Map<TransportrEvent, ResponseStatus>}
-	 */
-	static #eventResponseStatuses = new Map([
-		[RequestEvents.ABORTED, new ResponseStatus(499, 'Aborted')],
-		[RequestEvents.TIMEOUT, new ResponseStatus(504, 'Gateway Timeout')]
-	]);
-
-	/**
-	 * Returns a {@link AbortSignal} used for aborting requests.
-	 *
-	 * @static
-	 * @returns {AbortSignal} A new {@link AbortSignal} instance.
-	 */
-	static abortSignal() {
-		return new AbortSignal();
-	}
 
 	/**
 	 * Returns a {@link EventRegistration} used for subscribing to global events.
@@ -597,12 +577,12 @@ export default class Transportr {
 	 * @async
 	 * @param {string} [path] The path to the endpoint you want to call.
 	 * @param {RequestOptions} [userOptions] The options passed to the public function to use for the request.
-	 * @param {RequestOptions} [options] The options for the request.
+	 * @param {RequestOptions} [options={}] The options for the request.
 	 * @param {ResponseHandler<ResponseBody>} [responseHandler] A function that will be called with the response object.
 	 * @returns {Promise<ResponseBody>} The result of the #request method.
 	 */
-	async #get(path, userOptions, options, responseHandler) {
-		return this.#request(path, userOptions, { ...options, method: HttpRequestMethod.GET }, responseHandler);
+	async #get(path, userOptions, options = {}, responseHandler) {
+		return this.#request(path, userOptions, Object.assign(options, { method: HttpRequestMethod.GET }), responseHandler);
 	}
 
 	/**
@@ -621,38 +601,30 @@ export default class Transportr {
 	async #request(path, userOptions = {}, options = {}, responseHandler) {
 		if (_type(path) == Object) { [ path, userOptions ] = [ undefined, path ] }
 
-		try {
-			options = this.#processRequestOptions(userOptions, options);
-		} catch (cause) {
-			return Promise.reject(new HttpError('Unable to process request options', { cause }));
-		}
+		options = this.#processRequestOptions(userOptions, options);
 
-		this.#publish({ name: RequestEvents.CONFIGURED, data: options, global: options.global });
-
+		let response;
 		const url = Transportr.#createUrl(this.#baseUrl, path, options.searchParams);
-		if (_type(options.signal) != AbortSignal) { options.signal = new AbortSignal(options.signal) }
-		options.signal.addEventListener(SignalEvents.ABORT, (event) => this.#publish({ name: RequestEvents.ABORTED, event, global: options.global }));
-		options.signal.addEventListener(SignalEvents.TIMEOUT, (event) => this.#publish({ name: RequestEvents.TIMEOUT, event, global: options.global }));
-
-		Transportr.#activeRequests.add(options.signal);
-
-		let response, result;
 		try {
-			// Proxy the options and trap for the signal to be accessed to start the timeout timer
-			response = await fetch(url, new Proxy(options, { get: Transportr.#requestOptionsProxyHandler(options.timeout) }));
+			Transportr.#activeRequests.add(options.signal);
+			// Proxy the options and trap for the `signal` to be accessed to start the timeout timer
+			response = await fetch(url, new Proxy(options, abortSignalProxyHandler));
 
-			if (!responseHandler && response.status != 204 && response.headers.has(HttpResponseHeader.CONTENT_TYPE)) {
+			if (!responseHandler && response.status != 204) {
 				responseHandler = this.#getResponseHandler(response.headers.get(HttpResponseHeader.CONTENT_TYPE));
 			}
 
-			result = await responseHandler?.(response) ?? response;
+			const result = await responseHandler?.(response) ?? response;
 
 			if (!response.ok) {
 				return Promise.reject(this.#handleError(url, { status: Transportr.#generateResponseStatusFromError('ResponseError', response), entity: result }));
 			}
+
 			this.#publish({ name: RequestEvents.SUCCESS, data: result, global: options.global });
-		} catch (error) {
-			return Promise.reject(this.#handleError(url, { cause: error, status: Transportr.#generateResponseStatusFromError(error.name, response) }));
+
+			return result;
+		} catch (cause) {
+			return Promise.reject(this.#handleError(url, { cause, status: Transportr.#generateResponseStatusFromError(cause.name, response) }));
 		} finally {
 			options.signal.clearTimeout();
 			if (!options.signal.aborted) {
@@ -665,8 +637,6 @@ export default class Transportr {
 				}
 			}
 		}
-
-		return result;
 	}
 
 	/**
@@ -742,23 +712,13 @@ export default class Transportr {
 			requestOptions.body = undefined;
 		}
 
-		return requestOptions;
-	}
+		requestOptions.signal = new AbortSignal(requestOptions.signal)
+			.onAbort((event) => this.#publish({ name: RequestEvents.ABORTED, event, global: requestOptions.global }))
+			.onTimeout((event) => this.#publish({ name: RequestEvents.TIMEOUT, event, global: requestOptions.global }));
 
-	/**
-	 * Returns a Proxy of the options object that traps for 'signal' access.
-	 * If the signal has not been aborted, then it will return a new signal with a timeout.
-	 *
-	 * @private
-	 * @static
-	 * @param {number} timeout The timeout in milliseconds before the signal is aborted.
-	 * @returns {Proxy<RequestOptions>} A proxy for the options object.
-	 */
-	static #requestOptionsProxyHandler(timeout) {
-		return (target, property) => {
-			const value = Reflect.get(target, property);
-			return property == 'signal' && !value.aborted ? value.withTimeout(timeout) : value;
-		};
+		this.#publish({ name: RequestEvents.CONFIGURED, data: requestOptions, global: requestOptions.global });
+
+		return requestOptions;
 	}
 
 	/**
@@ -809,9 +769,9 @@ export default class Transportr {
 	 */
 	static #generateResponseStatusFromError(errorName, response) {
 		switch (errorName) {
-			case 'AbortError': return Transportr.#eventResponseStatuses.get(RequestEvents.ABORTED);
-			case 'TimeoutError': return Transportr.#eventResponseStatuses.get(RequestEvents.TIMEOUT);
-			default: return response ? new ResponseStatus(response.status, response.statusText) : new ResponseStatus(500, 'Internal Server Error');
+			case 'AbortError': return eventResponseStatuses[RequestEvents.ABORTED];
+			case 'TimeoutError': return eventResponseStatuses[RequestEvents.TIMEOUT];
+			default: return response ? new ResponseStatus(response.status, response.statusText) : internalServerError;
 		}
 	}
 
