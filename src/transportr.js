@@ -1,4 +1,3 @@
-import SetMultiMap from '@d1g1tal/collections/set-multi-map.js';
 import Subscribr from '@d1g1tal/subscribr';
 import AbortSignal from './abort-signal.js';
 import HttpError from './http-error.js';
@@ -132,8 +131,8 @@ export default class Transportr {
 	static #globalSubscribr = new Subscribr();
 	/** @type {Set<AbortSignal>} */
 	static #activeRequests = new Set();
-	/** @type {SetMultiMap<ResponseHandler<ResponseBody>, string>} */
-	static #contentTypeHandlers = new SetMultiMap([
+	/** @type {Map<ResponseHandler<ResponseBody>, string>} */
+	static #contentTypeHandlers = new Map([
 		[_handleImage, mediaTypes.get(HttpMediaType.PNG).type],
 		[_handleText, mediaTypes.get(HttpMediaType.TEXT).type],
 		[_handleJson, mediaTypes.get(HttpMediaType.JSON).subtype],

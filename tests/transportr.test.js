@@ -11,80 +11,83 @@ describe('Transportr', () => {
 	beforeEach(async () => await new Promise((_) => setTimeout(_, 1500)));
 
 	describe('Transportr.prototype.constructor', () => {
-		it.concurrent('should create a new Transportr instance', async () => {
-			const transportr = new Transportr('https://transportr.wiremockapi.cloud');
+		const baseUrl = 'https://jsonplaceholder.typicode.com';
+
+		it.concurrent('should create a new Transportr instance with a String', async () => {
+			const transportr = new Transportr(baseUrl);
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
-			expect(transportr.baseUrl).toHaveProperty('href', 'https://transportr.wiremockapi.cloud/');
-			expect(transportr.baseUrl).toHaveProperty('origin', 'https://transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
+			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'transportr.wiremockapi.cloud');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
 		});
 
 		it.concurrent('should create a new Transportr instance with a URL', async () => {
-			const transportr = new Transportr(new URL('https://transportr.wiremockapi.cloud'));
+			const transportr = new Transportr(new URL(baseUrl));
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
-			expect(transportr.baseUrl).toHaveProperty('href', 'https://transportr.wiremockapi.cloud/');
-			expect(transportr.baseUrl).toHaveProperty('origin', 'https://transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
+			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'transportr.wiremockapi.cloud');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
 		});
 
 		it.concurrent('should create a new Transportr instance with a URL and options', async () => {
-			const transportr = new Transportr(new URL('https://transportr.wiremockapi.cloud'), { searchParams: { id: 12345 } });
+			const transportr = new Transportr(new URL(baseUrl), { searchParams: { id: 12345 } });
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
-
-			expect(transportr.baseUrl).toHaveProperty('href', 'https://transportr.wiremockapi.cloud/');
-			expect(transportr.baseUrl).toHaveProperty('origin', 'https://transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
+			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'transportr.wiremockapi.cloud');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
 			expect(transportr.baseUrl).toHaveProperty('search', '');
 			expect(transportr.baseUrl).toHaveProperty('searchParams');
 			expect(transportr.baseUrl.searchParams).toBeInstanceOf(URLSearchParams);
+			// expect(transportr.baseUrl.searchParams).toHaveProperty('id', '12345');
 		});
 
 		it.concurrent('should create a new Transportr instance options', async () => {
 			let originalLocation;
 
 			delete globalThis.location;
-			globalThis.location = {	origin: 'https://transportr.wiremockapi.cloud' };
+			globalThis.location = {	origin: baseUrl };
 
 			const transportr = new Transportr({ searchParams: { id: 12345 } });
 
 			expect(transportr).toBeInstanceOf(Transportr);
-			// expect(transportr.baseUrl).toBeInstanceOf(URL);
-			expect(transportr.baseUrl).toHaveProperty('href', 'https://transportr.wiremockapi.cloud/');
-			expect(transportr.baseUrl).toHaveProperty('origin', 'https://transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toBeInstanceOf(URL);
+			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
+			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'transportr.wiremockapi.cloud');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'transportr.wiremockapi.cloud');
+			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
 			expect(transportr.baseUrl).toHaveProperty('search', '');
 			expect(transportr.baseUrl).toHaveProperty('searchParams');
 			expect(transportr.baseUrl.searchParams).toBeInstanceOf(URLSearchParams);
+			// expect(transportr.baseUrl.searchParams).toHaveProperty('id', '12345');
 
 			globalThis.location = originalLocation;
 		});
