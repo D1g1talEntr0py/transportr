@@ -1,6 +1,6 @@
 import HttpRequestMethod from './http-request-methods.js';
 import ResponseStatus from './response-status.js';
-import { MediaType } from '@d1g1tal/media-type';
+import MediaType from '@d1g1tal/media-type';
 import HttpMediaType from './http-media-type.js';
 
 /** @typedef {'configured'|'success'|'error'|'aborted'|'timeout'|'complete'} RequestEvent */

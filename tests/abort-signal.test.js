@@ -18,7 +18,7 @@ describe('AbortSignal', () => {
 		});
 
 		it('should return an AbortSignal object when passed an AbortSignal object', () => {
-			const signal2 = new AbortSignal(signal);
+			const signal2 = new AbortSignal(new AbortController().signal);
 			expect(signal2).toBeInstanceOf(AbortSignal);
 		});
 	});

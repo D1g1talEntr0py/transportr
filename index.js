@@ -1,1 +1,0 @@
-export { default as Transportr } from './src/transportr.js';

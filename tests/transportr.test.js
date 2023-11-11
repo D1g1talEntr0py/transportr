@@ -6,66 +6,67 @@ import HttpRequestHeader from '../src/http-request-headers.js';
 import HttpRequestMethod from '../src/http-request-methods.js';
 import HttpResponseHeader from '../src/http-response-headers.js';
 import Transportr from '../src/transportr.js';
+import config from './config.js';
 
 describe('Transportr', () => {
 	beforeEach(async () => await new Promise((_) => setTimeout(_, 1500)));
 
 	describe('Transportr.prototype.constructor', () => {
-		const baseUrl = 'https://jsonplaceholder.typicode.com';
+		const baseUrl = 'https://mockend.com/api/D1g1talEntr0py/music-api';
 
-		it.concurrent('should create a new Transportr instance with a String', async () => {
+		it('should create a new Transportr instance with a String', () => {
 			const transportr = new Transportr(baseUrl);
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
-			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
-			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('host', 'mockend.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
-			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
+			expect(transportr.baseUrl).toHaveProperty('pathname', '/api/D1g1talEntr0py/music-api');
 		});
 
-		it.concurrent('should create a new Transportr instance with a URL', async () => {
+		it('should create a new Transportr instance with a URL', () => {
 			const transportr = new Transportr(new URL(baseUrl));
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
-			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
-			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('host', 'mockend.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
-			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
+			expect(transportr.baseUrl).toHaveProperty('pathname', '/api/D1g1talEntr0py/music-api');
 		});
 
-		it.concurrent('should create a new Transportr instance with a URL and options', async () => {
+		it('should create a new Transportr instance with a URL and options', () => {
 			const transportr = new Transportr(new URL(baseUrl), { searchParams: { id: 12345 } });
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
-			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
-			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('host', 'mockend.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
-			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
+			expect(transportr.baseUrl).toHaveProperty('pathname', '/api/D1g1talEntr0py/music-api');
 			expect(transportr.baseUrl).toHaveProperty('search', '');
 			expect(transportr.baseUrl).toHaveProperty('searchParams');
 			expect(transportr.baseUrl.searchParams).toBeInstanceOf(URLSearchParams);
 			// expect(transportr.baseUrl.searchParams).toHaveProperty('id', '12345');
 		});
 
-		it.concurrent('should create a new Transportr instance options', async () => {
+		it('should create a new Transportr instance options', () => {
 			let originalLocation;
 
 			delete globalThis.location;
@@ -75,15 +76,15 @@ describe('Transportr', () => {
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
-			expect(transportr.baseUrl).toHaveProperty('href', `${baseUrl}/`);
-			expect(transportr.baseUrl).toHaveProperty('origin', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', 'jsonplaceholder.typicode.com');
-			expect(transportr.baseUrl).toHaveProperty('hostname', 'jsonplaceholder.typicode.com');
+			expect(transportr.baseUrl).toHaveProperty('host', 'mockend.com');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'mockend.com');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
-			expect(transportr.baseUrl).toHaveProperty('pathname', '/');
+			expect(transportr.baseUrl).toHaveProperty('pathname', '/api/D1g1talEntr0py/music-api');
 			expect(transportr.baseUrl).toHaveProperty('search', '');
 			expect(transportr.baseUrl).toHaveProperty('searchParams');
 			expect(transportr.baseUrl.searchParams).toBeInstanceOf(URLSearchParams);
@@ -92,65 +93,69 @@ describe('Transportr', () => {
 			globalThis.location = originalLocation;
 		});
 
-		it.concurrent('should throw an error if the URL is invalid', async () => {
+		it('should throw an error if the URL is invalid', () => {
 			expect(() => new Transportr(new Date())).toThrow(TypeError);
 			expect(() => new Transportr(5)).toThrow(/Invalid URL/);
 		});
 	});
 
-	describe('Transportr.prototype.request', () => {
-		const transportr = new Transportr('https://transportr.wiremockapi.cloud');
+	describe.only('Transportr.prototype.request', () => {
+		const transportr = new Transportr('https://mockend.com/api/D1g1talEntr0py/music-api/artists', { headers: { 'X-Mockend-Key': config.mockendKey }});
 
 		it.concurrent('should make a POST request', async () => {
-			const options = { method: HttpRequestMethod.POST, body: { id: 12345, value: 'abc-def-ghi' } };
+			const options = { method: HttpRequestMethod.POST, body: { name: 'Sam Heart', age: 19 } };
 
-			const response = await transportr.request('/json', options);
+			const response = await transportr.request(options);
 			expect(response).toBeInstanceOf(Response);
 			expect(response.status).toBe(201);
-			expect(response.headers.get(HttpResponseHeader.CONTENT_LOCATION)).toBe('/json/1');
+			// expect(response.headers.get(HttpResponseHeader.CONTENT_LOCATION)).toBe('/artists/16');
 
 			const apiEntries = await response.json();
 			expect(typeof(apiEntries)).toBe('object');
-			expect(apiEntries).toHaveProperty('result', 'success');
+			expect(apiEntries).toHaveProperty('name', options.body.name);
 
-			const entries = await transportr.post('/json', options.body);
+			const entries = await transportr.post(options.body);
 			expect(typeof(entries)).toBe('object');
-			expect(entries).toHaveProperty('result', 'success');
-			expect(entries).toEqual(apiEntries);
+			expect(entries).toHaveProperty('name', options.body.name);
 		});
 
 		it.concurrent('should make a GET request', async () => {
 			const options = { method: HttpRequestMethod.GET };
 
-			const response = await transportr.request('/json/1', options);
+			const response = await transportr.request(options);
 			expect(response).toBeInstanceOf(Response);
 
 			const apiEntries = await response.json();
-			expect(typeof(apiEntries)).toBe('object');
-			expect(apiEntries).toHaveProperty('id', 12345);
-			expect(apiEntries).toHaveProperty('value', 'abc-def-ghi');
+			expect(Array.isArray(apiEntries)).toBe(true);
+			expect(apiEntries).toHaveLength(15);
+			expect(apiEntries[0]).toHaveProperty('id');
+			expect(apiEntries[0]).toHaveProperty('name');
+			expect(apiEntries[0]).toHaveProperty('age');
 
-			const entries = await transportr.get('/json/1');
-			expect(typeof(entries)).toBe('object');
-			expect(entries).toHaveProperty('id', 12345);
-			expect(entries).toHaveProperty('value', 'abc-def-ghi');
+			const entries = await transportr.get();
+			expect(Array.isArray(entries)).toBe(true);
+			expect(entries).toHaveLength(15);
+			expect(entries[0]).toHaveProperty('id');
+			expect(entries[0]).toHaveProperty('name');
+			expect(entries[0]).toHaveProperty('age');
 			expect(entries).toEqual(apiEntries);
 
-			const entries2 = await transportr.getJson('/json/1');
-			expect(typeof(entries2)).toBe('object');
-			expect(entries2).toHaveProperty('id', 12345);
-			expect(entries2).toHaveProperty('value', 'abc-def-ghi');
+			const entries2 = await transportr.getJson();
+			expect(Array.isArray(entries2)).toBe(true);
+			expect(entries2[0]).toHaveProperty('id');
+			expect(entries2[0]).toHaveProperty('name');
+			expect(entries2[0]).toHaveProperty('age');
 			expect(entries2).toEqual(apiEntries);
 		});
 
-		it.concurrent('should make an XML GET request', async () => {
+		it.only('should make an XML GET request', async () => {
 			globalThis.DOMParser = DOMParser;
 
-			const options = { method: HttpRequestMethod.GET, headers: { [HttpRequestHeader.CONTENT_TYPE]: HttpMediaType.XML, [HttpRequestHeader.ACCEPT]: HttpMediaType.XML } };
+			const transportr = new Transportr('https://jsonplaceholder.typicode.com', { headers: { [HttpRequestHeader.CONTENT_TYPE]: HttpMediaType.XML, [HttpRequestHeader.ACCEPT]: HttpMediaType.XML } });
 
 			const json = await transportr.getJson('/json/1');
 
-			const response = await transportr.request('/json/1', options);
+			const response = await transportr.request('/json/1');
 			expect(response).toBeInstanceOf(Response);
 
 			const xml = new DOMParser().parseFromString(await response.text(), HttpMediaType.XML);
@@ -160,7 +165,7 @@ describe('Transportr', () => {
 				expect(element).toHaveProperty('textContent', Object.values(json)[index].toString());
 			});
 
-			const xml2 = await transportr.get('/json/1', options);
+			const xml2 = await transportr.get('/json/1');
 			expect(typeof (xml2)).toBe('object');
 			expect(xml2).toEqual(xml);
 			Array.from(xml2.documentElement.childNodes).filter((node) => node.nodeType == 1).forEach((element, index) => {

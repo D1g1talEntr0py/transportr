@@ -14,4 +14,5 @@
 
 dist
 node_modules
+tests/config.js
 tests/coverage/

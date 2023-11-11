@@ -7,7 +7,7 @@ import HttpRequestMethod from './http-request-methods.js';
 import HttpResponseHeader from './http-response-headers.js';
 import ParameterMap from './parameter-map.js';
 import ResponseStatus from './response-status.js';
-import { MediaType } from '@d1g1tal/media-type';
+import MediaType from '@d1g1tal/media-type';
 import { _objectMerge, _type } from '@d1g1tal/chrysalis';
 import { RequestEvents, abortEvent, abortSignalProxyHandler, endsWithSlashRegEx, eventResponseStatuses, internalServerError, mediaTypes, requestBodyMethods } from './constants.js';
 
@@ -256,7 +256,7 @@ export default class Transportr {
 		body: null,
 		cache: Transportr.CachingPolicy.NO_STORE,
 		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
-		headers: { [HttpRequestHeader.CONTENT_TYPE]: mediaTypes.get(HttpMediaType.JSON).toString(), [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.JSON).toString() },
+		headers: { [HttpRequestHeader.CONTENT_TYPE]: `${mediaTypes.get(HttpMediaType.JSON)}`, [HttpRequestHeader.ACCEPT]: `${mediaTypes.get(HttpMediaType.JSON)}` },
 		searchParams: {},
 		integrity: undefined,
 		keepalive: undefined,
@@ -365,8 +365,10 @@ export default class Transportr {
 	 * @param {RequestOptions} [options] The options for the request.
 	 * @returns {Promise<ResponseBody>} A promise that resolves to the response body.
 	 */
-	async post(path, body, options) {
-		return this.#request(path, { ...options, body }, { method: HttpRequestMethod.POST });
+	async post(path, body = {}, options = {}) {
+		if (_type(path) != String) { [ path, body, options ] = [ undefined, path, body ] }
+
+		return this.#request(path, Object.assign(options, { body }), { method: HttpRequestMethod.POST });
 	}
 
 	/**
@@ -453,7 +455,7 @@ export default class Transportr {
 	 * @returns {Promise<JsonObject>} A promise that resolves to the response body as a JSON object.
 	 */
 	async getJson(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.JSON).toString() } }, _handleJson);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.get(HttpMediaType.JSON)}` } }, _handleJson);
 	}
 
 	/**
@@ -465,7 +467,7 @@ export default class Transportr {
 	 * @returns {Promise<Document>} The result of the function call to #get.
 	 */
 	async getXml(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.XML).toString() } }, _handleXml);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.get(HttpMediaType.XML)}` } }, _handleXml);
 	}
 
 	/**
@@ -479,7 +481,7 @@ export default class Transportr {
 	 * method of the promise returned by the `#get` method.
 	 */
 	async getHtml(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtml);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.get(HttpMediaType.HTML)}` } }, _handleHtml);
 	}
 
 	/**
@@ -492,7 +494,7 @@ export default class Transportr {
 	 * @returns {Promise<DocumentFragment>} A promise that resolves to an HTML fragment.
 	 */
 	async getHtmlFragment(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.HTML).toString() } }, _handleHtmlFragment);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.get(HttpMediaType.HTML)}` } }, _handleHtmlFragment);
 	}
 
 	/**
@@ -505,7 +507,7 @@ export default class Transportr {
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getScript(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.JAVA_SCRIPT).toString() } }, _handleScript);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.get(HttpMediaType.JAVA_SCRIPT)}` } }, _handleScript);
 	}
 
 	/**
@@ -517,7 +519,7 @@ export default class Transportr {
 	 * @returns {Promise<void>} A promise that has been resolved.
 	 */
 	async getStylesheet(path, options) {
-		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.get(HttpMediaType.CSS).toString() } }, _handleCss);
+		return this.#get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.get(HttpMediaType.CSS)}` } }, _handleCss);
 	}
 
 	/**
@@ -631,7 +633,7 @@ export default class Transportr {
 
 				Transportr.#activeRequests.delete(options.signal);
 
-				if (Transportr.#activeRequests.size === 0) {
+				if (Transportr.#activeRequests.size == 0) {
 					this.#publish({ name: RequestEvents.ALL_COMPLETE, global: options.global });
 				}
 			}
@@ -752,7 +754,7 @@ export default class Transportr {
 	static #createUrl(url, path, searchParams) {
 		const requestUrl = path ? new URL(`${url.pathname.replace(endsWithSlashRegEx, '')}${path}`, url.origin) : new URL(url);
 
-		searchParams?.forEach((value, key) => requestUrl.searchParams.append(key, value));
+		searchParams?.forEach((value, name) => requestUrl.searchParams.append(name, value));
 
 		return requestUrl;
 	}
@@ -813,19 +815,15 @@ export default class Transportr {
 	 * @returns {ResponseHandler<ResponseBody>} The response handler.
 	 */
 	#getResponseHandler(contentType) {
-		let handler;
 		const mediaType = MediaType.parse(contentType);
 
 		if (mediaType) {
-			for (const [responseHandler, contentTypes] of Transportr.#contentTypeHandlers) {
-				if (contentTypes.has(mediaType.type) || contentTypes.has(mediaType.subtype)) {
-					handler = responseHandler;
-					break;
-				}
+			for (const [responseHandler, contentType] of Transportr.#contentTypeHandlers) {
+				if (mediaType.matches(contentType)) {	return responseHandler }
 			}
 		}
 
-		return handler;
+		return undefined;
 	}
 
 	/**

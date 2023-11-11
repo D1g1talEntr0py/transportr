@@ -1,4 +1,4 @@
-import { MediaType } from '@d1g1tal/media-type';
+import MediaType from '@d1g1tal/media-type';
 import { expect, test } from '@jest/globals';
 import HttpMediaType from '../src/http-media-type.js';
 
@@ -8,8 +8,9 @@ test('HttpMediaType', () => {
 		expect(typeof value === 'string').toBe(true);
 	}
 
-	const mediaType = new MediaType(HttpMediaType.JSON);
+	const mediaType = new MediaType(HttpMediaType.JSON, { charset: 'utf-8' });
 	expect(mediaType.type).toBe('application');
 	expect(mediaType.subtype).toBe('json');
-	expect(mediaType.toString()).toBe('application/json');
+	expect(mediaType.toString()).toBe('application/json;charset=utf-8');
+	expect(mediaType.parameters.get('charset')).toBe('utf-8');
 });

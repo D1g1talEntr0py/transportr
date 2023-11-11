@@ -1,9 +1,9 @@
 {
-	"cSpell.words": [
-		"Clickjacking",
-		"linebreak",
-		"namepath",
-		"nodedata",
-		"subscribr"
-	]
+	"search.exclude": {
+		"pnpm-lock.yaml": true,
+	},
+	"npm.packageManager": "pnpm",
+	"explorer.fileNesting.patterns": {
+		"package.json": "pnpm-workspace.yaml, pnpm-lock.yaml"
+	}
 }

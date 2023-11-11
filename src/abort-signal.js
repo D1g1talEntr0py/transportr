@@ -1,21 +1,23 @@
 import { SignalEvents, abortEvent } from './constants.js';
 
+/** @typedef {globalThis.AbortSignal} NativeAbortSignal */
+
 /**
  * @typedef {function(Event):void} EventListener
  * @param {Event} event The event object
  */
 
-export default class AbortSignal extends EventTarget {
+export default class AbortSignal {
 	/** @type {AbortController} */
 	#abortController;
 	/** @type {number} */
 	#timeoutId;
 
 	/**
-	 * @param {AbortSignal} signal The signal to listen to
+	 * @param {NativeAbortSignal} signal The signal to chain.
+	 * This signal will be able to abort the request, but will not be notified if the request is aborted by the timeout.
 	 */
 	constructor(signal) {
-		super();
 		this.#abortController = new AbortController();
 		signal?.addEventListener(SignalEvents.ABORT, (event) => this.#abort(event));
 	}
