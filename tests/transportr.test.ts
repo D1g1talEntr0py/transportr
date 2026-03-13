@@ -222,6 +222,10 @@ describe('Transportr', () => {
 			transportr = new Transportr(baseUrl);
 		});
 
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
 		describe('getJson', () => {
 			it('should return a promise', () => {
 				const promise = transportr.getJson('/test').catch(() => {});
@@ -272,7 +276,7 @@ describe('Transportr', () => {
 				const mockScript = document.createElement('script');
 				vi.spyOn(document, 'createElement').mockReturnValue(mockScript);
 				vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
-					setTimeout(() => node.dispatchEvent(new Event('load')), 0);
+					setTimeout(() => (node as HTMLScriptElement).onload?.(new Event('load') as unknown as never), 0);
 					return node;
 				});
 				vi.spyOn(document.head, 'removeChild').mockReturnValue(mockScript);
@@ -295,18 +299,21 @@ describe('Transportr', () => {
 
 			it('should handle script load error', async () => {
 				const mockBlob = new Blob(['console.log("test")'], { type: 'text/javascript' });
-				const mockResponse = new Response(mockBlob, {
-					headers: { 'content-type': 'text/javascript' }
-				});
+				const mockResponse = {
+					ok: true,
+					status: 200,
+					headers: new Headers({ 'content-type': 'text/javascript' }),
+					blob: vi.fn().mockResolvedValue(mockBlob)
+				};
 
 				const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
 				const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL');
 
 				const appendChildSpy = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
-					setTimeout(() => node.dispatchEvent(new Event('error')), 0);
+					setTimeout(() => (node as HTMLScriptElement).onerror?.(new Event('error') as unknown as never), 0);
 					return node;
 				});
-				const removeChildSpy = vi.spyOn(document.head, 'removeChild');
+				const removeChildSpy = vi.spyOn(document.head, 'removeChild').mockImplementation((node) => node);
 
 				vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
 
@@ -342,7 +349,7 @@ describe('Transportr', () => {
 				const mockLink = document.createElement('link');
 				vi.spyOn(document, 'createElement').mockReturnValue(mockLink);
 				vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
-					setTimeout(() => node.dispatchEvent(new Event('load')), 0);
+					setTimeout(() => (node as HTMLLinkElement).onload?.(new Event('load') as unknown as never), 0);
 					return node;
 				});
 
@@ -363,16 +370,20 @@ describe('Transportr', () => {
 
 			it('should handle stylesheet load error', async () => {
 				const mockBlob = new Blob(['body { color: red }'], { type: 'text/css' });
-				const mockResponse = new Response(mockBlob, {
-					headers: { 'content-type': 'text/css' }
-				});
+				const mockResponse = {
+					ok: true,
+					status: 200,
+					headers: new Headers({ 'content-type': 'text/css' }),
+					blob: vi.fn().mockResolvedValue(mockBlob)
+				};
 
 				const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url');
 				const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL');
 				const appendChildSpy = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
-					setTimeout(() => node.dispatchEvent(new Event('error')), 0);
+					setTimeout(() => (node as HTMLLinkElement).onerror?.(new Event('error') as unknown as never), 0);
 					return node;
 				});
+				const removeChildSpy = vi.spyOn(document.head, 'removeChild').mockImplementation((node) => node);
 
 				vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
 
@@ -381,6 +392,7 @@ describe('Transportr', () => {
 
 				expect(createObjectURLSpy).toHaveBeenCalled();
 				expect(appendChildSpy).toHaveBeenCalled();
+				expect(removeChildSpy).toHaveBeenCalled();
 				expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:mock-url');
 			});
 		});

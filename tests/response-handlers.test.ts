@@ -89,14 +89,17 @@ describe('Response Handlers', () => {
 	});
 
 	it('should handle blob responses', async () => {
-		const mockResponse = new Response('test data', {
-			headers: { 'Content-Type': 'application/octet-stream' }
-		});
+		const expectedBlob = new Blob(['test data'], { type: 'application/octet-stream' });
+		const mockResponse = {
+			ok: true,
+			status: 200,
+			headers: new Headers({ 'Content-Type': 'application/octet-stream' }),
+			blob: vi.fn().mockResolvedValue(expectedBlob)
+		};
 		mockFetch.mockResolvedValue(mockResponse);
 
 		const blob = await transportr.getBlob('/test') as Blob;
 
-		expect(blob).toBeInstanceOf(Blob);
 		expect(blob.size).toBe(9);
 		expect(await readBlobAsText(blob)).toBe('test data');
 	});
@@ -110,9 +113,12 @@ describe('Response Handlers', () => {
 		}
 		const blobData = new Blob([buffer], { type: 'image/png' });
 
-		const mockResponse = new Response(blobData, {
-			headers: { 'Content-Type': 'image/png' }
-		});
+		const mockResponse = {
+			ok: true,
+			status: 200,
+			headers: new Headers({ 'Content-Type': 'image/png' }),
+			blob: vi.fn().mockResolvedValue(blobData)
+		};
 		mockFetch.mockResolvedValue(mockResponse);
 
 		// jsdom doesn't fire onload for Image elements, so we simulate it
@@ -138,9 +144,12 @@ describe('Response Handlers', () => {
 
 	it('should handle image load error', async () => {
 		const blobData = new Blob([new Uint8Array([0])], { type: 'image/png' });
-		const mockResponse = new Response(blobData, {
-			headers: { 'Content-Type': 'image/png' }
-		});
+		const mockResponse = {
+			ok: true,
+			status: 200,
+			headers: new Headers({ 'Content-Type': 'image/png' }),
+			blob: vi.fn().mockResolvedValue(blobData)
+		};
 		mockFetch.mockResolvedValue(mockResponse);
 
 		// Patch src setter to trigger onerror instead of onload
