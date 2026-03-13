@@ -1,0 +1,1 @@
+export default { apiKey: process.env['MOCKAPI_API_KEY'] } as const;
