@@ -1,8 +1,5 @@
 /**
  * Defining a constant object with all the HTTP request headers.
- *
- * @module HttpRequestHeader
- * @constant {Object<string, string>}
  */
 const HttpRequestHeader = {
 	/**
@@ -90,20 +87,6 @@ const HttpRequestHeader = {
 	 * <code>Date: Tue, 15 Nov 1994 08:12:31 GMT</code>
 	 */
 	DATE: 'date',
-	/**
-	 * Indicates that particular server behaviors are required by the client. Permanent.
-	 *
-	 * @example
-	 * <code>Expect: 100-continue</code>
-	 */
-	EXPECT: 'expect',
-	/**
-	 * The email address of the user making the request. Permanent.
-	 *
-	 * @example
-	 * <code>From: user@example.com</code>
-	 */
-	FROM: 'from',
 	/**
 	 * The domain name of the server (for virtual hosting), and the TCP port number on which the server is listening. The
 	 * port number may be omitted if the port is the standard port for the service requested. Permanent. Mandatory since
@@ -220,13 +203,6 @@ const HttpRequestHeader = {
 	 */
 	UPGRADE: 'upgrade',
 	/**
-	 * Informs the server of proxies through which the request was sent. Permanent.
-	 *
-	 * @example
-	 * <code>Via: 1.0 fred, 1.1 example.com (Apache/1.1)</code>
-	 */
-	VIA: 'via',
-	/**
 	 * A general warning about possible problems with the entity body. Permanent.
 	 *
 	 * @example
@@ -240,16 +216,6 @@ const HttpRequestHeader = {
 	 * <code>X-Requested-With: XMLHttpRequest</code>
 	 */
 	X_REQUESTED_WITH: 'x-requested-with',
-	/**
-	 * Requests a web application to disable their tracking of a user. This is Mozilla's version of the X-Do-Not-Track
-	 * header field (since Firefox 4.0 Beta 11). Safari and IE9 also have support for this field. On March 7, 2011, a
-	 * draft proposal was submitted to IETF. The W3C Tracking Protection Working Group is producing a specification.
-	 *
-	 * @example
-	 * <code>DNT: 1 (Do Not Track Enabled)</code>
-	 * <code>DNT: 0 (Do Not Track Disabled)</code>
-	 */
-	DNT: 'dnt',
 	/**
 	 * A de facto standard for identifying the originating IP address of a client connecting to a web server through an
 	 * HTTP proxy or load balancer.
@@ -277,36 +243,8 @@ const HttpRequestHeader = {
 	 * @example
 	 * <code>X-Forwarded-Proto: https</code>
 	 */
-	X_FORWARDED_PROTO: 'x-forwarded-proto',
-	/**
-	 * Non-standard header field used by Microsoft applications and load-balancers.
-	 *
-	 * @example
-	 * <code>Front-End-Https: on</code>
-	 */
-	FRONT_END_HTTPS: 'front-end-https',
-	/**
-	 * Requests a web application override the method specified in the request (typically POST) with the method given in
-	 * the header field (typically PUT or DELETE). Can be used when a user agent or firewall prevents PUT or DELETE methods
-	 * from being sent directly (note that this either a bug in the software component, which ought to be fixed, or an
-	 * intentional configuration, in which case bypassing it may be the wrong thing to do).
-	 *
-	 * @example
-	 * <code>X-HTTP-Method-Override: DELETE</code>
-	 */
-	X_HTTP_METHOD_OVERRIDE: 'x-http-method-override',
-	/**
-	 * Allows easier parsing of the MakeModel/Firmware that is usually found in the User-Agent String of AT&T Devices.
-	 *
-	 * @example
-	 * <code>X-Att-Deviceid: GT-P7320/P7320XXLPG</code>
-	 */
-	X_ATT_DEVICE_ID: 'x-att-deviceid',
-	/**
-	 * Links to an XML file on the Internet with a full description and details about the device currently connecting. In the example to the right is an XML file for an AT&T Samsung Galaxy S2.
-	 * x-wap-profile: http://wap.samsungmobile.com/uaprof/SGH-I777.xml
-	 */
-	X_WAP_PROFILE: 'x-wap-profile',
-};
+	X_FORWARDED_PROTO: 'x-forwarded-proto'
+} as const;
 
-export default HttpRequestHeader;
+export { HttpRequestHeader };
+// export type HttpRequestHeader = (typeof HttpRequestHeader)[keyof typeof HttpRequestHeader];

@@ -1,9 +1,4 @@
-/**
- * Defining a constant object with a bunch of properties.
- *
- * @module HttpResponseHeader
- * @constant {Object<string, string>}
- */
+/** Defining a constant object HTTP response headers */
 const HttpResponseHeader = {
 	/**
 	 * Implemented as a misunderstanding of the HTTP specifications. Common because of mistakes in implementations of early HTTP versions. Has exactly the same functionality as standard Connection field.
@@ -345,6 +340,6 @@ const HttpResponseHeader = {
 	 * x-powered-by: PHP/5.4.0
 	 */
 	X_POWERED_BY: 'x-powered-by'
-};
+} as const;
 
-export default HttpResponseHeader;
+export { HttpResponseHeader };

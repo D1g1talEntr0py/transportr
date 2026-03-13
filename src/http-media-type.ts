@@ -1,8 +1,6 @@
 /**
- * A constant object that contains all the media types that are supported by the browser.
- *
- * @module HttpMediaType
- * @constant {Object<string, string>}
+ * A collection of some of the available HTTP media types.
+ * @see {@link https://www.iana.org/assignments/media-types/media-types.xhtml | IANA Media Types}
  */
 const HttpMediaType = {
 	/** Advanced Audio Coding (AAC) */
@@ -156,7 +154,7 @@ const HttpMediaType = {
 	/** 3GPP2 audio/video container */
 	'3G2': 'video/3gpp2',
 	/** 7-Zip Archive */
-	'7Z': 'application/x-7z-compressed',
-};
+	'7Z': 'application/x-7z-compressed'
+} as const;
 
-export default HttpMediaType;
+export { HttpMediaType };

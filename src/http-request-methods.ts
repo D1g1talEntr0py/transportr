@@ -1,8 +1,5 @@
 /**
  * Defining a constant object with the name HttpRequestMethod.
- *
- * @module HttpRequestMethod
- * @constant {Object<string, string>}
  */
 const HttpRequestMethod = {
 	/**
@@ -272,6 +269,6 @@ const HttpRequestMethod = {
 	 * or PUT.
 	 */
 	PATCH: 'PATCH'
-};
+} as const;
 
-export default HttpRequestMethod;
+export { HttpRequestMethod };
