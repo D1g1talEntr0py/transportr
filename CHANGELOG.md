@@ -1,3 +1,9 @@
+## [2.1.1](https://github.com/D1g1talEntr0py/transportr/compare/v2.1.0...v2.1.1) (2026-03-14)
+
+### Bug Fixes
+
+* **ci:** fix the conflict for auto installing peer dependencies (23302387f160e55a60d775ffeb6f7ec4127721f6)
+
 ## [2.1.0](https://github.com/D1g1talEntr0py/transportr/compare/v2.0.0...v2.1.0) (2026-03-14)
 
 ### Features
