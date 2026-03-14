@@ -2,7 +2,7 @@
 
 ### ⚠ BREAKING CHANGES
 
-* Complete rewrite from JavaScript to TypeScript 6.
+* Complete rewrite from JavaScript to TypeScript.
 
 Source rewrite:
 - AbortSignal → SignalController using native AbortController.any() and AbortSignal.timeout()
@@ -52,7 +52,7 @@ API changes:
 
 ### Miscellaneous Chores
 
-* migrate build tooling to TypeScript 6 and Vitest 4 (7cca59051a0106ab19975bd4496bf7f037a5b912)
+* migrate build tooling to TypeScript 5.9 and Vitest 4 (7cca59051a0106ab19975bd4496bf7f037a5b912)
 - Replace .eslintrc.json with ESLint flat config (eslint.config.js)
 - Remove esbuild.js and jsconfig.json in favor of tsconfig.json
 - Add vitest.config.ts with dual-project setup (unit/integration)
