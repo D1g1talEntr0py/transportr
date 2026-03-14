@@ -1,9 +1,18 @@
-import DOMPurify from 'dompurify';
-import { HttpMediaType } from './http-media-type';
 import type { Json, ResponseHandler } from '@types';
 
 /** Cached promise for lazy jsdom initialization — resolved once, reused thereafter */
 let domReady: Promise<void> | undefined;
+
+/** Cached promise for lazy DOMPurify initialization — resolved once, reused thereafter */
+let purifyReady: Promise<(dirty: string) => string> | undefined;
+
+/**
+ * Returns a bound sanitize function, lazily loading DOMPurify on first invocation.
+ * Must be called after ensureDom() to ensure the DOM environment is ready.
+ * @returns A Promise resolving to the sanitize function.
+ */
+const getSanitize = (): Promise<(dirty: string) => string> =>
+	purifyReady ??= import('dompurify').then(({ default: p }) => (dirty: string): string => p.sanitize(dirty));
 
 /**
  * Ensures a DOM environment is available (document, DOMParser, DocumentFragment).
@@ -14,9 +23,12 @@ const ensureDom = async (): Promise<void> => {
 	if (typeof document !== 'undefined' && typeof DOMParser !== 'undefined' && typeof DocumentFragment !== 'undefined') { return Promise.resolve() }
 
 	return domReady ??= import('jsdom').then(({ JSDOM }) => {
-		const { window } = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>');
+		const { window } = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', { url: 'http://localhost' });
 		globalThis.window = window as unknown as Window & typeof globalThis;
 		Object.assign(globalThis, { document: window.document, DOMParser: window.DOMParser, DocumentFragment: window.DocumentFragment });
+	}).catch(() => {
+		domReady = undefined;
+		throw new Error('jsdom is required for HTML/XML/DOM features in Node.js environments. Install it with: npm install jsdom');
 	});
 };
 

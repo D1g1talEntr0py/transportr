@@ -31,8 +31,12 @@ pnpm add @d1g1tal/transportr
 
 ## Requirements
 
-- **Node.js** ≥ 22.0.0 or a modern browser with native [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and `AbortController` support
-- `jsdom` is bundled to polyfill the DOM in Node.js environments automatically
+- **Node.js** ≥ 20.0.0 or a modern browser with native [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and `AbortController` support
+- `jsdom` is an **optional peer dependency** — only needed for HTML/XML/DOM features in Node.js. Install it separately if you use `getHtml()`, `getXml()`, `getHtmlFragment()`, `getScript()`, `getStylesheet()`, or `getImage()` in a non-browser environment:
+
+```bash
+pnpm add jsdom
+```
 
 ## Quick Start
 

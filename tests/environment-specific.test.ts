@@ -7,17 +7,17 @@ describe('Environment-specific method behavior in Node.js', () => {
 
 	describe('DOM-specific methods should work in Node.js via JSDOM', () => {
 		it('should not throw error when calling getXml (JSDOM provides DOM support)', async () => {
-			// These methods now work in Node.js because JSDOM is loaded automatically
-			// They will fail due to network request, not due to environment check
-			await expect(transportr.getXml('http://example.com')).rejects.toThrow(HttpError);
+			// DOMPurify is lazy-loaded after JSDOM is available, so these methods
+			// now fully resolve in Node.js without environment or sanitization errors.
+			await expect(transportr.getXml('http://example.com')).resolves.toMatchObject({ nodeType: 9 });
 		});
 
 		it('should not throw error when calling getHtml (JSDOM provides DOM support)', async () => {
-			await expect(transportr.getHtml('http://example.com')).rejects.toThrow(HttpError);
+			await expect(transportr.getHtml('http://example.com')).resolves.toMatchObject({ nodeType: 9 });
 		});
 
 		it('should not throw error when calling getHtmlFragment (JSDOM provides DOM support)', async () => {
-			await expect(transportr.getHtmlFragment('http://example.com')).rejects.toThrow(HttpError);
+			await expect(transportr.getHtmlFragment('http://example.com')).resolves.toMatchObject({ nodeType: 11 });
 		});
 	});
 
