@@ -1,3 +1,20 @@
+## [2.1.2](https://github.com/D1g1talEntr0py/transportr/compare/v2.1.1...v2.1.2) (2026-03-14)
+
+### ⚠ BREAKING CHANGES
+
+* Transportr.MediaType, Transportr.RequestMethod, Transportr.RequestHeader,
+Transportr.ResponseHeader, and Transportr.CachingPolicy static properties have been removed.
+
+Import constants directly from the package submodule paths instead:
+- import { HttpMediaType } from '@d1g1tal/transportr/media-types'
+- import { HttpRequestMethod } from '@d1g1tal/transportr/methods'
+- import { HttpRequestHeader } from '@d1g1tal/transportr/headers'
+- import { HttpResponseHeader } from '@d1g1tal/transportr/response-headers'
+
+### Code Refactoring
+
+* remove static enum properties from Transportr class (8cde6bdddb5c00ed858517a938689099a02d1b7c)
+
 ## [2.1.1](https://github.com/D1g1talEntr0py/transportr/compare/v2.1.0...v2.1.1) (2026-03-14)
 
 ### Bug Fixes
