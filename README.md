@@ -330,17 +330,30 @@ api
 
 | Property | Description |
 |----------|-------------|
-| `Transportr.MediaType` | HTTP media type constants |
-| `Transportr.RequestMethod` | HTTP method constants |
-| `Transportr.RequestHeader` | Request header constants |
-| `Transportr.ResponseHeader` | Response header constants |
-| `Transportr.CachingPolicy` | Cache policy constants |
 | `Transportr.CredentialsPolicy` | Credentials policy constants |
 | `Transportr.RequestModes` | Request mode constants |
 | `Transportr.RequestPriorities` | Request priority constants |
 | `Transportr.RedirectPolicies` | Redirect policy constants |
 | `Transportr.ReferrerPolicy` | Referrer policy constants |
 | `Transportr.RequestEvents` | Event name constants |
+
+### Submodule Imports
+
+HTTP constant objects are available as named submodule imports rather than static class properties:
+
+```typescript
+import { HttpMediaType } from '@d1g1tal/transportr/media-types';
+import { HttpRequestMethod } from '@d1g1tal/transportr/methods';
+import { HttpRequestHeader } from '@d1g1tal/transportr/headers';
+import { HttpResponseHeader } from '@d1g1tal/transportr/response-headers';
+```
+
+| Submodule | Export | Description |
+|-----------|--------|-------------|
+| `@d1g1tal/transportr/media-types` | `HttpMediaType` | MIME type string constants |
+| `@d1g1tal/transportr/methods` | `HttpRequestMethod` | HTTP method string constants |
+| `@d1g1tal/transportr/headers` | `HttpRequestHeader` | Request header name constants |
+| `@d1g1tal/transportr/response-headers` | `HttpResponseHeader` | Response header name constants |
 
 ## License
 
