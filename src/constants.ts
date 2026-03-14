@@ -1,6 +1,4 @@
 import { MediaType } from '@d1g1tal/media-type';
-import { HttpMediaType } from './http-media-type';
-import { HttpRequestMethod } from './http-request-methods';
 import { ResponseStatus } from './response-status';
 import type { AbortEvent, TimeoutEvent, RequestMethod } from '@types';
 
@@ -14,14 +12,14 @@ const XSRF_HEADER_NAME = 'X-XSRF-TOKEN';
 type MediaTypeKey = 'PNG' | 'TEXT' | 'JSON' | 'HTML' | 'JAVA_SCRIPT' | 'CSS' | 'XML' | 'BIN';
 
 const mediaTypes: { [key in MediaTypeKey]: MediaType } = {
-	PNG: new MediaType(HttpMediaType.PNG),
-	TEXT: new MediaType(HttpMediaType.TEXT, charset),
-	JSON: new MediaType(HttpMediaType.JSON, charset),
-	HTML: new MediaType(HttpMediaType.HTML, charset),
-	JAVA_SCRIPT: new MediaType(HttpMediaType.JAVA_SCRIPT, charset),
-	CSS: new MediaType(HttpMediaType.CSS, charset),
-	XML: new MediaType(HttpMediaType.XML, charset),
-	BIN: new MediaType(HttpMediaType.BIN)
+	PNG: new MediaType('image/png'),
+	TEXT: new MediaType('text/plain', charset),
+	JSON: new MediaType('application/json', charset),
+	HTML: new MediaType('text/html', charset),
+	JAVA_SCRIPT: new MediaType('text/javascript', charset),
+	CSS: new MediaType('text/css', charset),
+	XML: new MediaType('application/xml', charset),
+	BIN: new MediaType('application/octet-stream')
 } as const;
 
 const defaultMediaType: string = mediaTypes.JSON.toString();
@@ -76,7 +74,7 @@ const abortEvent = (): AbortEvent => new CustomEvent(SignalEvents.ABORT, { detai
 const timeoutEvent = (): TimeoutEvent => new CustomEvent(SignalEvents.TIMEOUT, { detail: { cause: SignalErrors.TIMEOUT } });
 
 /** Array of request body methods */
-const requestBodyMethods: ReadonlyArray<RequestMethod> = [ HttpRequestMethod.POST, HttpRequestMethod.PUT, HttpRequestMethod.PATCH, HttpRequestMethod.DELETE ];
+const requestBodyMethods: ReadonlyArray<RequestMethod> = [ 'POST', 'PUT', 'PATCH', 'DELETE' ];
 
 /** Response status for internal server error */
 const internalServerError: ResponseStatus = new ResponseStatus(500, 'Internal Server Error');
@@ -91,7 +89,7 @@ const timedOut: ResponseStatus = new ResponseStatus(504, 'Request Timeout');
 const retryStatusCodes: ReadonlyArray<number> = [ 408, 413, 429, 500, 502, 503, 504 ];
 
 /** Default HTTP methods allowed to retry (idempotent methods only) */
-const retryMethods: ReadonlyArray<RequestMethod> = [ HttpRequestMethod.GET, HttpRequestMethod.PUT, HttpRequestMethod.HEAD, HttpRequestMethod.DELETE, HttpRequestMethod.OPTIONS ];
+const retryMethods: ReadonlyArray<RequestMethod> = [ 'GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS' ];
 
 /** Default delay in ms before the first retry */
 const retryDelay: number = 300;

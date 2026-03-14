@@ -1,10 +1,6 @@
 import { MediaType } from '@d1g1tal/media-type';
 import { Subscribr } from '@d1g1tal/subscribr';
 import { HttpError } from './http-error';
-import { HttpMediaType } from './http-media-type';
-import { HttpRequestHeader } from './http-request-headers';
-import { HttpRequestMethod } from './http-request-methods';
-import { HttpResponseHeader } from './http-response-headers';
 import { ResponseStatus } from './response-status';
 import { SignalController } from './signal-controller.js';
 import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment } from './response-handlers';
@@ -61,21 +57,6 @@ export class Transportr {
 		this.subscribr = new Subscribr();
 	}
 
-	/** HTTP Media Types */
-	static readonly MediaType: typeof HttpMediaType = HttpMediaType;
-
-	/** HTTP Request Methods */
-	static readonly RequestMethod: typeof HttpRequestMethod = HttpRequestMethod;
-
-	/** HTTP Request Headers */
-	static readonly RequestHeader: typeof HttpRequestHeader = HttpRequestHeader;
-
-	/** HTTP Response Headers */
-	static readonly ResponseHeader: typeof HttpResponseHeader = HttpResponseHeader;
-
-	/** Request Caching Policy */
-	static readonly CachingPolicy: typeof RequestCachingPolicy = RequestCachingPolicy;
-
 	/** Credentials Policy */
 	static readonly CredentialsPolicy = {
 		INCLUDE: 'include',
@@ -125,11 +106,11 @@ export class Transportr {
 		body: undefined,
 		cache: RequestCachingPolicy.NO_STORE,
 		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
-		headers: new Headers({ [HttpRequestHeader.CONTENT_TYPE]: defaultMediaType, [HttpRequestHeader.ACCEPT]: defaultMediaType }),
+		headers: new Headers({ 'content-type': defaultMediaType, 'accept': defaultMediaType }),
 		searchParams: undefined,
 		integrity: undefined,
 		keepalive: undefined,
-		method: HttpRequestMethod.GET,
+		method: 'GET',
 		mode: Transportr.RequestModes.CORS,
 		priority: Transportr.RequestPriorities.AUTO,
 		redirect: Transportr.RedirectPolicies.FOLLOW,
@@ -324,7 +305,7 @@ export class Transportr {
 	async post<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
 		if (typeof(path) !== 'string') { [ path, options ] = [ undefined, path as RequestOptions ] }
 
-		return this.execute<T>(path, options, { method: HttpRequestMethod.POST });
+		return this.execute<T>(path, options, { method: 'POST' });
 	}
 
 	/**
@@ -338,7 +319,7 @@ export class Transportr {
 	 * @returns The return value of the #request method.
 	 */
 	async put<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
-		return this.execute<T>(path, options, { method: HttpRequestMethod.PUT });
+		return this.execute<T>(path, options, { method: 'PUT' });
 	}
 
 	/**
@@ -351,7 +332,7 @@ export class Transportr {
 	 * @returns A promise that resolves to the response of the request.
 	 */
 	async patch<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
-		return this.execute<T>(path, options, { method: HttpRequestMethod.PATCH });
+		return this.execute<T>(path, options, { method: 'PATCH' });
 	}
 
 	/**
@@ -363,7 +344,7 @@ export class Transportr {
 	 * @returns The result of the request.
 	 */
 	async delete<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
-		return this.execute<T>(path, options, { method: HttpRequestMethod.DELETE });
+		return this.execute<T>(path, options, { method: 'DELETE' });
 	}
 
 	/**
@@ -375,7 +356,7 @@ export class Transportr {
 	 * @returns A promise that resolves to the response object.
 	 */
 	async head<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
-		return this.execute<T>(path, options, { method: HttpRequestMethod.HEAD });
+		return this.execute<T>(path, options, { method: 'HEAD' });
 	}
 
 	/**
@@ -389,7 +370,7 @@ export class Transportr {
 	async options(path?: string | RequestOptions, options: RequestOptions = {}): Promise<string[] | undefined> {
 		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
 
-		const requestConfig = this.processRequestOptions(options, { method: HttpRequestMethod.OPTIONS });
+		const requestConfig = this.processRequestOptions(options, { method: 'OPTIONS' });
 		const { requestOptions } = requestConfig;
 		const requestHooks = requestOptions.hooks;
 
@@ -454,7 +435,7 @@ export class Transportr {
 	 * @returns A promise that resolves to the response body as a typed JSON value.
 	 */
 	async getJson(path?: string | RequestOptions, options?: RequestOptions): Promise<Json | undefined> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.JSON}` } }, handleJson);
+		return this._get(path, options, { headers: { accept: `${mediaTypes.JSON}` } }, handleJson);
 	}
 
 	/**
@@ -466,7 +447,7 @@ export class Transportr {
 	 * @returns The result of the function call to #get.
 	 */
 	async getXml(path?: string | RequestOptions, options?: RequestOptions): Promise<Document | undefined> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.XML}` } }, handleXml);
+		return this._get(path, options, { headers: { accept: `${mediaTypes.XML}` } }, handleXml);
 	}
 
 	/**
@@ -480,7 +461,7 @@ export class Transportr {
 	 * @returns A promise that resolves to a Document, an Element (if selector matched), or void.
 	 */
 	async getHtml(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<Document | Element | null | undefined> {
-		const doc = await this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.HTML}` } }, handleHtml);
+		const doc = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtml);
 		return selector && doc ? doc.querySelector(selector) : doc;
 	}
 
@@ -495,7 +476,7 @@ export class Transportr {
 	 * @returns A promise that resolves to a DocumentFragment, an Element (if selector matched), or void.
 	 */
 	async getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined> {
-		const fragment = await this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.HTML}` } }, handleHtmlFragment);
+		const fragment = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtmlFragment);
 		return selector && fragment ? fragment.querySelector(selector) : fragment;
 	}
 	/**
@@ -505,7 +486,7 @@ export class Transportr {
 	 * @returns A promise that resolves to void.
 	 */
 	async getScript(path?: string | RequestOptions, options?: RequestOptions): Promise<void> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.JAVA_SCRIPT}` } }, handleScript);
+		return this._get(path, options, { headers: { accept: `${mediaTypes.JAVA_SCRIPT}` } }, handleScript);
 	}
 
 	/**
@@ -515,7 +496,7 @@ export class Transportr {
 	 * @returns A promise that resolves to void.
 	 */
 	async getStylesheet(path?: string | RequestOptions, options?: RequestOptions): Promise<void> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: `${mediaTypes.CSS}` } }, handleCss);
+		return this._get(path, options, { headers: { accept: `${mediaTypes.CSS}` } }, handleCss);
 	}
 
 	/**
@@ -525,7 +506,7 @@ export class Transportr {
 	 * @returns A promise that resolves to a Blob or void.
 	 */
 	async getBlob(path?: string | RequestOptions, options?: RequestOptions): Promise<Blob | undefined> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }, handleBlob);
+		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBlob);
 	}
 
 	/**
@@ -537,7 +518,7 @@ export class Transportr {
 	 * @returns A promise that resolves to an `HTMLImageElement` or `void`.
 	 */
 	async getImage(path?: string, options?: RequestOptions): Promise<HTMLImageElement | undefined> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: 'image/*' } }, handleImage);
+		return this._get(path, options, { headers: { accept: 'image/*' } }, handleImage);
 	}
 
 	/**
@@ -547,7 +528,7 @@ export class Transportr {
 	 * @returns A promise that resolves to an ArrayBuffer or void.
 	 */
 	async getBuffer(path?: string | RequestOptions, options?: RequestOptions): Promise<ArrayBuffer | undefined> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }, handleBuffer);
+		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBuffer);
 	}
 
 	/**
@@ -557,7 +538,7 @@ export class Transportr {
 	 * @returns A promise that resolves to a ReadableStream, null, or void.
 	 */
 	async getStream(path?: string | RequestOptions, options?: RequestOptions): Promise<ReadableStream<Uint8Array> | null | undefined> {
-		return this._get(path, options, { headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.BIN } }, handleReadableStream);
+		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleReadableStream);
 	}
 
 	/**
@@ -570,7 +551,7 @@ export class Transportr {
 	 * @returns A promise that resolves to the response body or void.
 	 */
 	private async _get<T extends ResponseBody>(path?: string | RequestOptions, userOptions?: RequestOptions, options: RequestOptions = {}, responseHandler?: ResponseHandler<T>): Promise<T | undefined> {
-		return this.execute(path, userOptions, { ...options, method: HttpRequestMethod.GET, body: undefined }, responseHandler);
+		return this.execute(path, userOptions, { ...options, method: 'GET', body: undefined }, responseHandler);
 	}
 
 	/**
@@ -743,7 +724,7 @@ export class Transportr {
 
 		try {
 			if (!responseHandler && response.status !== 204) {
-				responseHandler = this.getResponseHandler<T>(response.headers.get(HttpResponseHeader.CONTENT_TYPE));
+				responseHandler = this.getResponseHandler<T>(response.headers.get('content-type'));
 			}
 
 			const data = await responseHandler?.(response);
@@ -858,13 +839,13 @@ export class Transportr {
 			if (isRawBody(userBody)) {
 				// Raw BodyInit — send as-is, delete Content-Type so the runtime sets it automatically
 				requestOptions.body = userBody;
-				requestOptions.headers.delete(HttpRequestHeader.CONTENT_TYPE);
+				requestOptions.headers.delete('content-type');
 			} else {
-				const isJson = requestOptions.headers.get(HttpRequestHeader.CONTENT_TYPE)?.includes('json') ?? false;
+				const isJson = requestOptions.headers.get('content-type')?.includes('json') ?? false;
 				requestOptions.body = isJson && isObject(userBody) ? serialize(userBody) : userBody;
 			}
 		} else {
-			requestOptions.headers.delete(HttpRequestHeader.CONTENT_TYPE);
+			requestOptions.headers.delete('content-type');
 			if (requestOptions.body instanceof URLSearchParams) {
 				Transportr.mergeSearchParams(requestOptions.searchParams, requestOptions.body);
 			}

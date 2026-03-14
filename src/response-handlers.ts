@@ -55,7 +55,7 @@ const handleScript: ResponseHandler<void> = async (response) => {
 
 	return new Promise((resolve, reject) => {
 		const script = document.createElement('script');
-		Object.assign(script, { src: objectURL, type: HttpMediaType.JAVA_SCRIPT, async: true });
+		Object.assign(script, { src: objectURL, type: 'text/javascript', async: true });
 
 		/**
 		 * Revoke the object URL and resolve the promise once the script has loaded.
@@ -91,7 +91,7 @@ const handleCss: ResponseHandler<void> = async (response) => {
 
 	return new Promise((resolve, reject) => {
 		const link = document.createElement('link');
-		Object.assign(link, { href: objectURL, type: HttpMediaType.CSS, rel: 'stylesheet' });
+		Object.assign(link, { href: objectURL, type: 'text/css', rel: 'stylesheet' });
 
 		/**
 		 * Revoke the object URL and resolve the promise once the stylesheet has loaded.
@@ -182,7 +182,8 @@ const handleReadableStream: ResponseHandler<ReadableStream<Uint8Array> | null> =
  */
 const handleXml: ResponseHandler<Document> = async (response) => {
 	await ensureDom();
-	return new DOMParser().parseFromString(DOMPurify.sanitize(await response.text()), HttpMediaType.XML);
+	const sanitize = await getSanitize();
+	return new DOMParser().parseFromString(sanitize(await response.text()), 'application/xml');
 };
 
 /**
@@ -193,7 +194,8 @@ const handleXml: ResponseHandler<Document> = async (response) => {
  */
 const handleHtml: ResponseHandler<Document> = async (response) => {
 	await ensureDom();
-	return new DOMParser().parseFromString(DOMPurify.sanitize(await response.text()), HttpMediaType.HTML);
+	const sanitize = await getSanitize();
+	return new DOMParser().parseFromString(sanitize(await response.text()), 'text/html');
 };
 
 /**
@@ -204,7 +206,8 @@ const handleHtml: ResponseHandler<Document> = async (response) => {
  */
 const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) => {
 	await ensureDom();
-	return document.createRange().createContextualFragment(DOMPurify.sanitize(await response.text()));
+	const sanitize = await getSanitize();
+	return document.createRange().createContextualFragment(sanitize(await response.text()));
 };
 
 export { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment };
