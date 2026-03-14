@@ -23,6 +23,6 @@
 	},
 	"include": [ "src/**/*" ],
 	"tsbuild": {
-		"noExternal": [ "@d1g1tal/media-type", "@d1g1tal/subscribr", "dompurify" ],
+		"noExternal": [ "@d1g1tal/media-type", "@d1g1tal/subscribr", "dompurify" ]
 	}
 }

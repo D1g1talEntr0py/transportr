@@ -27,6 +27,22 @@
     ".": {
       "types": "./dist/transportr.d.ts",
       "import": "./dist/transportr.js"
+    },
+    "./headers": {
+      "types": "./dist/http-request-headers.d.ts",
+      "import": "./dist/http-request-headers.js"
+    },
+    "./response-headers": {
+      "types": "./dist/http-response-headers.d.ts",
+      "import": "./dist/http-response-headers.js"
+    },
+    "./methods": {
+      "types": "./dist/http-request-methods.d.ts",
+      "import": "./dist/http-request-methods.js"
+    },
+    "./media-types": {
+      "types": "./dist/http-media-type.d.ts",
+      "import": "./dist/http-media-type.js"
     }
   },
   "publishConfig": {
@@ -39,6 +55,7 @@
   ],
   "scripts": {
     "build": "tsbuild",
+    "build:release": "tsbuild --minify --force",
     "build:watch": "tsbuild --watch",
     "type-check": "tsbuild --noEmit",
     "lint": "eslint ./src",
