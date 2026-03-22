@@ -23,12 +23,6 @@ A TypeScript Fetch API wrapper providing type-safe HTTP requests with advanced a
 - **HTML selectors** — Extract specific elements from HTML responses with CSS selectors
 - **FormData auto-detection** — Automatically handles FormData, Blob, ArrayBuffer, and stream bodies
 
-## Installation
-
-```bash
-pnpm add @d1g1tal/transportr
-```
-
 ## Requirements
 
 - **Node.js** ≥ 20.0.0 or a modern browser with native [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and `AbortController` support
@@ -38,17 +32,33 @@ pnpm add @d1g1tal/transportr
 pnpm add jsdom
 ```
 
+## Installation
+
+```bash
+pnpm add @d1g1tal/transportr
+```
+
 ## Quick Start
+
+Only the main module is required — the submodule constants (`HttpRequestHeader`, `HttpMediaType`, etc.) are optional conveniences. Anywhere a constant is used, a plain string works just as well.
+
+Out of the box, every instance defaults to:
+- `Content-Type: application/json; charset=utf-8`
+- `Accept: application/json; charset=utf-8`
+- `timeout`: 30 000 ms
+- `cache`: `no-store`
+- `credentials`: `same-origin`
+- `mode`: `cors`
 
 ```typescript
 import { Transportr } from '@d1g1tal/transportr';
 
 const api = new Transportr('https://api.example.com');
 
-// GET JSON
+// GET JSON — default Accept header is already application/json
 const data = await api.getJson('/users/1');
 
-// POST with JSON body
+// POST with JSON body — automatically serialized, no Content-Type needed
 const created = await api.post('/users', { body: { name: 'Alice' } });
 
 // GET with search params
@@ -57,7 +67,76 @@ const results = await api.getJson('/search', { searchParams: { q: 'term', page: 
 // Typed response using generics
 interface User { id: number; name: string; }
 const user = await api.get<User>('/users/1');
+
+// Plain strings work anywhere — constants are just for convenience
+const api2 = new Transportr('https://api.example.com', {
+  headers: { 'authorization': 'Bearer token', 'accept-language': 'en-US' }
+});
 ```
+
+## Browser / CDN Usage
+
+The package is published as pure ESM and works directly in modern browsers — no bundler required. All dependencies (`@d1g1tal/media-type`, `@d1g1tal/subscribr`, DOMPurify) are bundled into the output, so there are no external module URLs to manage. `jsdom` is not needed in a browser environment.
+
+### With an import map (recommended)
+
+An [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap) mirrors the package's named submodule exports and keeps your code identical to the Node.js form — use bare specifiers exactly as you would in a bundled project:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "@d1g1tal/transportr": "https://cdn.jsdelivr.net/npm/@d1g1tal/transportr/dist/transportr.js",
+    "@d1g1tal/transportr/headers": "https://cdn.jsdelivr.net/npm/@d1g1tal/transportr/dist/headers.js",
+    "@d1g1tal/transportr/methods": "https://cdn.jsdelivr.net/npm/@d1g1tal/transportr/dist/methods.js",
+    "@d1g1tal/transportr/media-types": "https://cdn.jsdelivr.net/npm/@d1g1tal/transportr/dist/media-types.js",
+    "@d1g1tal/transportr/response-headers": "https://cdn.jsdelivr.net/npm/@d1g1tal/transportr/dist/response-headers.js"
+  }
+}
+</script>
+
+<script type="module">
+  import { Transportr } from '@d1g1tal/transportr';
+  import { HttpRequestHeader } from '@d1g1tal/transportr/headers';
+  import { HttpRequestMethod } from '@d1g1tal/transportr/methods';
+  import { HttpMediaType } from '@d1g1tal/transportr/media-types';
+  import { HttpResponseHeader } from '@d1g1tal/transportr/response-headers';
+
+  const api = new Transportr('https://api.example.com', {
+    headers: {
+      [HttpRequestHeader.AUTHORIZATION]: 'Bearer token',
+      [HttpRequestHeader.ACCEPT]: HttpMediaType.JSON
+    }
+  });
+
+  const data = await api.getJson('/users/1');
+  console.log(data);
+</script>
+```
+
+### Without an import map
+
+The CDN resolves the `"."` entry in `exports` automatically, so no explicit file path is needed for the main module. Submodules use their CDN paths directly:
+
+```html
+<script type="module">
+  import { Transportr } from 'https://cdn.jsdelivr.net/npm/@d1g1tal/transportr';
+  import { HttpRequestHeader } from 'https://cdn.jsdelivr.net/npm/@d1g1tal/transportr/dist/headers.js';
+  import { HttpMediaType } from 'https://cdn.jsdelivr.net/npm/@d1g1tal/transportr/dist/media-types.js';
+
+  const api = new Transportr('https://api.example.com', {
+    headers: {
+      [HttpRequestHeader.AUTHORIZATION]: 'Bearer token',
+      [HttpRequestHeader.ACCEPT]: HttpMediaType.JSON
+    }
+  });
+
+  const data = await api.getJson('/users/1');
+  console.log(data);
+</script>
+```
+
+Import map support is available in all browsers covered by this project's `browserslist` configuration (Chrome 89+, Firefox 108+, Safari 16.4+).
 
 ## API
 
@@ -339,21 +418,66 @@ api
 
 ### Submodule Imports
 
-HTTP constant objects are available as named submodule imports rather than static class properties:
+HTTP constant objects are available as named submodule imports. Each is a tree-shakeable, side-effect-free object of string constants — useful for avoiding magic strings and getting autocomplete.
+
+#### `@d1g1tal/transportr/headers`
+
+Request header name constants.
+
+```typescript
+import { HttpRequestHeader } from '@d1g1tal/transportr/headers';
+
+const api = new Transportr('https://api.example.com', {
+	headers: {
+		[HttpRequestHeader.AUTHORIZATION]: 'Bearer token',
+		[HttpRequestHeader.CONTENT_TYPE]: 'application/json',
+		[HttpRequestHeader.ACCEPT_LANGUAGE]: 'en-US'
+	}
+});
+```
+
+#### `@d1g1tal/transportr/methods`
+
+HTTP method string constants.
+
+```typescript
+import { HttpRequestMethod } from '@d1g1tal/transportr/methods';
+
+const response = await api.request('/data', { method: HttpRequestMethod.PATCH });
+```
+
+#### `@d1g1tal/transportr/media-types`
+
+MIME type string constants covering common content types (JSON, HTML, XML, CSS, images, audio, video, and more).
 
 ```typescript
 import { HttpMediaType } from '@d1g1tal/transportr/media-types';
-import { HttpRequestMethod } from '@d1g1tal/transportr/methods';
-import { HttpRequestHeader } from '@d1g1tal/transportr/headers';
-import { HttpResponseHeader } from '@d1g1tal/transportr/response-headers';
+
+const api = new Transportr('https://api.example.com', {
+	headers: { [HttpRequestHeader.ACCEPT]: HttpMediaType.JSON }
+});
+
+// Use as a content-type value
+await api.post('/upload', {
+	body: csvData,
+	headers: { [HttpRequestHeader.CONTENT_TYPE]: HttpMediaType.CSV }
+});
 ```
 
-| Submodule | Export | Description |
-|-----------|--------|-------------|
-| `@d1g1tal/transportr/media-types` | `HttpMediaType` | MIME type string constants |
-| `@d1g1tal/transportr/methods` | `HttpRequestMethod` | HTTP method string constants |
-| `@d1g1tal/transportr/headers` | `HttpRequestHeader` | Request header name constants |
-| `@d1g1tal/transportr/response-headers` | `HttpResponseHeader` | Response header name constants |
+#### `@d1g1tal/transportr/response-headers`
+
+Response header name constants — useful when reading headers from a response.
+
+```typescript
+import { HttpResponseHeader } from '@d1g1tal/transportr/response-headers';
+
+const reg = api.register(Transportr.RequestEvents.SUCCESS, (event, data) => {
+	const response = data as Response;
+	const etag = response.headers.get(HttpResponseHeader.ETAG);
+	const retryAfter = response.headers.get(HttpResponseHeader.RETRY_AFTER);
+	const location = response.headers.get(HttpResponseHeader.LOCATION);
+});
+```
 
 ## License
 
