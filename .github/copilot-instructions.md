@@ -1,8 +1,6 @@
 # Copilot Instructions for transportr
 
-**Note**: All AI coding agents working on this project must also read and follow the guidelines in `AGENTS.md`, which defines core principles, coding standards, testing protocols, and workflow requirements.
-
-A TypeScript 6 Fetch API wrapper providing type-safe HTTP requests with advanced abort/timeout handling, event-driven architecture, and automatic content-type based response processing.
+A TypeScript Fetch API wrapper providing type-safe HTTP requests with advanced abort/timeout handling, event-driven architecture, automatic content-type based response processing, retry logic, request deduplication, lifecycle hooks, and XSRF protection.
 
 ## Architecture & Data Flow
 
@@ -21,7 +19,19 @@ A TypeScript 6 Fetch API wrapper providing type-safe HTTP requests with advanced
 **Event System** (via `@d1g1tal/subscribr`):
 - Global events: `Transportr.register(event, handler)` (static) → all instances
 - Instance events: `transportr.register(event, handler)` → single instance
-- Lifecycle: `configured` → `success|error|aborted|timeout` → `complete` → `all-complete`
+- Lifecycle: `configured` → `success|error|aborted|timeout` → `retry` (zero or more) → `complete` → `all-complete`
+
+**Lifecycle Hooks** (`HookOptions`):
+- Three hook types: `beforeRequest`, `afterResponse`, `beforeError`
+- Execution order: global hooks → instance hooks → per-request hooks
+- Register globally: `Transportr.addHooks(hooks)` / `Transportr.clearHooks()`
+- Register per-instance: constructor `options.hooks` or `addHooks()` method
+- Register per-request: pass `hooks` in the request options
+
+**Retry & Deduplication**:
+- Retry: configured via `RetryOptions` (`count`, `statusCodes`, `methods`, `delay`, `backoffFactor`); only idempotent methods by default
+- Deduplication: `GET`/`HEAD` only; in-flight requests share a single `Promise<Response>` keyed by URL+method in the static `inflightRequests` Map; each consumer gets a cloned response
+- XSRF: reads cookie by name, injects as request header; configured via `XsrfOptions`
 
 **Error Handling**:
 - Non-ok responses wrapped in `HttpError` with `ResponseStatus` (code/text)
@@ -31,7 +41,7 @@ A TypeScript 6 Fetch API wrapper providing type-safe HTTP requests with advanced
 ## Critical Conventions
 
 **Method Body Handling** (`src/constants.ts:requestBodyMethods`):
-- Only `POST/PUT/PATCH` send body; `GET/DELETE/HEAD/OPTIONS` drop body and merge data into query params
+- `POST/PUT/PATCH/DELETE` send body; `GET/HEAD/OPTIONS` drop body and merge data into query params
 - Body auto-stringified to JSON when `content-type` includes `json` AND body is plain object (not array/BodyInit)
 - Type-safe serialization via `serialize<T>()` with branded `JsonString<T>` type
 
@@ -45,11 +55,11 @@ A TypeScript 6 Fetch API wrapper providing type-safe HTTP requests with advanced
 - Sanitize HTML/XML with `DOMPurify` in `handleHtml`/`handleXml`/`handleHtmlFragment` (in `src/response-handlers.ts`) before parsing
 - Script/CSS handlers (`handleScript`, `handleCss`) use `URL.createObjectURL()` + revoke after inject
 
-**TypeScript 6 & Build**:
-- Strict mode + `isolatedDeclarations` + `verbatimModuleSyntax` enforced
+**TypeScript & Build**:
+- TypeScript 5.x — strict mode + `isolatedDeclarations` + `verbatimModuleSyntax` enforced
 - Types in `src/@types/index.ts` for public API
-- Build: `pnpm build` uses custom `tsbuild` with `tsconfig.tsbuild.entryPoints` pointing to `./src/transportr.ts`
-- Output: `dist/transportr.{js,d.ts}` with `noExternal` bundling for `@d1g1tal/media-type|subscribr|dompurify`
+- Build: `pnpm build` uses custom `tsbuild`; entry points derived from `exports` in `package.json`
+- Output: `dist/*.{js,d.ts}` with `noExternal` bundling for `@d1g1tal/media-type`, `@d1g1tal/subscribr`, `dompurify` (configured in `tsconfig.json` `tsbuild.noExternal`)
 - Target: ESNext with `moduleResolution: Bundler`
 
 ## Development Workflow
@@ -59,14 +69,15 @@ A TypeScript 6 Fetch API wrapper providing type-safe HTTP requests with advanced
 **Scripts**:
 - `pnpm lint` → ESLint (flat config) checks tabs, single quotes, JSDoc completeness (`eslint-plugin-jsdoc`)
 - `pnpm build` / `pnpm build:watch` → TypeScript compilation via `tsbuild`
-- `pnpm test` → Vitest 4.x (dual-project setup)
-- `pnpm test:coverage` → generates reports in `tests/coverage` (text/html/lcov/clover)
-- `pnpm type-check` → TypeScript type checking only
+- `pnpm build:release` → minified production build
+- `pnpm test` → Vitest (dual-project setup)
+- `pnpm test:coverage` → generates reports in `tests/coverage` (text/json/html/clover/lcov)
+- `pnpm type-check` → TypeScript type checking only (no emit)
 
 **Vitest Projects** (`vitest.config.ts`):
-- `integration` (node env): tests with real network calls to `mockapi.io` (`global-event-handler`, `abort-all`, `all-complete-event`, `network-integration`, `environment-specific`, `signal-controller-cleanup`, `request-options-optimization`, `mediatype-caching`)
-- `unit` (jsdom env): all other tests, DOM available for HTML/XML handlers
-- Both load `tests/scripts/setup.ts` → mocks `URL.createObjectURL`/`revokeObjectURL`, ensures `AbortController` polyfills
+- `integration` (node env): real HTTP calls to `mockapi.io` — `global-event-handler`, `abort-all`, `all-complete-event`, `network-integration`, `environment-specific`, `signal-controller-cleanup`, `request-options-optimization`, `mediatype-caching`, `hooks`
+- `unit` (jsdom env): all other tests; DOM available for HTML/XML handlers
+- Both load `tests/scripts/setup.ts` → mocks `URL.createObjectURL`/`revokeObjectURL` with `vi.fn()`, ensures `AbortController`/`AbortSignal` globals
 
 **Linting Rules** (`eslint.config.js`):
 - Tab indentation (`indent: ['error', 'tab']`), unix line endings, single quotes mandatory
@@ -79,15 +90,17 @@ A TypeScript 6 Fetch API wrapper providing type-safe HTTP requests with advanced
 - `@d1g1tal/media-type` v6 → `MediaType.parse()`, `.matches()` (type/subtype matching)
 - `@d1g1tal/subscribr` v4 → event pub/sub (`Subscribr` class)
 - `dompurify` v3 → sanitizes HTML/XML before parsing
-- `jsdom` v27 → DOM environment for Node.js (auto-imported in `transportr.ts`)
+- `jsdom` (peer dep `>=25.0.0`) → DOM environment for Node.js; lazily imported on first DOM handler call
 
 **Key Files & Patterns**
 
 **Static Constants** (`src/constants.ts`):
 - `mediaTypes` object → pre-built `MediaType` instances for common types (JSON, HTML, XML, CSS, etc.)
-- `requestBodyMethods` → `['POST', 'PUT', 'PATCH']`
+- `requestBodyMethods` → `['POST', 'PUT', 'PATCH', 'DELETE']`
 - `aborted`/`timedOut`/`internalServerError` → synthetic `ResponseStatus` objects
-- `RequestEvent` → event name constants (`CONFIGURED`, `SUCCESS`, `ERROR`, `ABORTED`, `TIMEOUT`, `COMPLETE`, `ALL_COMPLETE`)
+- `RequestEvent` → event name constants (`CONFIGURED`, `SUCCESS`, `ERROR`, `ABORTED`, `TIMEOUT`, `RETRY`, `COMPLETE`, `ALL_COMPLETE`)
+- Retry defaults: status codes `[408, 413, 429, 500, 502, 503, 504]`, methods `['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS']`, delay 300ms, backoff factor 2
+- XSRF defaults: cookie `'XSRF-TOKEN'`, header `'X-XSRF-TOKEN'`
 
 **Caching**:
 - `Transportr.mediaTypeCache` → Caches parsed `MediaType` instances to avoid re-parsing the same content-type strings
