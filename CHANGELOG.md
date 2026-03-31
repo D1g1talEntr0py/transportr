@@ -1,3 +1,46 @@
+## [2.2.0](https://github.com/D1g1talEntr0py/transportr/compare/v2.1.2...v2.2.0) (2026-03-31)
+
+### Features
+
+* **docs:** expand package manager installation snippets (caea4a7d21067bd248f6cadc118010d91c28c59b)
+Adds missing installation commands for native npm and yarn to the README explicitly, ensuring compatibility statements for multiple ecosystems.
+
+
+### Bug Fixes
+
+* **deps:** update dependencies to address CVE-2026-33228 (67315abc69d4e9ca5d93ea7543d7149c42e616d8)
+Upgrades the transitive dependency `flatted` to 3.4.2 to fix a prototype pollution vulnerability (CWE-1321). This update also includes a major version bump for TypeScript to v6.0.2, alongside several other development dependency bumps such as vitest, eslint plugins, and pnpm.
+
+* **license:** change license from ISC to MIT (597c7c4414c8403ecdc4105c9250356b63faaf81)
+Transitions the project license to MIT, updating the LICENSE file, the metadata field in `package.json`, and the visual status badge in the documentation.
+
+
+### Code Refactoring
+
+* **config:** simplify compilation settings for TypeScript 6 (6d232397646a323241e094e3b723976e67be4786)
+Removes historically explicit configuration options from `tsconfig.json` that are either default behavior or obsolete in TypeScript 6. Scope is securely narrowed to explicitly include and target the `./src` directory.
+
+
+### Documentation
+
+* consolidate ai agent instructions (aaeccb9ea8be76a2524b86df51564cb3599de7d1)
+Deletes the separate `AGENTS.md` file and rolls its relevant details and guidelines directly into `.github/copilot-instructions.md`. This centralizes architectural conventions, code formatting rules, testing guidelines, and new feature details (e.g., retries, lifecycle hooks, and XSRF protection) for AI coding assistants.
+
+* update readme with cdn usage and submodule documentation (fa18f735cea5ce79763d127fff09332317f17f55)
+Expands the project README to clarify native browser and CDN usage without bundlers through an import map. Adds new sections that detail submodules for HTTP constants (e.g., headers, methods, media-types) to make the code examples and documentation more comprehensive and usable.
+
+
+### Build System
+
+* **deps:** update dependencies and package manager settings (1d2faaadb889fd71ff6c37f898de70a090df586b)
+Removes the explicit `auto-install-peers=false` configuration from `.npmrc` and enables `autoInstallPeers: true` in the `pnpm-lock.yaml` settings. Updates the pnpm package manager version to 10.32.1 and bumps various dependencies, including `@d1g1tal/media-type`, `@d1g1tal/subscribr`, and development tools like `eslint`, `@typescript-eslint/eslint-plugin`, and `jsdom`.
+
+
+### Continuous Integration
+
+* update github actions workflows (0f2108390b52fb66aa25a2f337616efb45bec339)
+Updates GitHub Actions to use newer action versions, modernizes the `pnpm-setup` and `setup-node` tasks, and removes the environment variable `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`. Additionally, modifies the publishing workflow to properly install the latest `npm` version instead of clearing the auth token.
+
 ## [2.1.2](https://github.com/D1g1talEntr0py/transportr/compare/v2.1.1...v2.1.2) (2026-03-14)
 
 ### ⚠ BREAKING CHANGES
