@@ -21,8 +21,9 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "pnpm@10.32.1",
+  "packageManager": "pnpm@10.33.0",
   "type": "module",
+  "types": "./dist/transportr.d.ts",
   "exports": {
     ".": {
       "types": "./dist/transportr.d.ts",
@@ -78,24 +79,24 @@
     }
   },
   "devDependencies": {
-    "@d1g1tal/tsbuild": "^1.6.5",
+    "@d1g1tal/tsbuild": "^1.7.1",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
     "@types/jsdom": "^28.0.1",
     "@types/node": "^25.5.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "@vitest/coverage-v8": "^4.1.0",
-    "@vitest/ui": "^4.1.0",
-    "@xmldom/xmldom": "^0.9.8",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "@vitest/ui": "^4.1.2",
+    "@xmldom/xmldom": "^0.9.9",
     "eslint": "^10.1.0",
     "eslint-plugin-compat": "^7.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsdoc": "^62.8.1",
     "globals": "^17.4.0",
     "jsdom": "^29.0.1",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1",
-    "vitest": "^4.1.0"
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.2"
   },
   "browserslist": [
     ">0.3% and not dead",
