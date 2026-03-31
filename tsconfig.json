@@ -1,27 +1,20 @@
 {
 	"compilerOptions": {
-		"strict": true,
 		"declaration": true,
 		"sourceMap": true,
-		"resolveJsonModule": true,
 		"isolatedModules": true,
-		"isolatedDeclarations": true,
-		"importHelpers": false,
-		"useUnknownInCatchVariables": true,
 		"forceConsistentCasingInFileNames": true,
-		"verbatimModuleSyntax": true,
 		"allowUnusedLabels": false,
 		"allowUnreachableCode": false,
 		"noImplicitOverride": true,
 		"noImplicitReturns": true,
 		"noUncheckedIndexedAccess": true,
-		"target": "ESNext",
-		"module": "ESNext",
-		"moduleResolution": "Bundler",
+		"rootDir": "./src",
 		"lib": [ "ESNext", "DOM" ],
+		"moduleResolution": "Bundler",
 		"paths": { "@src/*": ["./src/*"], "@types": ["./src/@types"] }
 	},
-	"include": [ "src/**/*" ],
+	"include": [ "./src" ],
 	"tsbuild": {
 		"noExternal": [ "@d1g1tal/media-type", "@d1g1tal/subscribr", "dompurify" ]
 	}
