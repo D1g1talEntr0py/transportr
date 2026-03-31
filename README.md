@@ -35,7 +35,14 @@ pnpm add jsdom
 ## Installation
 
 ```bash
+# With pnpm:
 pnpm add @d1g1tal/transportr
+
+# Or with npm:
+npm install @d1g1tal/transportr
+
+# Or with yarn
+yarn add @d1g1tal/transportr
 ```
 
 ## Quick Start
