@@ -8,10 +8,11 @@
 		"allowUnreachableCode": false,
 		"noImplicitOverride": true,
 		"noImplicitReturns": true,
+		"stableTypeOrdering": true,
 		"noUncheckedIndexedAccess": true,
 		"rootDir": "./src",
-		"lib": [ "ESNext", "DOM" ],
-		"moduleResolution": "Bundler",
+		"lib": [ "esnext", "dom" ],
+		"module": "preserve",
 		"paths": { "@src/*": ["./src/*"], "@types": ["./src/@types"] }
 	},
 	"include": [ "./src" ],
