@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "@d1g1tal/media-type": "^6.0.6",
-    "@d1g1tal/subscribr": "^4.1.10",
+    "@d1g1tal/subscribr": "^4.1.11",
     "dompurify": "^3.3.3"
   },
   "peerDependencies": {

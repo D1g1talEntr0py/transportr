@@ -12,8 +12,8 @@ importers:
         specifier: ^6.0.6
         version: 6.0.6
       '@d1g1tal/subscribr':
-        specifier: ^4.1.10
-        version: 4.1.10
+        specifier: ^4.1.11
+        version: 4.1.11
       dompurify:
         specifier: ^3.3.3
         version: 3.3.3
@@ -155,8 +155,8 @@ packages:
     resolution: {integrity: sha512-DRZ03rRRJbwiF+gkXLXLd9VYDq28PKzeOcXnFqmmKsLR6ecpQdDRp8BURKVpX7lh2R+dlG3xNdx4flo+fc2Xjg==}
     engines: {node: '>=20.16.0'}
 
-  '@d1g1tal/subscribr@4.1.10':
-    resolution: {integrity: sha512-sUG7VfMa/Yezbxrw4/aeS+oWU40wI8yL2iuYxiS+x1jyvqNcGqHE0FILTJbxJX+fy+4a5r0TOJHQJ670hBsTyQ==}
+  '@d1g1tal/subscribr@4.1.11':
+    resolution: {integrity: sha512-GHbkl1wC92y3Iga/U4fEbzPDHEZtHKFMBb8P02YDwt3LCiO+7FPBNtt8IHX13LjKaP7f8TtYkaV7X+D0ziNwcg==}
     engines: {node: '>=20.15.1'}
 
   '@d1g1tal/tsbuild@1.7.3':
@@ -1720,7 +1720,7 @@ snapshots:
 
   '@d1g1tal/media-type@6.0.6': {}
 
-  '@d1g1tal/subscribr@4.1.10':
+  '@d1g1tal/subscribr@4.1.11':
     dependencies:
       '@d1g1tal/collections': 2.2.0
 
