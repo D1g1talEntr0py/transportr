@@ -1,3 +1,34 @@
+## [2.2.1](https://github.com/D1g1talEntr0py/transportr/compare/v2.2.0...v2.2.1) (2026-04-04)
+
+### Bug Fixes
+
+* **deps:** update subscribr dependency to address security issues via Dependabot (0a04a16e34daaae749927b4893f15a972d4eb5e0)
+
+### Miscellaneous Chores
+
+* adjust typescript configuration and vs code settings (c1f28dff23025853f236fa380bc4f6e0ec26dd8c)
+Updates `tsconfig.json` to use module preservation and stable type ordering, and refines cases for standard libraries. Updates `.vscode` configuration to point correctly to the local typescript SDK path.
+
+* **deps-dev:** update essential dev dependencies (b94738075ce674d7e65952433cd553fa7af0bc35)
+Bumps various development dependencies including TypeScript build tools, type definitions, and ESLint plugins. Updates the lockfile alongside package.json changes.
+
+
+### Tests
+
+* remove vitest ui script (7d894526ffb17345986375d3700f53b42ba5a2bb)
+Drops the `test:ui` script from package.json.
+
+
+### Build System
+
+* auto-include changelog in releases (fd40332bd99c6b3a2ae5f260e9b7afcf0902665b)
+Adds `CHANGELOG.md` to the package distribution files to ensure it gets packaged and published to npm.
+
+
+### Continuous Integration
+
+* fix the versioning system that was broken by attempting to fix the fact that a refactor doesn't change the version (3b0642134714bd634ae11f8a3d4f4695ea25c953)
+
 ## [2.2.0](https://github.com/D1g1talEntr0py/transportr/compare/v2.1.2...v2.2.0) (2026-03-31)
 
 ### Features
