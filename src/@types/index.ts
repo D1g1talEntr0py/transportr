@@ -108,6 +108,21 @@ type HookOptions = {
 /** Fully resolved retry configuration with all defaults applied. */
 type NormalizedRetryOptions = Required<RetryOptions>;
 
+/** Maps request event names to their typed data payloads. */
+type RequestEventDataMap = {
+	configured: RequestOptions;
+	success: ResponseBody;
+	error: import('@src/http-error').HttpError;
+	aborted: undefined;
+	timeout: undefined;
+	retry: RetryInfo;
+	complete: { timing: RequestTiming };
+	'all-complete': undefined;
+};
+
+/** A typed event handler where the data parameter matches the event name. */
+type TypedRequestEventHandler<E extends keyof RequestEventDataMap> = (event: Event, data: RequestEventDataMap[E]) => void;
+
 /** Options for the internal publish helper. */
 type PublishOptions = { name: string; event?: Event; data?: unknown; global?: boolean };
 
@@ -125,12 +140,15 @@ export type {
 	AfterResponseHook,
 	BeforeErrorHook,
 	BeforeRequestHook,
+	DownloadProgress,
 	EventRegistration,
 	HookOptions,
 	HttpErrorOptions,
 	RequestBody,
 	RequestBodyMethod,
 	RequestEventHandler,
+	RequestEventDataMap,
+	RetryInfo,
 	Entries,
 	ReadOnlyEntries,
 	RequestHeaders,

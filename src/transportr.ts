@@ -122,8 +122,16 @@ export class Transportr {
 	};
 
 	/**
-	 * Returns a {@link EventRegistration} used for subscribing to global events.
+	 * Returns a {@link EventRegistration} used for subscribing to global events with typed data.
 	 *
+	 * @param event The event to subscribe to.
+	 * @param handler The event handler with typed data parameter.
+	 * @param context The context to bind the handler to.
+	 * @returns A new {@link EventRegistration} instance.
+	 */
+	static register<E extends keyof RequestEventDataMap>(event: E, handler: TypedRequestEventHandler<E>, context?: unknown): EventRegistration;
+	/**
+	 * @internal
 	 * @param event The event to subscribe to.
 	 * @param handler The event handler.
 	 * @param context The context to bind the handler to.
@@ -225,11 +233,19 @@ export class Transportr {
 	}
 
 	/**
-	 * Registers an event handler with a {@link Transportr} instance.
+	 * Registers an event handler with a {@link Transportr} instance with typed data.
 	 *
 	 * @param event The name of the event to listen for.
 	 * @param handler The function to call when the event is triggered.
 	 * @param context The context to bind to the handler.
+	 * @returns An object that can be used to remove the event handler.
+	 */
+	register<E extends keyof RequestEventDataMap>(event: E, handler: TypedRequestEventHandler<E>, context?: unknown): EventRegistration;
+	/**
+	 * @internal
+	 * @param event The event to subscribe to.
+	 * @param handler The event handler.
+	 * @param context The context to bind the handler to.
 	 * @returns An object that can be used to remove the event handler.
 	 */
 	register(event: RequestEvent, handler: RequestEventHandler, context?: unknown): EventRegistration {
