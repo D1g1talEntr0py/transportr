@@ -649,9 +649,68 @@ export class Transportr {
 			 * Performs the fetch with retry logic.
 			 * @returns A promise resolving to the typed response.
 			 */
+			const originalBody = requestOptions.body;
+			const onUploadProgress = requestOptions.onUploadProgress;
+
+			/**
+			 * Wraps the request body with a progress-tracking TransformStream when onUploadProgress is set.
+			 * Re-creates the stream from the original body on each call so retries get a fresh stream.
+			 */
+			const wrapUploadBody = async (): Promise<void> => {
+				if (!onUploadProgress || originalBody == null) { return }
+
+				let bytes: Uint8Array | null = null;
+
+				if (typeof originalBody === 'string') {
+					bytes = new TextEncoder().encode(originalBody);
+				} else if (originalBody instanceof Blob) {
+					bytes = new Uint8Array(await originalBody.arrayBuffer());
+				} else if (isArrayBuffer(originalBody)) {
+					bytes = new Uint8Array(originalBody);
+				} else if (ArrayBuffer.isView(originalBody)) {
+					bytes = new Uint8Array(originalBody.buffer, originalBody.byteOffset, originalBody.byteLength);
+				} else if (!(originalBody instanceof ReadableStream)) {
+					return;
+				}
+
+				const total = bytes ? bytes.byteLength : null;
+				const readable: ReadableStream<Uint8Array> = bytes
+					? new ReadableStream<Uint8Array>({
+						/** @param controller The stream controller. */
+						start(controller) { controller.enqueue(bytes); controller.close() }
+					})
+					: originalBody as ReadableStream<Uint8Array>;
+
+				let loaded = 0;
+				const transform = new TransformStream<Uint8Array, Uint8Array>({
+					/**
+					 * Tracks bytes and invokes upload progress callback.
+					 * @param chunk The data chunk.
+					 * @param controller The transform controller.
+					 */
+					transform(chunk, controller) {
+						loaded += chunk.byteLength;
+						onUploadProgress({
+							loaded,
+							total,
+							percentage: total !== null && total > 0 ? Math.round((loaded / total) * 100) : null
+						});
+						controller.enqueue(chunk);
+					}
+				});
+
+				requestOptions.body = readable.pipeThrough(transform);
+				Object.assign(requestOptions, { duplex: 'half' });
+			};
+
+			/**
+			 * Performs the fetch with upload progress wrapping and retry logic.
+			 * @returns The typed response.
+			 */
 			const doFetch = async (): Promise<TypedResponse<T>> => {
 				while (true) {
 					try {
+						await wrapUploadBody();
 						const response = await fetch<T>(url, requestOptions);
 						if (!response.ok) {
 							if (canRetry && attempt < retryConfig.limit && retryConfig.statusCodes.includes(response.status)) {

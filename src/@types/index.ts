@@ -67,6 +67,12 @@ type RequestOptions = Prettify<{
 	dedupe?: boolean;
 	/** XSRF/CSRF protection. When set (or true), reads a cookie and sets a request header. */
 	xsrf?: boolean | XsrfOptions;
+	/** Callback invoked with download progress information. Only works when the response has a body stream. */
+	onDownloadProgress?: (progress: DownloadProgress) => void;
+	/** Callback invoked with upload progress as the request body is sent. Requires ReadableStream request body support. */
+	onUploadProgress?: (progress: DownloadProgress) => void;
+	/** When false, methods return Result tuples instead of throwing. Defaults to true (throw on error). */
+	unwrap?: boolean;
 } & Omit<RequestInit, 'headers'> & MethodBody>;
 
 /** Configuration for retry behavior on failed requests. */

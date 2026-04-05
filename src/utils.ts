@@ -55,6 +55,14 @@ export const serialize = <const T>(data: JsonValue<T>): JsonString<T> => JSON.st
 export const isString = (value: unknown): value is string => value !== null && typeof value === 'string';
 
 /**
+ * Type predicate to check if a value is an ArrayBuffer (cross-realm safe).
+ * @param value The value to check.
+ * @returns True if value is an ArrayBuffer, with type narrowing.
+ */
+export const isArrayBuffer = (value: unknown): value is ArrayBuffer =>
+	value instanceof ArrayBuffer || Object.prototype.toString.call(value) === '[object ArrayBuffer]';
+
+/**
  * Type predicate to check if a value is an object (not array or null)
  * @param value The value to check
  * @returns True if value is an object, with type narrowing
