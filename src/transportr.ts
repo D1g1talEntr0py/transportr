@@ -683,18 +683,52 @@ export class Transportr {
 				}
 			};
 
+			/**
+			 * Wraps the response body with a progress-tracking TransformStream when onDownloadProgress is set.
+			 * @param response The response to potentially wrap.
+			 * @returns The original response or a new response with progress tracking.
+			 */
+			const wrapProgress = (response: TypedResponse<T>): TypedResponse<T> => {
+				const onDownloadProgress = requestOptions.onDownloadProgress;
+				if (!onDownloadProgress || !response.body) return response;
+
+				const contentLength = response.headers.get('content-length');
+				const total = contentLength ? parseInt(contentLength, 10) : null;
+				let loaded = 0;
+
+				const transform = new TransformStream<Uint8Array, Uint8Array>({
+					/**
+					 * Tracks bytes and invokes progress callback.
+					 * @param chunk The data chunk.
+					 * @param controller The transform controller.
+					 */
+					transform(chunk, controller) {
+						loaded += chunk.byteLength;
+						onDownloadProgress({
+							loaded,
+							total,
+							percentage: total !== null && total > 0 ? Math.round((loaded / total) * 100) : null
+						});
+						controller.enqueue(chunk);
+					}
+				});
+
+				const body = response.body.pipeThrough(transform);
+				return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers }) as TypedResponse<T>;
+			};
+
 			if (canDedupe) {
 				const promise = doFetch();
 				Transportr.inflightRequests.set(dedupeKey, promise as Promise<Response>);
 				try {
 					const response = await promise;
-					return response;
+					return wrapProgress(response);
 				} finally {
 					Transportr.inflightRequests.delete(dedupeKey);
 				}
 			}
 
-			return await doFetch();
+			return wrapProgress(await doFetch());
 		} finally {
 			Transportr.signalControllers.delete(signalController.destroy());
 			if (!requestOptions.signal?.aborted) {
