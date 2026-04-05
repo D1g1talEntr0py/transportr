@@ -190,10 +190,10 @@ await api.get('/data', { hooks: { beforeError: [notify] } }); // Only this call
 | Timeout | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Retry with backoff | ✅ | ✅ | ✅ | ✅ | ⚠️ plugin |
 | SSE / NDJSON streaming | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Download / upload progress | ✅ | ✅ | ❌ | ❌ | ✅ |
+| Download / upload progress | ✅ | ✅ | ❌ | ⚠️ addon | ✅ |
 | Safe result tuples | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Concurrent helpers with auto-abort | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Request deduplication | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Request deduplication | ✅ | ❌ | ❌ | ⚠️ middleware | ❌ |
 | Abort all in-flight | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Lifecycle event system | ✅ | ❌ | ❌ | ❌ | ❌ |
 | HTML response → `Document` | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -203,7 +203,7 @@ await api.get('/data', { hooks: { beforeError: [notify] } }); // Only this call
 | Script injection + cleanup | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Stylesheet injection + cleanup | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Image → `HTMLImageElement` | ✅ | ❌ | ❌ | ❌ | ❌ |
-| XSRF/CSRF protection | ✅ | ❌ | ❌ | ⚠️ plugin | ✅ |
+| XSRF/CSRF protection | ✅ | ❌ | ❌ | ❌ | ✅ |
 | `beforeRequest` hooks | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `afterResponse` hooks | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Global + instance hook layers | ✅ | ❌ | ❌ | ❌ | ❌ |
