@@ -336,6 +336,10 @@ export class Transportr {
 		this.subscribr.destroy();
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	get<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	get<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * This function returns a promise that resolves to the result of a request to the specified path with
 	 * the specified options, where the method is GET.
@@ -345,10 +349,14 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to the response of the request.
 	 */
-	async get<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
+	async get<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
 		return this._get<T>(path, options);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	post<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	post<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * This function makes a POST request to the given path with the given body and options.
 	 *
@@ -358,12 +366,16 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to the response body.
 	 */
-	async post<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
+	async post<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
 		if (typeof(path) !== 'string') { [ path, options ] = [ undefined, path as RequestOptions ] }
 
 		return this.execute<T>(path, options, { method: 'POST' });
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	put<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	put<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * This function returns a promise that resolves to the result of a request to the specified path with
 	 * the specified options, where the method is PUT.
@@ -374,10 +386,14 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns The return value of the #request method.
 	 */
-	async put<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
+	async put<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
 		return this.execute<T>(path, options, { method: 'PUT' });
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	patch<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	patch<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * It takes a path and options, and returns a request with the method set to PATCH.
 	 *
@@ -387,10 +403,14 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to the response of the request.
 	 */
-	async patch<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
+	async patch<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
 		return this.execute<T>(path, options, { method: 'PATCH' });
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	delete<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	delete<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * It takes a path and options, and returns a request with the method set to DELETE.
 	 *
@@ -399,10 +419,14 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns The result of the request.
 	 */
-	async delete<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
+	async delete<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
 		return this.execute<T>(path, options, { method: 'DELETE' });
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	head<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	head<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * Returns the response headers of a request to the given path.
 	 *
@@ -411,10 +435,14 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to the response object.
 	 */
-	async head<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined> {
+	async head<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
 		return this.execute<T>(path, options, { method: 'HEAD' });
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	options(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<string[] | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	options(path: RequestOptions & { unwrap: false }): Promise<Result<string[] | undefined>>;
 	/**
 	 * It returns a promise that resolves to the allowed request methods for the given resource path.
 	 *
@@ -423,46 +451,56 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to an array of allowed request methods for this resource.
 	 */
-	async options(path?: string | RequestOptions, options: RequestOptions = {}): Promise<string[] | undefined> {
+	async options(path?: string | RequestOptions, options: RequestOptions = {}): Promise<string[] | undefined | Result<string[] | undefined>> {
 		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
 
 		const requestConfig = this.processRequestOptions(options, { method: 'OPTIONS' });
 		const { requestOptions } = requestConfig;
+		const unwrap = requestOptions.unwrap !== false;
 		const requestHooks = requestOptions.hooks;
 
-		// Run beforeRequest hooks: global → instance → per-request
-		let url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
-		const beforeRequestHookSets = [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ];
-		for (const hooks of beforeRequestHookSets) {
-			if (!hooks) { continue }
-			for (const hook of hooks) {
-				const result = await hook(requestOptions, url);
-				if (result) {
-					Object.assign(requestOptions, result);
-					if (result.searchParams !== undefined) { url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams) }
+		try {
+			// Run beforeRequest hooks: global → instance → per-request
+			let url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
+			const beforeRequestHookSets = [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ];
+			for (const hooks of beforeRequestHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(requestOptions, url);
+					if (result) {
+						Object.assign(requestOptions, result);
+						if (result.searchParams !== undefined) { url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams) }
+					}
 				}
 			}
-		}
 
-		let response: Response = await this._request(path, requestConfig);
+			let response: Response = await this._request(path, requestConfig);
 
-		// Run afterResponse hooks: global → instance → per-request
-		const afterResponseHookSets = [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ];
-		for (const hooks of afterResponseHookSets) {
-			if (!hooks) { continue }
-			for (const hook of hooks) {
-				const result = await hook(response, requestOptions);
-				if (result) { response = result }
+			// Run afterResponse hooks: global → instance → per-request
+			const afterResponseHookSets = [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ];
+			for (const hooks of afterResponseHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(response, requestOptions);
+					if (result) { response = result }
+				}
 			}
+
+			const allowedMethods = response.headers.get('allow')?.split(',').map((method: string) => method.trim());
+
+			this.publish({ name: RequestEvent.SUCCESS, data: allowedMethods, global: options.global });
+
+			return unwrap ? allowedMethods : [true, allowedMethods] as Result<string[] | undefined>;
+		} catch (error) {
+			if (!unwrap) return [false, error as HttpError] as Result<string[] | undefined>;
+			throw error;
 		}
-
-		const allowedMethods = response.headers.get('allow')?.split(',').map((method: string) => method.trim());
-
-		this.publish({ name: RequestEvent.SUCCESS, data: allowedMethods, global: options.global });
-
-		return allowedMethods;
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	request<T = unknown>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<TypedResponse<T>>>;
+	/** Returns a Result tuple instead of throwing. */
+	request<T = unknown>(path: RequestOptions & { unwrap: false }): Promise<Result<TypedResponse<T>>>;
 	/**
 	 * It takes a path and options, and makes a request to the server
 	 * @async
@@ -471,16 +509,28 @@ export class Transportr {
 	 * @returns The return value of the function is the return value of the function that is passed to the `then` method of the promise returned by the `fetch` method.
 	 * @throws {HttpError} If an error occurs during the request.
 	 */
-	async request<T = unknown>(path?: string | RequestOptions, options: RequestOptions = {}): Promise<TypedResponse<T>> {
+	async request<T = unknown>(path?: string | RequestOptions, options: RequestOptions = {}): Promise<TypedResponse<T> | Result<TypedResponse<T>>> {
 		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
 
-		const response = await this._request<T>(path, this.processRequestOptions(options, {}));
+		const requestConfig = this.processRequestOptions(options, {});
+		const unwrap = requestConfig.requestOptions.unwrap !== false;
 
-		this.publish({ name: RequestEvent.SUCCESS, data: response, global: options.global });
+		try {
+			const response = await this._request<T>(path, requestConfig);
 
-		return response;
+			this.publish({ name: RequestEvent.SUCCESS, data: response, global: options.global });
+
+			return unwrap ? response : [true, response] as Result<TypedResponse<T>>;
+		} catch (error) {
+			if (!unwrap) return [false, error as HttpError] as Result<TypedResponse<T>>;
+			throw error;
+		}
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getJson(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<Json | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	getJson(path: RequestOptions & { unwrap: false }): Promise<Result<Json | undefined>>;
 	/**
 	 * It gets the JSON representation of the resource at the given path.
 	 *
@@ -490,10 +540,14 @@ export class Transportr {
 	 * @param options The options object to pass to the request.
 	 * @returns A promise that resolves to the response body as a typed JSON value.
 	 */
-	async getJson(path?: string | RequestOptions, options?: RequestOptions): Promise<Json | undefined> {
+	async getJson(path?: string | RequestOptions, options?: RequestOptions): Promise<Json | undefined | Result<Json | undefined>> {
 		return this._get(path, options, { headers: { accept: `${mediaTypes.JSON}` } }, handleJson);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getXml(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<Document | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	getXml(path: RequestOptions & { unwrap: false }): Promise<Result<Document | undefined>>;
 	/**
 	 * It gets the XML representation of the resource at the given path.
 	 *
@@ -502,10 +556,14 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns The result of the function call to #get.
 	 */
-	async getXml(path?: string | RequestOptions, options?: RequestOptions): Promise<Document | undefined> {
+	async getXml(path?: string | RequestOptions, options?: RequestOptions): Promise<Document | undefined | Result<Document | undefined>> {
 		return this._get(path, options, { headers: { accept: `${mediaTypes.XML}` } }, handleXml);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getHtml(path: string | undefined, options: RequestOptions & { unwrap: false }, selector?: string): Promise<Result<Document | Element | null | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	getHtml(path: RequestOptions & { unwrap: false }): Promise<Result<Document | Element | null | undefined>>;
 	/**
 	 * Get the HTML content of the specified path.
 	 * When a selector is provided, returns only the first matching element from the parsed document.
@@ -516,11 +574,16 @@ export class Transportr {
 	 * @param selector An optional CSS selector to extract a specific element from the parsed HTML.
 	 * @returns A promise that resolves to a Document, an Element (if selector matched), or void.
 	 */
-	async getHtml(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<Document | Element | null | undefined> {
+	async getHtml(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<Document | Element | null | undefined | Result<Document | Element | null | undefined>> {
 		const doc = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtml);
+		if (Array.isArray(doc)) return doc;
 		return selector && doc ? doc.querySelector(selector) : doc;
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getHtmlFragment(path: string | undefined, options: RequestOptions & { unwrap: false }, selector?: string): Promise<Result<DocumentFragment | Element | null | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	getHtmlFragment(path: RequestOptions & { unwrap: false }): Promise<Result<DocumentFragment | Element | null | undefined>>;
 	/**
 	 * It returns a promise that resolves to the HTML fragment at the given path.
 	 * When a selector is provided, returns only the first matching element from the parsed fragment.
@@ -531,40 +594,55 @@ export class Transportr {
 	 * @param selector An optional CSS selector to extract a specific element from the parsed fragment.
 	 * @returns A promise that resolves to a DocumentFragment, an Element (if selector matched), or void.
 	 */
-	async getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined> {
+	async getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined | Result<DocumentFragment | Element | null | undefined>> {
 		const fragment = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtmlFragment);
+		if (Array.isArray(fragment)) return fragment;
 		return selector && fragment ? fragment.querySelector(selector) : fragment;
 	}
+	/** Returns a Result tuple instead of throwing. */
+	getScript(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<void>>;
+	/** Returns a Result tuple instead of throwing. */
+	getScript(path: RequestOptions & { unwrap: false }): Promise<Result<void>>;
 	/**
 	 * It gets a script from the server, and appends the script to the Document HTMLHeadElement
 	 * @param path The path to the script.
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to void.
 	 */
-	async getScript(path?: string | RequestOptions, options?: RequestOptions): Promise<void> {
+	async getScript(path?: string | RequestOptions, options?: RequestOptions): Promise<void | Result<void>> {
 		return this._get(path, options, { headers: { accept: `${mediaTypes.JAVA_SCRIPT}` } }, handleScript);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getStylesheet(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<void>>;
+	/** Returns a Result tuple instead of throwing. */
+	getStylesheet(path: RequestOptions & { unwrap: false }): Promise<Result<void>>;
 	/**
 	 * Gets a stylesheet from the server, and adds it as a Blob URL.
 	 * @param path The path to the stylesheet.
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to void.
 	 */
-	async getStylesheet(path?: string | RequestOptions, options?: RequestOptions): Promise<void> {
+	async getStylesheet(path?: string | RequestOptions, options?: RequestOptions): Promise<void | Result<void>> {
 		return this._get(path, options, { headers: { accept: `${mediaTypes.CSS}` } }, handleCss);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getBlob(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<Blob | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	getBlob(path: RequestOptions & { unwrap: false }): Promise<Result<Blob | undefined>>;
 	/**
 	 * It returns a blob from the specified path.
 	 * @param path The path to the resource.
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to a Blob or void.
 	 */
-	async getBlob(path?: string | RequestOptions, options?: RequestOptions): Promise<Blob | undefined> {
+	async getBlob(path?: string | RequestOptions, options?: RequestOptions): Promise<Blob | undefined | Result<Blob | undefined>> {
 		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBlob);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getImage(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<HTMLImageElement | undefined>>;
 	/**
 	 * It returns a promise that resolves to an `HTMLImageElement`.
 	 * The object URL created to load the image is automatically revoked to prevent memory leaks.
@@ -974,52 +1052,58 @@ export class Transportr {
 	 * @param responseHandler The response handler for the request.
 	 * @returns A response handler function.
 	 */
-	private async execute<T extends ResponseBody>(path?: string | RequestOptions, userOptions: RequestOptions = {}, options: RequestOptions = {}, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined> {
+	private async execute<T extends ResponseBody>(path?: string | RequestOptions, userOptions: RequestOptions = {}, options: RequestOptions = {}, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined | Result<T | undefined>> {
 		if (isObject(path)) { [ path, userOptions ] = [ undefined, path ] }
 
 		const requestConfig = this.processRequestOptions(userOptions, options);
 		const { requestOptions } = requestConfig;
+		const unwrap = requestOptions.unwrap !== false;
 		const requestHooks = requestOptions.hooks;
 
-		// Run beforeRequest hooks: global → instance → per-request
-		let url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
+		try {
+			// Run beforeRequest hooks: global → instance → per-request
+			let url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
 
-		const beforeRequestHookSets = [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ];
-		for (const hooks of beforeRequestHookSets) {
-			if (!hooks) { continue }
-			for (const hook of hooks) {
-				const result = await hook(requestOptions, url);
-				if (result) {
-					Object.assign(requestOptions, result);
-					if (result.searchParams !== undefined) { url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams) }
+			const beforeRequestHookSets = [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ];
+			for (const hooks of beforeRequestHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(requestOptions, url);
+					if (result) {
+						Object.assign(requestOptions, result);
+						if (result.searchParams !== undefined) { url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams) }
+					}
 				}
 			}
-		}
 
-		let response = await this._request<T>(path, requestConfig);
+			let response = await this._request<T>(path, requestConfig);
 
-		// Run afterResponse hooks: global → instance → per-request
-		const afterResponseHookSets = [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ];
-		for (const hooks of afterResponseHookSets) {
-			if (!hooks) { continue }
-			for (const hook of hooks) {
-				const result = await hook(response, requestOptions);
-				if (result) { response = result as TypedResponse<T> }
-			}
-		}
-
-		try {
-			if (!responseHandler && response.status !== 204) {
-				responseHandler = this.getResponseHandler<T>(response.headers.get('content-type'));
+			// Run afterResponse hooks: global → instance → per-request
+			const afterResponseHookSets = [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ];
+			for (const hooks of afterResponseHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(response, requestOptions);
+					if (result) { response = result as TypedResponse<T> }
+				}
 			}
 
-			const data = await responseHandler?.(response);
+			try {
+				if (!responseHandler && response.status !== 204) {
+					responseHandler = this.getResponseHandler<T>(response.headers.get('content-type'));
+				}
 
-			this.publish({ name: RequestEvent.SUCCESS, data, global: requestConfig.global });
+				const data = await responseHandler?.(response);
 
-			return data;
-		} catch (cause) {
-			throw await this.handleError(path as string, response, { cause: cause as Error }, requestOptions);
+				this.publish({ name: RequestEvent.SUCCESS, data, global: requestConfig.global });
+
+				return unwrap ? data : [true, data] as Result<T | undefined>;
+			} catch (cause) {
+				throw await this.handleError(path as string, response, { cause: cause as Error }, requestOptions);
+			}
+		} catch (error) {
+			if (!unwrap) return [false, error as HttpError] as Result<T | undefined>;
+			throw error;
 		}
 	}
 
