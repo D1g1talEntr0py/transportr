@@ -166,6 +166,46 @@ export class Transportr {
 	}
 
 	/**
+	 * Executes multiple requests concurrently and resolves when all complete.
+	 * @param requests An array of promises from Transportr request methods.
+	 * @returns A promise resolving to an array of all results.
+	 */
+	static all<T extends readonly Promise<unknown>[]>(requests: T): Promise<{ -readonly [K in keyof T]: Awaited<T[K]> }> {
+		return Promise.all(requests) as Promise<{ -readonly [K in keyof T]: Awaited<T[K]> }>;
+	}
+
+	/**
+	 * Races multiple requests concurrently. The first to settle wins; all others are aborted.
+	 * Each factory receives an AbortSignal that the caller should pass to the request options.
+	 * @template T The expected result type.
+	 * @param requests An array of functions that accept an AbortSignal and return a promise.
+	 * @returns A promise resolving to the first settled result.
+	 * @example
+	 * ```typescript
+	 * const result = await Transportr.race([
+	 *   (signal) => api.getJson('/primary', { signal }),
+	 *   (signal) => api.getJson('/fallback', { signal })
+	 * ]);
+	 * ```
+	 */
+	static async race<T>(requests: ReadonlyArray<(signal: AbortSignal) => Promise<T>>): Promise<T> {
+		const controllers: AbortController[] = [];
+
+		const promises = new Array<Promise<T>>(requests.length);
+		for (let i = 0; i < requests.length; i++) {
+			const controller = new AbortController();
+			controllers.push(controller);
+			promises[i] = requests[i]!(controller.signal);
+		}
+
+		try {
+			return await Promise.race(promises);
+		} finally {
+			for (const controller_1 of controllers) { controller_1.abort() }
+		}
+	}
+
+	/**
 	 * Registers a custom content-type response handler.
 	 * The handler will be matched against response content-type headers using MediaType matching.
 	 * New handlers are prepended so they take priority over built-in handlers.
