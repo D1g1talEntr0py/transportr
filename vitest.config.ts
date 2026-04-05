@@ -14,7 +14,7 @@ export default defineConfig({
 				test: {
 					name: 'integration',
 					environment: 'node',
-					include: ['tests/{global-event-handler,abort-all,all-complete-event,network-integration,environment-specific,signal-controller-cleanup,request-options-optimization,mediatype-caching,hooks}.test.ts'],
+					include: ['tests/{global-event-handler,abort-all,all-complete-event,network-integration,environment-specific,signal-controller-cleanup,request-options-optimization,mediatype-caching,hooks,response-handlers-error}.test.ts'],
 					setupFiles: './tests/scripts/setup.ts'
 				}
 			}),
@@ -24,7 +24,7 @@ export default defineConfig({
 					name: 'unit',
 					environment: 'jsdom',
 					include: ['tests/*.test.ts'],
-					exclude: ['tests/{global-event-handler,abort-all,all-complete-event,network-integration,environment-specific,signal-controller-cleanup,request-options-optimization,mediatype-caching,hooks}.test.ts'],
+					exclude: ['tests/{global-event-handler,abort-all,all-complete-event,network-integration,environment-specific,signal-controller-cleanup,request-options-optimization,mediatype-caching,hooks,response-handlers-error}.test.ts'],
 					setupFiles: './tests/scripts/setup.ts'
 				}
 			})
