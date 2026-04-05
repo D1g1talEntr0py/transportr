@@ -304,7 +304,7 @@ describe('Transportr', () => {
 				});
 				const removeChildSpy = vi.spyOn(document.head, 'removeChild').mockImplementation((node) => node);
 
-				vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+				vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse as unknown as Response);
 
 				const transportr = new Transportr('http://example.com');
 				await expect(transportr.getScript('/script.js')).rejects.toThrow("An error has occurred with your request to: '/script.js'");
@@ -374,7 +374,7 @@ describe('Transportr', () => {
 				});
 				const removeChildSpy = vi.spyOn(document.head, 'removeChild').mockImplementation((node) => node);
 
-				vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+				vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse as unknown as Response);
 
 				const transportr = new Transportr('http://example.com');
 				await expect(transportr.getStylesheet('/style.css')).rejects.toThrow("An error has occurred with your request to: '/style.css'");
