@@ -210,4 +210,152 @@ const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) =
 	return document.createRange().createContextualFragment(sanitize(await response.text()));
 };
 
-export { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment };
+/**
+ * Parses a text/event-stream response into an AsyncIterable of ServerSentEvent objects.
+ * Follows the EventStream specification for field parsing (event, data, id, retry).
+ * The returned iterable respects abort signals — iteration ends when the stream closes or is aborted.
+ * @param response The response object from the fetch request.
+ * @returns An AsyncIterable of parsed ServerSentEvent objects.
+ */
+const handleEventStream = (response: Response): AsyncIterable<ServerSentEvent> => {
+	return {
+		/** @returns An async iterator for SSE events. */
+		[Symbol.asyncIterator](): AsyncIterator<ServerSentEvent> {
+			const reader = response.body!.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+			let done = false;
+
+			return {
+				/** @returns The next parsed SSE event or done signal. */
+				async next(): Promise<IteratorResult<ServerSentEvent>> {
+					while (!done) {
+						// Try to extract a complete event from the buffer
+						const eventEnd = buffer.indexOf('\n\n');
+						if (eventEnd !== -1) {
+							const rawEvent = buffer.slice(0, eventEnd);
+							buffer = buffer.slice(eventEnd + 2);
+
+							const sse: ServerSentEvent = { event: 'message', data: '', id: '', retry: undefined };
+							const dataLines: string[] = [];
+
+							const lines = rawEvent.split('\n');
+							for (let i = 0; i < lines.length; i++) {
+								const line = lines[i]!;
+								// comment line, ignore
+								if (line.startsWith(':')) { continue }
+
+								const colonIndex = line.indexOf(':');
+								let field: string;
+								let value: string;
+								if (colonIndex === -1) {
+									field = line;
+									value = '';
+								} else {
+									field = line.slice(0, colonIndex);
+									value = line.slice(colonIndex + 1);
+									// strip leading space
+									if (value.charCodeAt(0) === 32) { value = value.slice(1) }
+								}
+
+								switch (field) {
+									case 'event': sse.event = value; break;
+									case 'data': dataLines.push(value); break;
+									case 'id': sse.id = value; break;
+									case 'retry': {
+										const n = parseInt(value, 10);
+										if (!isNaN(n)) sse.retry = n;
+										break;
+									}
+								}
+							}
+
+							sse.data = dataLines.join('\n');
+							if (sse.data || sse.event !== 'message') {
+								return { value: sse, done: false };
+							}
+							continue; // empty event, skip
+						}
+
+						// Read more data from the stream
+						const result = await reader.read();
+						if (result.done) {
+							done = true;
+							break;
+						}
+						buffer += decoder.decode(result.value, { stream: true });
+					}
+
+					return { value: undefined as unknown as ServerSentEvent, done: true };
+				},
+
+				/** @returns Done signal after cancelling the reader. */
+				async return(): Promise<IteratorResult<ServerSentEvent>> {
+					await reader.cancel();
+					done = true;
+					return { value: undefined as unknown as ServerSentEvent, done: true };
+				}
+			};
+		}
+	};
+};
+
+/**
+ * Parses an NDJSON (Newline Delimited JSON) response into an AsyncIterable of typed JSON values.
+ * Each line of the response is parsed as an independent JSON object.
+ * The returned iterable respects abort signals — iteration ends when the stream closes or is aborted.
+ * @param response The response object from the fetch request.
+ * @returns An AsyncIterable of parsed JSON values.
+ */
+const handleNdjsonStream = <T = Json>(response: Response): AsyncIterable<T> => {
+	return {
+		/** @returns An async iterator for NDJSON lines. */
+		[Symbol.asyncIterator](): AsyncIterator<T> {
+			const reader = response.body!.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+			let done = false;
+
+			return {
+				/** @returns The next parsed JSON value or done signal. */
+				async next(): Promise<IteratorResult<T>> {
+					while (!done) {
+						const lineEnd = buffer.indexOf('\n');
+						if (lineEnd !== -1) {
+							const line = buffer.slice(0, lineEnd).trim();
+							buffer = buffer.slice(lineEnd + 1);
+							if (line) {
+								return { value: JSON.parse(line) as T, done: false };
+							}
+							continue; // empty line, skip
+						}
+
+						const result = await reader.read();
+						if (result.done) {
+							done = true;
+							// Process remaining buffer
+							const remaining = (buffer + decoder.decode()).trim();
+							buffer = '';
+							if (remaining) {
+								return { value: JSON.parse(remaining) as T, done: false };
+							}
+							break;
+						}
+						buffer += decoder.decode(result.value, { stream: true });
+					}
+
+					return { value: undefined as unknown as T, done: true };
+				},
+
+				/** @returns Done signal after cancelling the reader. */
+				async return(): Promise<IteratorResult<T>> {
+					await reader.cancel();
+					done = true;
+					return { value: undefined as unknown as T, done: true };
+				}
+			};
+		}
+	};
+};
+
+export { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleEventStream, handleNdjsonStream };
