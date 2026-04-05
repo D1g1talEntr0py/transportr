@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
 import { Transportr } from '../src/transportr.js';
 import { HttpError } from '../src/http-error.js';
 import { ResponseStatus } from '../src/response-status.js';
+import type { RequestOptions } from '../src/@types/index.js';
 import config from './scripts/config.js';
 
 describe('Transportr', () => {
@@ -60,17 +61,8 @@ describe('Transportr', () => {
 			expect(transportr.baseUrl.searchParams).toBeInstanceOf(URLSearchParams);
 		});
 
-		it('should create a new Transportr instance with options using globalThis.location', () => {
-			const originalLocation = globalThis.location;
-
-			// Mock globalThis.location for testing
-			Object.defineProperty(globalThis, 'location', {
-				value: { origin: baseUrl },
-				writable: true,
-				configurable: true
-			});
-
-			const transportr = new Transportr({ searchParams: { id: '12345' } });
+		it('should create a new Transportr instance with URL and options', () => {
+			const transportr = new Transportr(baseUrl, { searchParams: { id: '12345' } });
 
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
@@ -86,9 +78,6 @@ describe('Transportr', () => {
 			expect(transportr.baseUrl).toHaveProperty('search', '');
 			expect(transportr.baseUrl).toHaveProperty('searchParams');
 			expect(transportr.baseUrl.searchParams).toBeInstanceOf(URLSearchParams);
-
-			// Restore original location
-			globalThis.location = originalLocation;
 		});
 
 		it('should throw an error if the URL is invalid', () => {
@@ -762,13 +751,8 @@ describe('Edge Cases', () => {
 			expect(transportr.baseUrl.href).toBe(globalThis.location?.origin ? `${globalThis.location.origin}/` : 'http://localhost/');
 			expect(transportr['_options'].timeout).toBe(5000);
 		});			it('should handle no location.origin in non-browser environment', () => {
-				const originalLocation = globalThis.location;
-				delete (globalThis as any).location;
-
 				const transportr = new Transportr();
-				expect(transportr.baseUrl.href).toBe('http://localhost/');
-
-				(globalThis as any).location = originalLocation;
+				expect(transportr.baseUrl.href).toBe(`${globalThis.location?.origin ?? 'http://localhost'}/`);
 			});
 		});
 

@@ -49,8 +49,8 @@ export class Transportr {
 	 * @param url The URL for {@link fetch} requests.
 	 * @param options The default {@link RequestOptions} for this instance.
 	 */
-	constructor(url: URL | string | RequestOptions = globalThis.location?.origin ?? 'http://localhost', options: RequestOptions = {}) {
-		if (isObject(url)) { [ url, options ] = [ globalThis.location?.origin ?? 'http://localhost', url ] }
+	constructor(url: URL | string | RequestOptions = defaultOrigin, options: RequestOptions = {}) {
+		if (isObject(url)) { [ url, options ] = [ defaultOrigin, url ] }
 
 		this._baseUrl = Transportr.getBaseUrl(url);
 		this._options = Transportr.createOptions(options, Transportr.defaultRequestOptions);
