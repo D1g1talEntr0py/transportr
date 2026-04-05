@@ -436,7 +436,7 @@ describe('Transportr', () => {
 	describe('register', () => {
 		it('should register an event handler and return registration', () => {
 			const handler = vi.fn();
-			const registration = transportr.register(Transportr.RequestEvents.CONFIGURED, handler);
+			const registration = transportr.register(Transportr.RequestEvent.CONFIGURED, handler);
 			expect(registration).toBeDefined();
 			expect(registration).toBeInstanceOf(Object);
 		});
@@ -445,7 +445,7 @@ describe('Transportr', () => {
 	describe('unregister', () => {
 		it('should unregister an event handler', () => {
 			const handler = vi.fn();
-			const registration = transportr.register(Transportr.RequestEvents.CONFIGURED, handler);
+			const registration = transportr.register(Transportr.RequestEvent.CONFIGURED, handler);
 			transportr.unregister(registration);
 			// No direct way to test this without making a request, but it shouldn't throw
 		});
@@ -456,7 +456,7 @@ describe('Transportr', () => {
 		describe('register', () => {
 			it('should register a global event handler', () => {
 				const handler = vi.fn();
-				const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, handler);
+				const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, handler);
 				expect(registration).toBeDefined();
 				expect(registration).toBeInstanceOf(Object);
 			});
@@ -465,7 +465,7 @@ describe('Transportr', () => {
 		describe('unregister', () => {
 			it('should unregister a global event handler', () => {
 				const handler = vi.fn();
-				const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, handler);
+				const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, handler);
 				const result = Transportr.unregister(registration);
 				expect(result).toBe(true);
 			});
@@ -621,7 +621,7 @@ describe('Transportr', () => {
 			it('should return aborted status for abort error', async () => {
 				const transportr = new Transportr('http://example.com');
 				const errorHandler = vi.fn();
-				transportr.register(Transportr.RequestEvents.ERROR, errorHandler);
+				transportr.register(Transportr.RequestEvent.ERROR, errorHandler);
 
 				const abortController = new AbortController();
 				abortController.abort();
@@ -637,7 +637,7 @@ describe('Transportr', () => {
 		});			it('should return timeout status for timeout error', async () => {
 				const transportr = new Transportr('http://example.com');
 				const errorHandler = vi.fn();
-				transportr.register(Transportr.RequestEvents.ERROR, errorHandler);
+				transportr.register(Transportr.RequestEvent.ERROR, errorHandler);
 
 				const timeoutError = new DOMException('The operation timed out.', 'TimeoutError');
 				vi.spyOn(globalThis, 'fetch').mockRejectedValue(timeoutError);
@@ -653,7 +653,7 @@ describe('Transportr', () => {
 	it('should return internal server error for unknown errors', async () => {
 		const transportr = new Transportr('http://example.com');
 		const errorHandler = vi.fn();
-		transportr.register(Transportr.RequestEvents.ERROR, errorHandler);
+		transportr.register(Transportr.RequestEvent.ERROR, errorHandler);
 
 		vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
 
@@ -674,7 +674,7 @@ describe('Transportr', () => {
 
 			const transportr = new Transportr('http://example.com');
 			const errorHandler = vi.fn();
-			transportr.register(Transportr.RequestEvents.ERROR, errorHandler);
+			transportr.register(Transportr.RequestEvent.ERROR, errorHandler);
 
 			await expect(transportr.getJson('/test')).rejects.toThrow();
 
@@ -715,7 +715,7 @@ describe('Transportr', () => {
 
 			const transportr = new Transportr('http://example.com');
 			const completeHandler = vi.fn();
-			transportr.register(Transportr.RequestEvents.COMPLETE, completeHandler);
+			transportr.register(Transportr.RequestEvent.COMPLETE, completeHandler);
 
 			await transportr.get('/test');
 
@@ -730,11 +730,25 @@ describe('Transportr', () => {
 
 			const transportr = new Transportr('http://example.com');
 			const completeHandler = vi.fn();
-			transportr.register(Transportr.RequestEvents.COMPLETE, completeHandler);
+			transportr.register(Transportr.RequestEvent.COMPLETE, completeHandler);
 
 			await transportr.get('/test', { signal: abortController.signal }).catch(() => {});
 
 			expect(completeHandler).not.toHaveBeenCalled();
+		});
+
+		it('should publish events to global subscribers when global: true', async () => {
+			const mockResponse = new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+
+			const globalHandler = vi.fn();
+			const registration = Transportr.register(Transportr.RequestEvent.SUCCESS, globalHandler);
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.get('/data', { global: true });
+
+			expect(globalHandler).toHaveBeenCalled();
+			Transportr.unregister(registration);
 		});
 	});
 });
@@ -1247,7 +1261,7 @@ describe('Edge Cases', () => {
 
 			const transportr = new Transportr('http://example.com');
 			let completeTiming: { timing: { start: number; end: number; duration: number } } | undefined;
-			const reg = transportr.register(Transportr.RequestEvents.COMPLETE, (_event: Event, data: unknown) => {
+			const reg = transportr.register(Transportr.RequestEvent.COMPLETE, (_event: Event, data: unknown) => {
 				completeTiming = data as typeof completeTiming;
 			});
 
@@ -1269,12 +1283,12 @@ describe('Edge Cases', () => {
 
 		it('should clear global subscriptions via unregisterAll', () => {
 			let called = false;
-			Transportr.register(Transportr.RequestEvents.SUCCESS, () => { called = true });
+			Transportr.register(Transportr.RequestEvent.SUCCESS, () => { called = true });
 			Transportr.unregisterAll();
 
 			// After unregisterAll, the handler should no longer fire
 			// We verify indirectly: registering again should work without conflicts
-			const reg = Transportr.register(Transportr.RequestEvents.SUCCESS, () => { called = true });
+			const reg = Transportr.register(Transportr.RequestEvent.SUCCESS, () => { called = true });
 			expect(reg).toBeDefined();
 			expect(called).toBe(false);
 		});
@@ -1282,7 +1296,7 @@ describe('Edge Cases', () => {
 		it('should tear down instance via destroy', () => {
 			const transportr = new Transportr('http://example.com');
 			let called = false;
-			transportr.register(Transportr.RequestEvents.SUCCESS, () => { called = true });
+			transportr.register(Transportr.RequestEvent.SUCCESS, () => { called = true });
 			transportr.destroy();
 
 			// After destroy, events should not fire on this instance
@@ -1294,7 +1308,7 @@ describe('Edge Cases', () => {
 	describe('Method chaining', () => {
 		it('should return boolean from unregister', () => {
 			const transportr = new Transportr('http://example.com');
-			const reg = transportr.register(Transportr.RequestEvents.SUCCESS, () => {});
+			const reg = transportr.register(Transportr.RequestEvent.SUCCESS, () => {});
 			const result = transportr.unregister(reg);
 			expect(result).toBe(true);
 		});

@@ -3,10 +3,10 @@ import { Subscribr } from '@d1g1tal/subscribr';
 import { HttpError } from './http-error';
 import { ResponseStatus } from './response-status';
 import { SignalController } from './signal-controller.js';
-import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment } from './response-handlers';
-import { isRequestBodyMethod, isRawBody, getCookieValue, isString, isObject, objectMerge, serialize } from './utils';
-import { RequestCachingPolicy, RequestEvent, SignalErrors, XSRF_COOKIE_NAME, XSRF_HEADER_NAME, abortEvent, aborted, defaultMediaType, endsWithSlashRegEx, internalServerError, mediaTypes, retryBackoffFactor, retryDelay, retryMethods, retryStatusCodes, timedOut } from './constants';
-import type {	RequestOptions, ResponseBody, RequestEventHandler, SearchParameters, EventRegistration, ResponseHandler, RequestHeaders, TypedResponse, Json, Entries, HookOptions, HttpErrorOptions, NormalizedRetryOptions, PublishOptions, RetryOptions, RequestTiming, XsrfOptions } from '@types';
+import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleEventStream, handleNdjsonStream } from './response-handlers';
+import { isRequestBodyMethod, isRawBody, getCookieValue, isString, isArrayBuffer, isObject, objectMerge, serialize } from './utils';
+import { RequestCachingPolicy, RequestEvent, SignalErrors, XSRF_COOKIE_NAME, XSRF_HEADER_NAME, abortEvent, aborted, defaultMediaType, defaultOrigin, endsWithSlashRegEx, internalServerError, mediaTypes, retryBackoffFactor, retryDelay, retryMethods, retryStatusCodes, timedOut } from './constants';
+import type {	RequestOptions, ResponseBody, RequestEventHandler, SearchParameters, EventRegistration, ResponseHandler, RequestHeaders, TypedResponse, Json, Entries, HookOptions, HttpErrorOptions, NormalizedRetryOptions, PublishOptions, RetryOptions, RequestTiming, XsrfOptions, ServerSentEvent, RequestEventDataMap, TypedRequestEventHandler, Result } from '@types';
 
 declare function fetch<R = unknown>(input: RequestInfo | URL, requestOptions?: RequestOptions): Promise<TypedResponse<R>>;
 
@@ -64,29 +64,29 @@ export class Transportr {
 		SAME_ORIGIN: 'same-origin'
 	} as const;
 
-	/** Request Modes */
-	static readonly RequestModes = {
+	/** Request Mode */
+	static readonly RequestMode = {
 		CORS: 'cors',
 		NAVIGATE: 'navigate',
 		NO_CORS: 'no-cors',
 		SAME_ORIGIN: 'same-origin'
 	} as const;
 
-	/** Request Priorities */
-	static readonly RequestPriorities = {
+	/** Request Priority */
+	static readonly RequestPriority = {
 		HIGH: 'high',
 		LOW: 'low',
 		AUTO: 'auto'
 	} as const;
 
-	/** Redirect Policies */
-	static readonly RedirectPolicies = {
+	/** Redirect Policy */
+	static readonly RedirectPolicy = {
 		ERROR: 'error',
 		FOLLOW: 'follow',
 		MANUAL: 'manual'
 	} as const;
 
-	/** Referrer Policies */
+	/** Referrer Policy */
 	static readonly ReferrerPolicy = {
 		NO_REFERRER: 'no-referrer',
 		NO_REFERRER_WHEN_DOWNGRADE: 'no-referrer-when-downgrade',
@@ -98,8 +98,8 @@ export class Transportr {
 		UNSAFE_URL: 'unsafe-url'
 	} as const;
 
-	/** Request Events	*/
-	static readonly RequestEvents: typeof RequestEvent = RequestEvent;
+	/** Request Event */
+	static readonly RequestEvent: typeof RequestEvent = RequestEvent;
 
 	/** Default Request Options */
 	private static readonly defaultRequestOptions: RequestOptions = {
@@ -111,9 +111,9 @@ export class Transportr {
 		integrity: undefined,
 		keepalive: undefined,
 		method: 'GET',
-		mode: Transportr.RequestModes.CORS,
-		priority: Transportr.RequestPriorities.AUTO,
-		redirect: Transportr.RedirectPolicies.FOLLOW,
+		mode: Transportr.RequestMode.CORS,
+		priority: Transportr.RequestPriority.AUTO,
+		redirect: Transportr.RedirectPolicy.FOLLOW,
 		referrer: 'about:client',
 		referrerPolicy: Transportr.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
 		signal: undefined,
@@ -550,8 +550,8 @@ export class Transportr {
 	 * @param responseHandler The response handler for the request.
 	 * @returns A promise that resolves to the response body or void.
 	 */
-	private async _get<T extends ResponseBody>(path?: string | RequestOptions, userOptions?: RequestOptions, options: RequestOptions = {}, responseHandler?: ResponseHandler<T>): Promise<T | undefined> {
-		return this.execute(path, userOptions, { ...options, method: 'GET', body: undefined }, responseHandler);
+	private async _get<T extends ResponseBody>(path?: string | RequestOptions, userOptions?: RequestOptions, options: RequestOptions = {}, responseHandler?: ResponseHandler<T>): Promise<T | undefined | Result<T | undefined>> {
+		return this.execute<T>(path, userOptions, { ...options, method: 'GET', body: undefined }, responseHandler);
 	}
 
 	/**
@@ -747,7 +747,7 @@ export class Transportr {
 		headers = Transportr.mergeHeaders(new Headers(), userHeaders, headers);
 		searchParams = Transportr.mergeSearchParams(new URLSearchParams(), userSearchParams, searchParams);
 
-		return { ...objectMerge(options, userOptions) ?? {}, headers, searchParams };
+		return { ...objectMerge(options, userOptions)!, headers, searchParams };
 	}
 
 	/**
@@ -905,8 +905,11 @@ export class Transportr {
 		if (mediaType !== undefined) {
 			// Evict oldest entries when cache exceeds limit to prevent unbounded growth
 			if (Transportr.mediaTypeCache.size >= 100) {
-				const firstKey = Transportr.mediaTypeCache.keys().next().value;
-				if (firstKey !== undefined) { Transportr.mediaTypeCache.delete(firstKey) }
+				const oldestEntry = Transportr.mediaTypeCache.keys().next();
+
+				if (!oldestEntry.done) {
+					Transportr.mediaTypeCache.delete(oldestEntry.value);
+				}
 			}
 			Transportr.mediaTypeCache.set(contentType, mediaType);
 		}

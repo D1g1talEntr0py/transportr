@@ -1,9 +1,9 @@
 import type { Subscription } from '@d1g1tal/subscribr';
 import type { ResponseStatus } from '@src/response-status';
-import type { HttpRequestHeader } from '@src/http-request-headers';
-import type { HttpMediaType } from '@src/http-media-type';
+import type { RequestHeader } from '@src/request-header';
+import type { ContentType } from '@src/content-type';
 import type { HttpError } from '@src/http-error';
-import type { HttpErrorOptions, Json, JsonPrimitive, JsonArray, JsonObject, JsonValue, JsonString, ResponseBody, RequestTiming } from '@src/@types/core';
+import type { HttpErrorOptions, Json, JsonPrimitive, JsonArray, JsonObject, JsonValue, JsonString, ResponseBody, RequestTiming, ServerSentEvent, DownloadProgress, Result, RetryInfo } from '@src/@types/core';
 
 type Prettify<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 type LiteralUnion<T> = T | (string & {});
@@ -17,7 +17,7 @@ type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint
 type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS' | 'CONNECT' | 'TRACE';
 type RequestBodyMethod = Extract<RequestMethod, 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
 type RequestNoBodyMethod = Exclude<RequestMethod, RequestBodyMethod>;
-type RequestHeaders = Prettify<TypedHeaders & { [K in Exclude<typeof HttpRequestHeader[keyof typeof HttpRequestHeader], keyof TypedHeaders>]?: string; } & HeadersInit>;
+type RequestHeaders = Prettify<TypedHeaders & { [K in Exclude<typeof RequestHeader[keyof typeof RequestHeader], keyof TypedHeaders>]?: string; } & HeadersInit>;
 type SearchParameters = URLSearchParams | string | string[][] | Record<string, string | number | boolean>;
 type AuthorizationScheme = 'Basic' | 'Bearer' | 'Digest' | 'HOBA' | 'Mutual' | 'Negotiate' | 'OAuth' | 'SCRAM-SHA-1' | 'SCRAM-SHA-256' | 'vapid';
 type ResponseHandler<T extends ResponseBody = ResponseBody> = (response: Response) => Promise<T>;
@@ -36,11 +36,11 @@ type AbortConfiguration = {
 	timeout?: number;
 };
 
-type MediaTypeValues = LiteralUnion<typeof HttpMediaType[keyof typeof HttpMediaType]>;
+type MediaTypeValues = LiteralUnion<typeof ContentType[keyof typeof ContentType]>;
 type TypedHeaders = {
-	[HttpRequestHeader.AUTHORIZATION]?: `${AuthorizationScheme} ${string}` | AuthorizationScheme;
-	[HttpRequestHeader.ACCEPT]?: MediaTypeValues;
-	[HttpRequestHeader.CONTENT_TYPE]?: MediaTypeValues;
+	[RequestHeader.AUTHORIZATION]?: `${AuthorizationScheme} ${string}` | AuthorizationScheme;
+	[RequestHeader.ACCEPT]?: MediaTypeValues;
+	[RequestHeader.CONTENT_TYPE]?: MediaTypeValues;
 };
 
 type EventRegistration = Subscription;

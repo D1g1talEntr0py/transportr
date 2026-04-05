@@ -2,7 +2,7 @@
  * A collection of some of the available HTTP media types.
  * @see {@link https://www.iana.org/assignments/media-types/media-types.xhtml | IANA Media Types}
  */
-const HttpMediaType = {
+const ContentType = {
 	/** Advanced Audio Coding (AAC) */
 	AAC: 'audio/aac',
 	/** AbiWord */
@@ -157,4 +157,4 @@ const HttpMediaType = {
 	'7Z': 'application/x-7z-compressed'
 } as const;
 
-export { HttpMediaType };
+export { ContentType };

@@ -29,21 +29,21 @@
       "types": "./dist/transportr.d.ts",
       "import": "./dist/transportr.js"
     },
-    "./headers": {
-      "types": "./dist/http-request-headers.d.ts",
-      "import": "./dist/http-request-headers.js"
+    "./request-header": {
+      "types": "./dist/request-header.d.ts",
+      "import": "./dist/request-header.js"
     },
-    "./response-headers": {
-      "types": "./dist/http-response-headers.d.ts",
-      "import": "./dist/http-response-headers.js"
+    "./response-header": {
+      "types": "./dist/response-header.d.ts",
+      "import": "./dist/response-header.js"
     },
-    "./methods": {
-      "types": "./dist/http-request-methods.d.ts",
-      "import": "./dist/http-request-methods.js"
+    "./request-method": {
+      "types": "./dist/request-method.d.ts",
+      "import": "./dist/request-method.js"
     },
-    "./media-types": {
-      "types": "./dist/http-media-type.d.ts",
-      "import": "./dist/http-media-type.js"
+    "./content-type": {
+      "types": "./dist/content-type.d.ts",
+      "import": "./dist/content-type.js"
     }
   },
   "publishConfig": {

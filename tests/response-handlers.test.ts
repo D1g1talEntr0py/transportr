@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { Transportr } from '../src/transportr';
-import { HttpMediaType } from '../src/http-media-type';
+import { ContentType } from '../src/content-type';
 
 // Helper to read blob content for tests
 const readBlobAsText = (blob: Blob): Promise<string> => {
@@ -35,7 +35,7 @@ describe('Response Handlers', () => {
 	it('should handle and sanitize HTML responses', async () => {
 		const maliciousHtml = '<h1>Hello</h1><script>alert("XSS")</script>';
 		const mockResponse = new Response(maliciousHtml, {
-			headers: { 'Content-Type': HttpMediaType.HTML }
+			headers: { 'Content-Type': ContentType.HTML }
 		});
 		mockFetch.mockResolvedValue(mockResponse);
 
@@ -53,7 +53,7 @@ describe('Response Handlers', () => {
 		// JSDOM's DOMParser + DOMPurify might not perfectly handle XML, but it should prevent script injection.
 		const maliciousXml = '<root><user>test</user><script>alert("XSS")</script></root>';
 		const mockResponse = new Response(maliciousXml, {
-			headers: { 'Content-Type': HttpMediaType.XML }
+			headers: { 'Content-Type': ContentType.XML }
 		});
 		mockFetch.mockResolvedValue(mockResponse);
 
@@ -74,7 +74,7 @@ describe('Response Handlers', () => {
 	it('should handle and sanitize HTML fragments', async () => {
 		const maliciousFragment = '<b>Bold</b><img src="x" onerror="alert(\'XSS\')">';
 		const mockResponse = new Response(maliciousFragment, {
-			headers: { 'Content-Type': HttpMediaType.HTML }
+			headers: { 'Content-Type': ContentType.HTML }
 		});
 		mockFetch.mockResolvedValue(mockResponse);
 

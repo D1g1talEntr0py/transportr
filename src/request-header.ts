@@ -1,7 +1,7 @@
 /**
  * Defining a constant object with all the HTTP request headers.
  */
-const HttpRequestHeader = {
+const RequestHeader = {
 	/**
 	 * Content-Types that are acceptable for the response. See Content negotiation. Permanent.
 	 *
@@ -246,5 +246,4 @@ const HttpRequestHeader = {
 	X_FORWARDED_PROTO: 'x-forwarded-proto'
 } as const;
 
-export { HttpRequestHeader };
-// export type HttpRequestHeader = (typeof HttpRequestHeader)[keyof typeof HttpRequestHeader];
+export { RequestHeader };

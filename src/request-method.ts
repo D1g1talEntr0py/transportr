@@ -1,7 +1,7 @@
 /**
- * Defining a constant object with the name HttpRequestMethod.
+ * Defining a constant object with the name RequestMethod.
  */
-const HttpRequestMethod = {
+const RequestMethod = {
 	/**
 	 * The OPTIONS method represents a request for information about the communication options available on the
 	 * request/response chain identified by the Request-URI. This method allows the client to determine the options and/or
@@ -271,4 +271,4 @@ const HttpRequestMethod = {
 	PATCH: 'PATCH'
 } as const;
 
-export { HttpRequestMethod };
+export { RequestMethod };

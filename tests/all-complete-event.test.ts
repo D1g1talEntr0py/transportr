@@ -6,25 +6,25 @@ describe('All Complete Event', () => {
 		const transportr = new Transportr('https://67894e02b72f3b1b31f75ff4.mockapi.io/api/v1/');
 
 		const configuredEventListener = vi.fn();
-		const configuredRegistration = Transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
+		const configuredRegistration = Transportr.register(Transportr.RequestEvent.CONFIGURED, configuredEventListener);
 
 		const successEventListener = vi.fn();
-		const successRegistration = Transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
+		const successRegistration = Transportr.register(Transportr.RequestEvent.SUCCESS, successEventListener);
 
 		const errorEventListener = vi.fn();
-		const errorRegistration = Transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
+		const errorRegistration = Transportr.register(Transportr.RequestEvent.ERROR, errorEventListener);
 
 		const abortEventListener = vi.fn();
-		const abortRegistration = Transportr.register(Transportr.RequestEvents.ABORTED, abortEventListener);
+		const abortRegistration = Transportr.register(Transportr.RequestEvent.ABORTED, abortEventListener);
 
 		const timeoutEventListener = vi.fn();
-		const timeoutRegistration = Transportr.register(Transportr.RequestEvents.TIMEOUT, timeoutEventListener);
+		const timeoutRegistration = Transportr.register(Transportr.RequestEvent.TIMEOUT, timeoutEventListener);
 
 		const completeEventListener = vi.fn();
-		const completeRegistration = Transportr.register(Transportr.RequestEvents.COMPLETE, completeEventListener);
+		const completeRegistration = Transportr.register(Transportr.RequestEvent.COMPLETE, completeEventListener);
 
 		const allCompleteEventListener = vi.fn();
-		const allCompleteRegistration = Transportr.register(Transportr.RequestEvents.ALL_COMPLETE, allCompleteEventListener);
+		const allCompleteRegistration = Transportr.register(Transportr.RequestEvent.ALL_COMPLETE, allCompleteEventListener);
 
 		try {
 			const results = await Promise.allSettled([

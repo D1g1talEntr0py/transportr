@@ -1,5 +1,5 @@
 /** Defining a constant object HTTP response headers */
-const HttpResponseHeader = {
+const ResponseHeader = {
 	/**
 	 * Implemented as a misunderstanding of the HTTP specifications. Common because of mistakes in implementations of early HTTP versions. Has exactly the same functionality as standard Connection field.
 	 *
@@ -342,4 +342,4 @@ const HttpResponseHeader = {
 	X_POWERED_BY: 'x-powered-by'
 } as const;
 
-export { HttpResponseHeader };
+export { ResponseHeader };

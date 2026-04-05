@@ -9,8 +9,8 @@ describe('Abort All', () => {
 		const allCompleteEventListener = vi.fn();
 
 		// Register listeners and save registrations for cleanup
-		const abortRegistration = Transportr.register(Transportr.RequestEvents.ABORTED, abortEventListener);
-		const allCompleteRegistration = Transportr.register(Transportr.RequestEvents.ALL_COMPLETE, allCompleteEventListener);
+		const abortRegistration = Transportr.register(Transportr.RequestEvent.ABORTED, abortEventListener);
+		const allCompleteRegistration = Transportr.register(Transportr.RequestEvent.ALL_COMPLETE, allCompleteEventListener);
 
 		try {
 			// Start multiple slow requests

@@ -31,7 +31,7 @@ describe('Request Options Performance Optimization', () => {
 		});
 
 		const successHandler = vi.fn();
-		const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, (_event: Event, data: any) => {
+		const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, (_event: Event, data: any) => {
 			successHandler(data);
 		});
 
@@ -64,7 +64,7 @@ describe('Request Options Performance Optimization', () => {
 		});
 
 		const successHandler = vi.fn();
-		const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, (_event: Event, data: any) => {
+		const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, (_event: Event, data: any) => {
 			successHandler(data);
 		});
 
@@ -96,7 +96,7 @@ describe('Request Options Performance Optimization', () => {
 		});
 
 		const successHandler = vi.fn();
-		const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, (_event: Event, data: any) => {
+		const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, (_event: Event, data: any) => {
 			successHandler(data);
 		});
 
@@ -147,7 +147,7 @@ describe('Request Options Performance Optimization', () => {
 		});
 
 		const successHandler = vi.fn();
-		const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, (_event: Event, data: any) => {
+		const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, (_event: Event, data: any) => {
 			successHandler(data);
 		});
 

@@ -166,7 +166,7 @@ describe('Retry', () => {
 
 			const retryHandler = vi.fn();
 			const transportr = new Transportr('http://example.com');
-			const registration = transportr.register(Transportr.RequestEvents.RETRY, retryHandler);
+			const registration = transportr.register(Transportr.RequestEvent.RETRY, retryHandler);
 
 			await transportr.getJson('/test', {
 				retry: { limit: 3, delay: 1, backoffFactor: 1 }
@@ -214,7 +214,7 @@ describe('Retry', () => {
 
 			const retryHandler = vi.fn();
 			const transportr = new Transportr('http://example.com');
-			const registration = transportr.register(Transportr.RequestEvents.RETRY, retryHandler);
+			const registration = transportr.register(Transportr.RequestEvent.RETRY, retryHandler);
 
 			await transportr.getJson('/test', {
 				retry: { limit: 2, delay: 1, backoffFactor: 1 }

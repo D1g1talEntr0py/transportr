@@ -7,13 +7,13 @@ describe('Network Tests', () => {
 		const transportr = new Transportr(`https://${config.apiKey}.mockapi.io/artists`);
 
 		const configuredEventListener = vi.fn();
-		const configuredRegistration = Transportr.register(Transportr.RequestEvents.CONFIGURED, configuredEventListener);
+		const configuredRegistration = Transportr.register(Transportr.RequestEvent.CONFIGURED, configuredEventListener);
 
 		const successEventListener = vi.fn();
-		const successRegistration = Transportr.register(Transportr.RequestEvents.SUCCESS, successEventListener);
+		const successRegistration = Transportr.register(Transportr.RequestEvent.SUCCESS, successEventListener);
 
 		const errorEventListener = vi.fn();
-		const errorRegistration = Transportr.register(Transportr.RequestEvents.ERROR, errorEventListener);
+		const errorRegistration = Transportr.register(Transportr.RequestEvent.ERROR, errorEventListener);
 
 		try {
 			// Test basic JSON API call
@@ -61,7 +61,7 @@ describe('Network Tests', () => {
 
 	it('should test global event handler registration', async () => {
 		const globalConfiguredEventHandler = vi.fn();
-		const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, globalConfiguredEventHandler);
+		const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, globalConfiguredEventHandler);
 
 		try {
 			const transportr = new Transportr(`https://${config.apiKey}.mockapi.io/artists`);

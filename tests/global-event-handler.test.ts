@@ -7,7 +7,7 @@ describe('Global Event Handler', () => {
 		const transportr = new Transportr(`https://${config.apiKey}.mockapi.io/artists`);
 
 		const globalConfiguredEventHandler = vi.fn();
-		const registration = Transportr.register(Transportr.RequestEvents.CONFIGURED, globalConfiguredEventHandler);
+		const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, globalConfiguredEventHandler);
 
 		try {
 			const data = await transportr.getJson('/33');

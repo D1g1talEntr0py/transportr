@@ -9,7 +9,7 @@ const XSRF_COOKIE_NAME = 'XSRF-TOKEN';
 /** Default XSRF header name */
 const XSRF_HEADER_NAME = 'X-XSRF-TOKEN';
 
-type MediaTypeKey = 'PNG' | 'TEXT' | 'JSON' | 'HTML' | 'JAVA_SCRIPT' | 'CSS' | 'XML' | 'BIN';
+type MediaTypeKey = 'PNG' | 'TEXT' | 'JSON' | 'HTML' | 'JAVA_SCRIPT' | 'CSS' | 'XML' | 'BIN' | 'EVENT_STREAM' | 'NDJSON';
 
 const mediaTypes: { [key in MediaTypeKey]: MediaType } = {
 	PNG: new MediaType('image/png'),
@@ -19,10 +19,13 @@ const mediaTypes: { [key in MediaTypeKey]: MediaType } = {
 	JAVA_SCRIPT: new MediaType('text/javascript', charset),
 	CSS: new MediaType('text/css', charset),
 	XML: new MediaType('application/xml', charset),
-	BIN: new MediaType('application/octet-stream')
+	BIN: new MediaType('application/octet-stream'),
+	EVENT_STREAM: new MediaType('text/event-stream', charset),
+	NDJSON: new MediaType('application/x-ndjson', charset)
 } as const;
 
 const defaultMediaType: string = mediaTypes.JSON.toString();
+const defaultOrigin = globalThis.location?.origin ?? 'http://localhost';
 
 /** Constant object for caching policies */
 const RequestCachingPolicy = {
@@ -97,5 +100,5 @@ const retryDelay: number = 300;
 /** Default backoff factor applied after each retry attempt */
 const retryBackoffFactor: number = 2;
 
-export { aborted, abortEvent, endsWithSlashRegEx, eventListenerOptions, internalServerError, mediaTypes, defaultMediaType, requestBodyMethods, RequestCachingPolicy, retryBackoffFactor, retryDelay, retryMethods, retryStatusCodes, SignalErrors, SignalEvents, timedOut, timeoutEvent, XSRF_COOKIE_NAME, XSRF_HEADER_NAME };
+export { aborted, abortEvent, endsWithSlashRegEx, eventListenerOptions, internalServerError, mediaTypes, defaultMediaType, defaultOrigin, requestBodyMethods, RequestCachingPolicy, retryBackoffFactor, retryDelay, retryMethods, retryStatusCodes, SignalErrors, SignalEvents, timedOut, timeoutEvent, XSRF_COOKIE_NAME, XSRF_HEADER_NAME };
 export type RequestEvent = (typeof RequestEvent)[keyof typeof RequestEvent];
