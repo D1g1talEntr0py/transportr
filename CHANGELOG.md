@@ -1,3 +1,76 @@
+## [3.0.0](https://github.com/D1g1talEntr0py/transportr/compare/v2.2.1...v3.0.0) (2026-04-05)
+
+### ⚠ BREAKING CHANGES
+
+* Renamed submodule paths: headers->request-header, methods->request-method, media-types->content-type, response-headers->response-header.
+Renamed exported symbols: HttpRequestHeader->RequestHeader, HttpRequestMethod->RequestMethod, HttpMediaType->ContentType, HttpResponseHeader->ResponseHeader.
+Renamed static properties: RequestEvents->RequestEvent, RequestModes->RequestMode, RequestPriorities->RequestPriority, RedirectPolicies->RedirectPolicy.
+
+### Features
+
+* add concurrent request helpers (4980696752ef8d8719e8f7abcc69f65934e63a40)
+Introduces `Transportr.all()` for promise resolution of multiple requests and `Transportr.race()` for racing requests with automatic abortion of losing requests.
+
+* add download progress tracking (bedbd0cfef36cece3c936f0dd0cd52f9feb3f76c)
+Supports passing an `onDownloadProgress` callback in request options to track byte loading progress on responses returning a body stream.
+
+* add NDJSON streaming (4fb5a5bc78ddd4a615f1ebc081be980631d2ff4c)
+Introduces `getJsonStream<T>()` to parse Newline Delimited JSON feeds from an `application/x-ndjson` response stream into an `AsyncIterable<T>`.
+
+* add SSE streaming (a649391f01e4a90a143bd1a10f1560b743573762)
+Introduces `getEventStream()` method to parse Server-Sent Events (SSE) from the `text/event-stream` response into an `AsyncIterable<ServerSentEvent>`.
+
+* add typed event handlers (13e2118c69e8e66caca14e7d336306bece11de3d)
+Enhances the `register()` method to support strongly-typed event data payloads based on the specific event name being requested.
+
+* add upload progress tracking (4e79faf80c619060290f17832d82bbf88108c104)
+Supports passing an `onUploadProgress` callback in request options to track progress continuously when requests have a supported payload size.
+
+* rename submodules, symbols, and static properties (e98a49e9d32f1c1918341711436c190fd171558a)
+Renames exported constant submodules for clarity and consistency.
+
+* support safe results tuples via unwrap flag (66325e1d155fd89b9190438044d61e096eaead1e)
+Adds a new `unwrap: false` request option returning errors safely as `Result<T>` tuples `[true, data]` or `[false, error]` to avoid try/catch blocks.
+
+
+### Code Refactoring
+
+* improve options configuring and hooks evaluation (a1f351220a5f5d5f3236616176747c9c27769f8a)
+Refactors how request defaults and instance-level properties merge options like search parameters, hooks, and headers. Also adds configuration helper hooks.
+
+* omit HttpError dependency bounds (3f21ace415eb94486b9d4640606707a1b560b902)
+Refines isolated import statements for purely explicit types directly exporting HttpError appropriately.
+
+* simplify base URL construction (695586e4fd0f69f938dfb7e22a9bf17983651fe7)
+Streamlines origin defaults globally across instance initializations and tests.
+
+
+### Documentation
+
+* update readme for v3.0 features and migrations (edcb56ce6fca02de4929a9dc28e9de11bfb8165c)
+Revamps the README with details on the new v3.0 capabilities, including streaming, progress tracking, concurrent requests, and safe results. Also adds a migration guide for moving from v2 and updates feature comparisons.
+
+
+### Styles
+
+* add editorconfig (8c23fd68716956717eafe1c6c089fb614ed6bf55)
+Adds a standard .editorconfig file to ensure consistent line endings, charset, and indentation styles across all project files.
+
+
+### Tests
+
+* add response handler jsdom exception tests (b420c84f1845dd185f7b828715974c4cf2456834)
+Configures Vitest scenarios handling JSDOM dependencies specifically checking error instances when JSDOM is entirely missing.
+
+* configure vitest environment for fetch mocks (dab6318b7c33dc1073cb2e87d55fc982656dbfb2)
+Improves explicit mock response typings internally in tests avoiding implicit errors via type casting for globally overridden APIs like fetch.
+
+
+### Build System
+
+* **deps:** update tldts and baseline-browser-mapping (f1c90bfe16a56158ce72fe1b0013200f708676c6)
+Updates internal dependencies in pnpm-lock.yaml to their latest patch versions to ensure security and stability.
+
 ## [2.2.1](https://github.com/D1g1talEntr0py/transportr/compare/v2.2.0...v2.2.1) (2026-04-04)
 
 ### Bug Fixes
