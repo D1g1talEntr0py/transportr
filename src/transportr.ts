@@ -328,6 +328,23 @@ export class Transportr {
 	}
 
 	/**
+	 * Updates the instance's default options after construction.
+	 * Mirrors what the constructor accepts: headers and searchParams are merged onto
+	 * the existing defaults; all other options overwrite the current value; hooks
+	 * are appended via {@link addHooks}.
+	 *
+	 * @param options The options to apply. Accepts the same shape as the constructor.
+	 * @returns This instance for method chaining.
+	 */
+	configure({ headers, searchParams, hooks, ...options }: RequestOptions): this {
+		if (headers) { Transportr.mergeHeaders(this._options.headers as Headers, headers) }
+		if (searchParams) { Transportr.mergeSearchParams(this._options.searchParams as URLSearchParams, searchParams) }
+		if (Object.keys(options).length > 0) { Object.assign(this._options, options) }
+		if (hooks) { this.addHooks(hooks) }
+		return this;
+	}
+
+	/**
 	 * Tears down this instance: clears all instance subscriptions and hooks.
 	 * The instance should not be used after calling this method.
 	 */

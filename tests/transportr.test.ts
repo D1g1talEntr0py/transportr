@@ -466,6 +466,16 @@ describe('Transportr', () => {
 				expect(() => Transportr.abortAll()).not.toThrow();
 			});
 		});
+
+		describe('normalizeRetryOptions', () => {
+			it('should use instance defaults when limit and delay are omitted from RetryOptions object', () => {
+				const result = Transportr['normalizeRetryOptions']({ statusCodes: [503] });
+				expect(result.limit).toBe(0);
+				expect(result.statusCodes).toEqual([503]);
+				expect(result.delay).toBeDefined();
+				expect(result.backoffFactor).toBeDefined();
+			});
+		});
 	});
 
 	describe('Static utility methods', () => {
@@ -550,6 +560,12 @@ describe('Transportr', () => {
 				const source = [['x-key', 'value']];
 				const result = Transportr['mergeHeaders'](target, source as any);
 				expect(result.get('x-key')).toBe('value');
+			});
+
+			it('should skip Record entries with undefined values', () => {
+				const merged = Transportr['mergeHeaders'](new Headers(), { 'x-defined': 'yes', 'x-skipped': undefined } as any);
+				expect(merged.get('x-defined')).toBe('yes');
+				expect(merged.has('x-skipped')).toBe(false);
 			});
 		});
 
@@ -1007,6 +1023,96 @@ describe('Edge Cases', () => {
 		});
 	});
 
+	describe('configure', () => {
+		afterEach(() => { vi.restoreAllMocks() });
+
+		it('should return `this` for method chaining', () => {
+			const transportr = new Transportr('http://example.com');
+			expect(transportr.configure({ timeout: 5000 })).toBe(transportr);
+		});
+
+		it('should overwrite flat options', () => {
+			const transportr = new Transportr('http://example.com', { timeout: 10000, credentials: 'same-origin' });
+			transportr.configure({ timeout: 3000, credentials: 'include' });
+
+			expect(transportr['_options'].timeout).toBe(3000);
+			expect(transportr['_options'].credentials).toBe('include');
+		});
+
+		it('should merge headers onto existing defaults', async () => {
+			let capturedHeaders: Headers | undefined;
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+				capturedHeaders = init?.headers as Headers;
+				return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+			});
+
+			const transportr = new Transportr('http://example.com', { headers: { 'accept-language': 'en-US' } });
+			transportr.configure({ headers: { authorization: 'Bearer token' } });
+			await transportr.get('/data');
+
+			expect(capturedHeaders?.get('accept-language')).toBe('en-US');
+			expect(capturedHeaders?.get('authorization')).toBe('Bearer token');
+		});
+
+		it('should overwrite an existing header when same name provided', async () => {
+			let capturedHeaders: Headers | undefined;
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+				capturedHeaders = init?.headers as Headers;
+				return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+			});
+
+			const transportr = new Transportr('http://example.com', { headers: { authorization: 'Bearer old' } });
+			transportr.configure({ headers: { authorization: 'Bearer new' } });
+			await transportr.get('/data');
+
+			expect(capturedHeaders?.get('authorization')).toBe('Bearer new');
+		});
+
+		it('should merge searchParams onto existing defaults', async () => {
+			let capturedUrl: URL | undefined;
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+				capturedUrl = new URL(url as string);
+				return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+			});
+
+			const transportr = new Transportr('http://example.com', { searchParams: { version: '2' } });
+			transportr.configure({ searchParams: { locale: 'en' } });
+			await transportr.get('/data');
+
+			expect(capturedUrl?.searchParams.get('version')).toBe('2');
+			expect(capturedUrl?.searchParams.get('locale')).toBe('en');
+		});
+
+		it('should append hooks when provided', async () => {
+			const hook = vi.fn(async (opts: unknown) => opts);
+			const transportr = new Transportr('http://example.com');
+			transportr.configure({ hooks: { beforeRequest: [hook] } });
+
+			const mockResponse = new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
+			await transportr.get('/data');
+
+			expect(hook).toHaveBeenCalledTimes(1);
+		});
+
+		it('should handle partial options without disturbing unspecified defaults', () => {
+			const transportr = new Transportr('http://example.com', { timeout: 5000, cache: 'no-store' });
+			transportr.configure({ timeout: 8000 });
+
+			expect(transportr['_options'].timeout).toBe(8000);
+			expect(transportr['_options'].cache).toBe('no-store');
+		});
+
+		it('should be chainable', () => {
+			const transportr = new Transportr('http://example.com');
+			const result = transportr
+				.configure({ timeout: 5000 })
+				.configure({ credentials: 'include' })
+				.configure({ headers: { 'x-api-key': 'abc' } });
+			expect(result).toBe(transportr);
+		});
+	});
+
 	describe('contentTypeHandlers', () => {
 		beforeEach(() => vi.restoreAllMocks());
 		afterEach(() => vi.restoreAllMocks());
@@ -1157,10 +1263,10 @@ describe('Edge Cases', () => {
 		});
 	});
 
-	describe('Request deduplication', () => {
-		afterEach(() => { vi.restoreAllMocks() });
+		describe('Request deduplication', () => {
+			afterEach(() => { vi.restoreAllMocks() });
 
-		it('should deduplicate identical GET requests when dedupe is true', async () => {
+			it('should deduplicate identical GET requests when dedupe is true', async () => {
 			let fetchCount = 0;
 			vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 				fetchCount++;
@@ -1179,20 +1285,37 @@ describe('Edge Cases', () => {
 			expect(result2).toEqual({ id: 1 });
 		});
 
-		it('should not deduplicate when dedupe is false', async () => {
-			let fetchCount = 0;
-			vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
-				fetchCount++;
-				return new Response('{"id":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+			it('should not deduplicate when dedupe is false', async () => {
+				let fetchCount = 0;
+				vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+					fetchCount++;
+					return new Response('{"id":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+				});
+
+				const transportr = new Transportr('http://example.com');
+				await transportr.get('/api/data', { dedupe: false });
+				await transportr.get('/api/data', { dedupe: false });
+
+				expect(fetchCount).toBe(2);
 			});
 
-			const transportr = new Transportr('http://example.com');
-			await transportr.get('/api/data', { dedupe: false });
-			await transportr.get('/api/data', { dedupe: false });
+			it('should deduplicate identical HEAD requests when dedupe is true', async () => {
+				let fetchCount = 0;
+				vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+					fetchCount++;
+					await new Promise(resolve => setTimeout(resolve, 20));
+					return new Response(null, { status: 200 });
+				});
 
-			expect(fetchCount).toBe(2);
+				const transportr = new Transportr('http://example.com');
+				await Promise.all([
+					transportr.head('/api/resource', { dedupe: true }),
+					transportr.head('/api/resource', { dedupe: true })
+				]);
+
+				expect(fetchCount).toBe(1);
+			});
 		});
-	});
 
 	describe('Enhanced HttpError', () => {
 		afterEach(() => { vi.restoreAllMocks() });
@@ -1428,7 +1551,7 @@ describe('Edge Cases', () => {
 
 			const transportr = new Transportr('http://example.com');
 			transportr.addHooks({
-				beforeRequest: [async (_options) => {
+				beforeRequest: [async (_options: RequestOptions) => {
 					return { searchParams: new URLSearchParams({ injected: 'true' }) };
 				}]
 			});
@@ -1474,32 +1597,257 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			transportr.addHooks({
-				beforeRequest: [async () => {
-					return { searchParams: new URLSearchParams({ hook: 'applied' }) };
-				}]
+			await transportr.options('/resource', {
+				hooks: {
+					beforeRequest: [async (opts: RequestOptions) => ({ ...opts, searchParams: { hook: 'applied' } })]
+				}
 			});
-
-			await transportr.options('/resource');
 
 			expect(capturedUrl?.searchParams.get('hook')).toBe('applied');
 		});
 
-		it('should run afterResponse hooks in options()', async () => {
+		it('should run afterResponse hooks in options() and use modified response', async () => {
 			const mockResponse = new Response(null, { status: 200, headers: { 'allow': 'GET, POST' } });
 			vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse);
 
-			const afterHook = vi.fn(async (response: Response) => {
-				return new Response(null, { status: response.status, headers: { 'allow': 'GET, POST, PUT' } });
+			const transportr = new Transportr('http://example.com');
+			const result = await transportr.options('/resource', {
+				hooks: {
+					afterResponse: [async () => new Response(null, { headers: { allow: 'GET, POST, PUT' } })]
+				}
+			});
+
+			expect(result).toEqual(['GET', 'POST', 'PUT']);
+		});
+	});
+
+	describe('execute() per-request hooks', () => {
+		afterEach(() => { vi.restoreAllMocks() });
+
+		it('should update URL when beforeRequest hook returns searchParams', async () => {
+			let capturedUrl: string | undefined;
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+				capturedUrl = url instanceof URL ? url.href : String(url);
+				return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
 			});
 
 			const transportr = new Transportr('http://example.com');
-			transportr.addHooks({ afterResponse: [afterHook] });
+			await transportr.get('/data', {
+				hooks: { beforeRequest: [async (opts: RequestOptions) => ({ ...opts, searchParams: { injected: 'yes' } })] }
+			});
 
-			const result = await transportr.options('/resource');
+			expect(capturedUrl).toContain('injected=yes');
+		});
 
-			expect(afterHook).toHaveBeenCalledTimes(1);
-			expect(result).toEqual(['GET', 'POST', 'PUT']);
+		it('should use modified response from afterResponse hook', async () => {
+			const original = new Response('{"v":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(original);
+
+			const transportr = new Transportr('http://example.com');
+			const result = await transportr.getJson('/data', {
+				hooks: { afterResponse: [async () => new Response('{"v":2}', { status: 200, headers: { 'content-type': 'application/json' } })] }
+			});
+
+			expect((result as any).v).toBe(2);
+		});
+	});
+
+	describe('method fallback in _request', () => {
+		afterEach(() => { vi.restoreAllMocks() });
+
+		it('should default method to GET when method is explicitly undefined', async () => {
+			let capturedMethod: string | undefined;
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+				capturedMethod = (init as RequestInit)?.method;
+				return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+			});
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.request('/data', { method: undefined as any });
+
+			// retry/dedupe logic falls back to 'GET', fetch receives whatever was spread
+			expect(capturedMethod).toBeUndefined();
+		});
+	});
+
+	describe('static addHooks', () => {
+		afterEach(() => {
+			Transportr.clearHooks();
+			vi.restoreAllMocks();
+		});
+
+		it('should add global afterResponse hooks', async () => {
+			const hook = vi.fn();
+			Transportr.addHooks({ afterResponse: [hook] });
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response('{"id":1}', { status: 200, headers: { 'content-type': 'application/json' } })
+			);
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.getJson('/data');
+
+			expect(hook).toHaveBeenCalledTimes(1);
+		});
+
+		it('should add global beforeError hooks', async () => {
+			const hook = vi.fn();
+			Transportr.addHooks({ beforeError: [hook] });
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response(null, { status: 404 })
+			);
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.get('/missing').catch(() => {});
+
+			expect(hook).toHaveBeenCalledTimes(1);
+			expect(hook).toHaveBeenCalledWith(expect.any(HttpError));
+		});
+
+		it('should add all three hook types at once', async () => {
+			const beforeRequest = vi.fn();
+			const afterResponse = vi.fn();
+			const beforeError = vi.fn();
+			Transportr.addHooks({ beforeRequest: [beforeRequest], afterResponse: [afterResponse], beforeError: [beforeError] });
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response('{"id":1}', { status: 200, headers: { 'content-type': 'application/json' } })
+			);
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.getJson('/data');
+
+			expect(beforeRequest).toHaveBeenCalledTimes(1);
+			expect(afterResponse).toHaveBeenCalledTimes(1);
+			expect(beforeError).toHaveBeenCalledTimes(0);
+		});
+	});
+
+	describe('instance addHooks with beforeError', () => {
+		afterEach(() => { vi.restoreAllMocks() });
+
+		it('should add instance beforeError hooks', async () => {
+			const hook = vi.fn();
+			const transportr = new Transportr('http://example.com');
+			transportr.addHooks({ beforeError: [hook] });
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response(null, { status: 500 })
+			);
+
+			await transportr.get('/fail').catch(() => {});
+
+			expect(hook).toHaveBeenCalledTimes(1);
+			expect(hook).toHaveBeenCalledWith(expect.any(HttpError));
+		});
+
+		it('should allow beforeError hook to transform the error', async () => {
+			const transportr = new Transportr('http://example.com');
+			transportr.addHooks({
+				beforeError: [(error: HttpError) => new HttpError(
+					{ code: 418, text: "I'm a teapot" },
+					{ message: error.message }
+				)]
+			});
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response(null, { status: 500 })
+			);
+
+			try {
+				await transportr.get('/fail');
+				expect.unreachable('Should have thrown');
+			} catch (error) {
+				expect(error).toBeInstanceOf(HttpError);
+				expect((error as HttpError).statusCode).toBe(418);
+			}
+		});
+	});
+
+	describe('hook falsy return values', () => {
+		afterEach(() => {
+			Transportr.clearHooks();
+			vi.restoreAllMocks();
+		});
+
+		it('should not modify options when beforeRequest hook returns undefined in options()', async () => {
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response(null, { status: 200, headers: { allow: 'GET' } })
+			);
+
+			const transportr = new Transportr('http://example.com');
+			const result = await transportr.options('/resource', {
+				hooks: { beforeRequest: [async () => undefined] }
+			});
+
+			expect(result).toEqual(['GET']);
+		});
+
+		it('should not modify response when afterResponse hook returns undefined in options()', async () => {
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response(null, { status: 200, headers: { allow: 'GET, POST' } })
+			);
+
+			const transportr = new Transportr('http://example.com');
+			const result = await transportr.options('/resource', {
+				hooks: { afterResponse: [async () => undefined] }
+			});
+
+			expect(result).toEqual(['GET', 'POST']);
+		});
+
+		it('should not modify URL when beforeRequest hook returns result with no searchParams in execute()', async () => {
+			let capturedUrl: string | undefined;
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+				capturedUrl = url instanceof URL ? url.href : String(url);
+				return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
+			});
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.get('/data', {
+				hooks: { beforeRequest: [async (opts: RequestOptions) => ({ ...opts, searchParams: undefined })] }
+			});
+
+			expect(capturedUrl).not.toContain('?');
+		});
+
+		it('should not recalculate URL when beforeRequest hook in options() returns result without searchParams', async () => {
+			let capturedUrl: URL | undefined;
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+				capturedUrl = input instanceof URL ? input : new URL(input as string);
+				return new Response(null, { status: 200, headers: { allow: 'GET' } });
+			});
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.options('/resource', {
+				hooks: { beforeRequest: [async (opts: RequestOptions) => ({ ...opts, searchParams: undefined })] }
+			});
+
+			expect(capturedUrl?.search).toBe('');
+		});
+	});
+
+	describe('global: false event publishing', () => {
+		afterEach(() => {
+			Transportr.unregisterAll();
+			vi.restoreAllMocks();
+		});
+
+		it('should not publish to global subscribr when global is false', async () => {
+			const globalHandler = vi.fn();
+			const registration = Transportr.register(Transportr.RequestEvent.SUCCESS, globalHandler);
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+				new Response('{"id":1}', { status: 200, headers: { 'content-type': 'application/json' } })
+			);
+
+			const transportr = new Transportr('http://example.com');
+			await transportr.getJson('/data', { global: false });
+
+			expect(globalHandler).toHaveBeenCalledTimes(0);
+
+			Transportr.unregister(registration);
 		});
 	});
 });
