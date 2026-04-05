@@ -1,4 +1,4 @@
-import type { Json, ResponseHandler } from '@types';
+import type { Json, ResponseHandler, ServerSentEvent } from '@types';
 
 /** Cached promise for lazy jsdom initialization — resolved once, reused thereafter */
 let domReady: Promise<void> | undefined;

@@ -573,28 +573,165 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to an `HTMLImageElement` or `void`.
 	 */
-	async getImage(path?: string, options?: RequestOptions): Promise<HTMLImageElement | undefined> {
+	async getImage(path?: string, options?: RequestOptions): Promise<HTMLImageElement | undefined | Result<HTMLImageElement | undefined>> {
 		return this._get(path, options, { headers: { accept: 'image/*' } }, handleImage);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getBuffer(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<ArrayBuffer | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	getBuffer(path: RequestOptions & { unwrap: false }): Promise<Result<ArrayBuffer | undefined>>;
 	/**
 	 * It gets a buffer from the specified path
 	 * @param path The path to the resource.
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to an ArrayBuffer or void.
 	 */
-	async getBuffer(path?: string | RequestOptions, options?: RequestOptions): Promise<ArrayBuffer | undefined> {
+	async getBuffer(path?: string | RequestOptions, options?: RequestOptions): Promise<ArrayBuffer | undefined | Result<ArrayBuffer | undefined>> {
 		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBuffer);
 	}
 
+	/** Returns a Result tuple instead of throwing. */
+	getStream(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<ReadableStream<Uint8Array> | null | undefined>>;
+	/** Returns a Result tuple instead of throwing. */
+	getStream(path: RequestOptions & { unwrap: false }): Promise<Result<ReadableStream<Uint8Array> | null | undefined>>;
 	/**
 	 * It returns a readable stream of the response body from the specified path.
 	 * @param path The path to the resource.
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to a ReadableStream, null, or void.
 	 */
-	async getStream(path?: string | RequestOptions, options?: RequestOptions): Promise<ReadableStream<Uint8Array> | null | undefined> {
+	async getStream(path?: string | RequestOptions, options?: RequestOptions): Promise<ReadableStream<Uint8Array> | null | undefined | Result<ReadableStream<Uint8Array> | null | undefined>> {
 		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleReadableStream);
+	}
+
+	/** Returns a Result tuple instead of throwing. */
+	getEventStream(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<ServerSentEvent>>>;
+	/** Returns a Result tuple instead of throwing. */
+	getEventStream(path: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<ServerSentEvent>>>;
+	/**
+	 * Opens a Server-Sent Events stream and returns an AsyncIterable of typed events.
+	 * Follows the EventStream specification for parsing event, data, id, and retry fields.
+	 * Iteration ends when the server closes the stream or the request is aborted.
+	 *
+	 * @async
+	 * @param path The path to the SSE endpoint.
+	 * @param options The options for the request.
+	 * @returns An AsyncIterable of parsed ServerSentEvent objects.
+	 * @example
+	 * ```typescript
+	 * for await (const event of api.getEventStream('/chat/completions', { body: { prompt } })) {
+	 *   console.log(event.event, event.data);
+	 * }
+	 * ```
+	 */
+	async getEventStream(path?: string | RequestOptions, options?: RequestOptions): Promise<AsyncIterable<ServerSentEvent> | Result<AsyncIterable<ServerSentEvent>>> {
+		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
+
+		const requestConfig = this.processRequestOptions(options ?? {}, { method: options?.body ? 'POST' : 'GET', headers: { accept: `${mediaTypes.EVENT_STREAM}` } });
+		const { requestOptions } = requestConfig;
+		const unwrap = requestOptions.unwrap !== false;
+		const requestHooks = requestOptions.hooks;
+
+		try {
+			let url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
+			const beforeRequestHookSets = [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ];
+			for (const hooks of beforeRequestHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(requestOptions, url);
+					if (result) {
+						Object.assign(requestOptions, result);
+						if (result.searchParams !== undefined) { url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams) }
+					}
+				}
+			}
+
+			const response = await this._request(path, requestConfig);
+
+			let afterResponse: Response = response;
+			const afterResponseHookSets = [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ];
+			for (const hooks of afterResponseHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(afterResponse, requestOptions);
+					if (result) { afterResponse = result }
+				}
+			}
+
+			this.publish({ name: RequestEvent.SUCCESS, data: afterResponse, global: requestConfig.global });
+
+			const stream = handleEventStream(afterResponse);
+			return unwrap ? stream : [true, stream] as Result<AsyncIterable<ServerSentEvent>>;
+		} catch (error) {
+			if (!unwrap) return [false, error as HttpError] as Result<AsyncIterable<ServerSentEvent>>;
+			throw error;
+		}
+	}
+
+	/** Returns a Result tuple instead of throwing. */
+	getJsonStream<T = Json>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<T>>>;
+	/** Returns a Result tuple instead of throwing. */
+	getJsonStream<T = Json>(path: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<T>>>;
+	/**
+	 * Opens an NDJSON (Newline Delimited JSON) stream and returns an AsyncIterable of typed JSON values.
+	 * Each line is independently parsed as JSON, making it suitable for streaming large datasets
+	 * or real-time JSON feeds.
+	 *
+	 * @async
+	 * @template T The expected type of each JSON line (defaults to Json).
+	 * @param path The path to the NDJSON endpoint.
+	 * @param options The options for the request.
+	 * @returns An AsyncIterable of parsed JSON values.
+	 * @example
+	 * ```typescript
+	 * for await (const user of api.getJsonStream<User>('/users/export')) {
+	 *   processUser(user);
+	 * }
+	 * ```
+	 */
+	async getJsonStream<T = Json>(path?: string | RequestOptions, options?: RequestOptions): Promise<AsyncIterable<T> | Result<AsyncIterable<T>>> {
+		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
+
+		const requestConfig = this.processRequestOptions(options ?? {}, { method: 'GET', headers: { accept: `${mediaTypes.NDJSON}` } });
+		const { requestOptions } = requestConfig;
+		const unwrap = requestOptions.unwrap !== false;
+		const requestHooks = requestOptions.hooks;
+
+		try {
+			let url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
+			const beforeRequestHookSets = [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ];
+			for (const hooks of beforeRequestHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(requestOptions, url);
+					if (result) {
+						Object.assign(requestOptions, result);
+						if (result.searchParams !== undefined) { url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams) }
+					}
+				}
+			}
+
+			const response = await this._request(path, requestConfig);
+
+			let afterResponse: Response = response;
+			const afterResponseHookSets = [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ];
+			for (const hooks of afterResponseHookSets) {
+				if (!hooks) { continue }
+				for (const hook of hooks) {
+					const result = await hook(afterResponse, requestOptions);
+					if (result) { afterResponse = result }
+				}
+			}
+
+			this.publish({ name: RequestEvent.SUCCESS, data: afterResponse, global: requestConfig.global });
+
+			const stream = handleNdjsonStream<T>(afterResponse);
+			return unwrap ? stream : [ true, stream ] as Result<AsyncIterable<T>>;
+		} catch (error) {
+			if (!unwrap) return [ false, error as HttpError ] as Result<AsyncIterable<T>>;
+			throw error;
+		}
 	}
 
 	/**
