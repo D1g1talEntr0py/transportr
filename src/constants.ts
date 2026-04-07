@@ -25,7 +25,7 @@ const mediaTypes: { [key in MediaTypeKey]: MediaType } = {
 } as const;
 
 const defaultMediaType: string = mediaTypes.JSON.toString();
-const defaultOrigin = globalThis.location?.origin ?? 'http://localhost';
+const defaultOrigin: string = globalThis.location?.origin ?? 'http://localhost';
 
 /** Constant object for caching policies */
 const RequestCachingPolicy = {
