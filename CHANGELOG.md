@@ -1,3 +1,12 @@
+## [3.0.3](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.2...v3.0.3) (2026-04-07)
+
+### Bug Fixes
+
+* restores direct body parameter for request methods (a106100d6a7ba87e327a9823e32f692fe6c0fa9c)
+Addresses a regression introduced during the TypeScript conversion where the signatures for body-accepting methods (POST, PUT, PATCH, DELETE) were inadvertently removed.
+Restores the ability to pass the request body as a direct parameter rather than forcing it inside an options object, improving developer ergonomics and ensuring backwards compatibility.
+Centralizes the overload resolution logic into a shared helper to cleanly resolve path, body, and options arguments.
+
 ## [3.0.2](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.1...v3.0.2) (2026-04-07)
 
 ### Bug Fixes
