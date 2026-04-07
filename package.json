@@ -66,8 +66,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@d1g1tal/media-type": "^6.0.6",
-    "@d1g1tal/subscribr": "^4.1.11",
+    "@d1g1tal/media-type": "^6.0.8",
+    "@d1g1tal/subscribr": "^4.1.13",
     "dompurify": "^3.3.3"
   },
   "peerDependencies": {
