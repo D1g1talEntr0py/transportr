@@ -1,3 +1,9 @@
+## [3.0.2](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.1...v3.0.2) (2026-04-07)
+
+### Bug Fixes
+
+* **deps:** reinstall project to finally address CVE-2026-39363 (e3b3f67cd99735d6c32b58c78e376852f32858ea)
+
 ## [3.0.1](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.0...v3.0.1) (2026-04-07)
 
 ### Bug Fixes
