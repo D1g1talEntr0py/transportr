@@ -112,26 +112,26 @@ describe('Transportr', () => {
 
 		describe('post', () => {
 			it('should return a promise', () => {
-				const promise = transportr.post('/test', { body: { foo: 'bar' } }).catch(() => {});
+				const promise = transportr.post('/test', { foo: 'bar' }).catch(() => {});
 				expect(promise).toBeInstanceOf(Promise);
 			});
 
-			it('should handle options as first parameter', () => {
-				const promise = transportr.post({ body: { foo: 'bar' } }).catch(() => {});
+			it('should handle body as first parameter', () => {
+				const promise = transportr.post({ foo: 'bar' }).catch(() => {});
 				expect(promise).toBeInstanceOf(Promise);
 			});
 		});
 
 		describe('put', () => {
 			it('should return a promise', () => {
-				const promise = transportr.put('/test', { body: { foo: 'bar' } }).catch(() => {});
+				const promise = transportr.put('/test', { foo: 'bar' }).catch(() => {});
 				expect(promise).toBeInstanceOf(Promise);
 			});
 		});
 
 		describe('patch', () => {
 			it('should return a promise', () => {
-				const promise = transportr.patch('/test', { body: { foo: 'bar' } }).catch(() => {});
+				const promise = transportr.patch('/test', { foo: 'bar' }).catch(() => {});
 				expect(promise).toBeInstanceOf(Promise);
 			});
 		});
@@ -944,6 +944,53 @@ describe('Edge Cases', () => {
 
 				expect(processed.requestOptions.headers.has('content-type')).toBe(true);
 			});
+
+			it('should merge instance body with request body for body methods', () => {
+				const transportr = new Transportr('http://example.com', { body: { token: 'abc', shared: 'instance' } } as any);
+
+				const processed = transportr['processRequestOptions'](
+					{ body: { name: 'test', shared: 'request' } },
+					{ method: 'POST' }
+				);
+
+				const expected = JSON.stringify({ token: 'abc', shared: 'request', name: 'test' });
+				expect(processed.requestOptions.body).toBe(expected);
+			});
+
+			it('should use instance body when request body is undefined', () => {
+				const transportr = new Transportr('http://example.com', { body: { token: 'abc' } } as any);
+
+				const processed = transportr['processRequestOptions'](
+					{},
+					{ method: 'POST' }
+				);
+
+				expect(processed.requestOptions.body).toBe(JSON.stringify({ token: 'abc' }));
+			});
+
+			it('should use request body when instance body is undefined', () => {
+				const transportr = new Transportr('http://example.com');
+
+				const processed = transportr['processRequestOptions'](
+					{ body: { name: 'test' } },
+					{ method: 'POST' }
+				);
+
+				expect(processed.requestOptions.body).toBe(JSON.stringify({ name: 'test' }));
+			});
+
+			it('should use request body when request body is not a plain object', () => {
+				const transportr = new Transportr('http://example.com', { body: { token: 'abc' } } as any);
+				const formData = new FormData();
+				formData.append('file', 'data');
+
+				const processed = transportr['processRequestOptions'](
+					{ body: formData },
+					{ method: 'POST' }
+				);
+
+				expect(processed.requestOptions.body).toBe(formData);
+			});
 		});
 
 		describe('createUrl', () => {
@@ -987,7 +1034,7 @@ describe('Edge Cases', () => {
 			fetchSpy.mockClear();
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/path', { body: { data: 'test' } });
+			await transportr.post('/path', { data: 'test' });
 
 			expect(fetchSpy).toHaveBeenCalledTimes(1);
 			const [[url, requestInit]] = fetchSpy.mock.calls;
@@ -1195,7 +1242,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/upload', { body: formData });
+			await transportr.post('/upload', formData);
 
 			expect(capturedBody).toBe(formData);
 			expect(capturedHeaders?.has('content-type')).toBe(false);
@@ -1213,7 +1260,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/upload', { body: blob });
+			await transportr.post('/upload', blob);
 
 			expect(capturedBody).toBe(blob);
 			expect(capturedHeaders?.has('content-type')).toBe(false);
@@ -1229,7 +1276,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/upload', { body: buffer });
+			await transportr.post('/upload', buffer);
 
 			expect(capturedBody).toBe(buffer);
 		});
@@ -1244,7 +1291,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/upload', { body: params });
+			await transportr.post('/upload', params);
 
 			expect(capturedBody).toBe(params);
 		});
@@ -1257,7 +1304,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/data', { body: { key: 'value' } });
+			await transportr.post('/data', { key: 'value' });
 
 			expect(capturedBody).toBe('{"key":"value"}');
 		});
@@ -1503,7 +1550,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/data', { body: { key: 'value' }, xsrf: true });
+			await transportr.post('/data', { key: 'value' }, { xsrf: true });
 
 			expect(capturedHeaders?.get('X-XSRF-TOKEN')).toBe('abc123');
 		});
@@ -1518,7 +1565,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/data', { body: { key: 'value' }, xsrf: { cookieName: 'MY-CSRF', headerName: 'X-MY-CSRF' } });
+			await transportr.post('/data', { key: 'value' }, { xsrf: { cookieName: 'MY-CSRF', headerName: 'X-MY-CSRF' } });
 
 			expect(capturedHeaders?.get('X-MY-CSRF')).toBe('token456');
 		});
@@ -1533,7 +1580,7 @@ describe('Edge Cases', () => {
 			});
 
 			const transportr = new Transportr('http://example.com');
-			await transportr.post('/data', { body: { key: 'value' }, xsrf: true });
+			await transportr.post('/data', { key: 'value' }, { xsrf: true });
 
 			expect(capturedHeaders?.has('X-XSRF-TOKEN')).toBe(false);
 		});

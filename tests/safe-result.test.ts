@@ -60,8 +60,7 @@ describe('Result Tuple (unwrap: false)', () => {
 			headers: { 'content-type': 'application/json' }
 		}));
 
-		const [ok, result] = await transportr.post('/users', {
-			body: { name: 'Bob' },
+		const [ok, result] = await transportr.post('/users', { name: 'Bob' }, {
 			unwrap: false
 		});
 

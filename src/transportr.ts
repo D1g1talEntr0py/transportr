@@ -6,7 +6,7 @@ import { SignalController } from './signal-controller.js';
 import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleEventStream, handleNdjsonStream } from './response-handlers';
 import { isRequestBodyMethod, isRawBody, getCookieValue, isString, isArrayBuffer, isObject, objectMerge, serialize } from './utils';
 import { RequestCachingPolicy, RequestEvent, SignalErrors, XSRF_COOKIE_NAME, XSRF_HEADER_NAME, abortEvent, aborted, defaultMediaType, defaultOrigin, endsWithSlashRegEx, internalServerError, mediaTypes, retryBackoffFactor, retryDelay, retryMethods, retryStatusCodes, timedOut } from './constants';
-import type {	RequestOptions, ResponseBody, RequestEventHandler, SearchParameters, EventRegistration, ResponseHandler, RequestHeaders, TypedResponse, Json, Entries, HookOptions, HttpErrorOptions, NormalizedRetryOptions, PublishOptions, RetryOptions, RequestTiming, XsrfOptions, ServerSentEvent, RequestEventDataMap, TypedRequestEventHandler, Result } from '@types';
+import type {	RequestBody, RequestBodyMethod, RequestOptions, ResponseBody, RequestEventHandler, SearchParameters, EventRegistration, ResponseHandler, RequestHeaders, TypedResponse, Json, Entries, HookOptions, HttpErrorOptions, NormalizedRetryOptions, PublishOptions, RetryOptions, RequestTiming, XsrfOptions, ServerSentEvent, RequestEventDataMap, TypedRequestEventHandler, Result } from '@types';
 
 declare function fetch<R = unknown>(input: RequestInfo | URL, requestOptions?: RequestOptions): Promise<TypedResponse<R>>;
 
@@ -371,28 +371,27 @@ export class Transportr {
 	}
 
 	/** Returns a Result tuple instead of throwing. */
-	post<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	post<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
-	post<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	post<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * This function makes a POST request to the given path with the given body and options.
 	 *
 	 * @async
 	 * @template T The expected response type (defaults to ResponseBody)
 	 * @param path The path to the endpoint you want to call.
+	 * @param body The body of the request.
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to the response body.
 	 */
-	async post<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		if (typeof(path) !== 'string') { [ path, options ] = [ undefined, path as RequestOptions ] }
-
-		return this.execute<T>(path, options, { method: 'POST' });
+	async post<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
+		return this.executeBodyMethod<T>('POST', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
-	put<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	put<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
-	put<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	put<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * This function returns a promise that resolves to the result of a request to the specified path with
 	 * the specified options, where the method is PUT.
@@ -400,44 +399,47 @@ export class Transportr {
 	 * @async
 	 * @template T The expected response type (defaults to ResponseBody)
 	 * @param path The path to the endpoint you want to call.
+	 * @param body The body of the request.
 	 * @param options The options for the request.
 	 * @returns The return value of the #request method.
 	 */
-	async put<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.execute<T>(path, options, { method: 'PUT' });
+	async put<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
+		return this.executeBodyMethod<T>('PUT', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
-	patch<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	patch<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
-	patch<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	patch<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * It takes a path and options, and returns a request with the method set to PATCH.
 	 *
 	 * @async
 	 * @template T The expected response type (defaults to ResponseBody)
 	 * @param path The path to the endpoint you want to hit.
+	 * @param body The body of the request.
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to the response of the request.
 	 */
-	async patch<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.execute<T>(path, options, { method: 'PATCH' });
+	async patch<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
+		return this.executeBodyMethod<T>('PATCH', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
-	delete<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	delete<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
-	delete<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	delete<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/**
 	 * It takes a path and options, and returns a request with the method set to DELETE.
 	 *
 	 * @async
 	 * @param path The path to the resource you want to access.
+	 * @param body The body of the request.
 	 * @param options The options for the request.
 	 * @returns The result of the request.
 	 */
-	async delete<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.execute<T>(path, options, { method: 'DELETE' });
+	async delete<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
+		return this.executeBodyMethod<T>('DELETE', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
@@ -1062,6 +1064,21 @@ export class Transportr {
 	}
 
 	/**
+	 * Shared implementation for body-accepting HTTP methods (POST, PUT, PATCH, DELETE).
+	 * @param method The HTTP method to use.
+	 * @param path The request path, or the request body when called without a path.
+	 * @param body The request body, or options when called without a path.
+	 * @param options Additional request options.
+	 * @param responseHandler Optional response handler override.
+	 * @returns A promise that resolves to the response body.
+	 */
+	private executeBodyMethod<T extends ResponseBody>(method: RequestBodyMethod, path: string | RequestBody | undefined, body?: RequestBody | RequestOptions, options?: RequestOptions, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined | Result<T | undefined>> {
+		const [resolvedPath, resolvedBody, resolvedOptions] = isString(path) ? [path, body as RequestBody, options] : [undefined, path, body as RequestOptions];
+
+		return this.execute<T>(resolvedPath, Object.assign(resolvedOptions ?? {}, { body: resolvedBody, method }), {}, responseHandler);
+	}
+
+	/**
 	 * It returns a response handler based on the content type of the response.
 	 * @param path The path to the resource.
 	 * @param userOptions The user options for the request.
@@ -1154,14 +1171,10 @@ export class Transportr {
 			} else if (Array.isArray(headers)) {
 				// Handle array of tuples format
 				for (const [ name, value ] of headers) { target.set(name, value) }
-			} else {
-				// Handle Record<string, string> format - use Object.keys() for better performance
-				const record = headers as Record<string, string | undefined>;
-				const keys = Object.keys(record);
-				for (let i = 0; i < keys.length; i++) {
-					const name = keys[i]!;
-					const value = record[name];
-					if (value !== undefined) { target.set(name, String(value)) }
+			} else if (isObject<Record<string, string | undefined>>(headers)) {
+				// Handle Record<string, string> format - use Object.entries() for better performance
+				for (const [name, value] of Object.entries(headers)) {
+					if (value !== undefined) { target.set(name, value) }
 				}
 			}
 		}
@@ -1225,11 +1238,15 @@ export class Transportr {
 		if (isRequestBodyMethod(requestOptions.method)) {
 			if (isRawBody(userBody)) {
 				// Raw BodyInit — send as-is, delete Content-Type so the runtime sets it automatically
-				requestOptions.body = userBody;
+				Object.assign(requestOptions, { body: userBody });
 				requestOptions.headers.delete('content-type');
 			} else {
+				const instanceBody = this._options.body;
+				const body = isObject<Record<string, unknown>>(instanceBody) && isObject<Record<string, unknown>>(userBody)
+					? objectMerge(instanceBody, userBody)
+					: (userBody !== undefined ? userBody : instanceBody);
 				const isJson = requestOptions.headers.get('content-type')?.includes('json') ?? false;
-				requestOptions.body = isJson && isObject(userBody) ? serialize(userBody) : userBody;
+				Object.assign(requestOptions, { body: isJson && isObject(body) ? serialize(body) : body });
 			}
 		} else {
 			requestOptions.headers.delete('content-type');
@@ -1243,9 +1260,9 @@ export class Transportr {
 
 		// XSRF/CSRF protection: read token from cookie and set as request header
 		if (xsrf) {
-			const xsrfConfig: XsrfOptions = typeof xsrf === 'object' ? xsrf : {};
-			const token = getCookieValue(xsrfConfig.cookieName ?? XSRF_COOKIE_NAME);
-			if (token) { requestOptions.headers.set(xsrfConfig.headerName ?? XSRF_HEADER_NAME, token) }
+			const { cookieName, headerName }: XsrfOptions = typeof xsrf === 'object' ? xsrf : {};
+			const token = getCookieValue(cookieName ?? XSRF_COOKIE_NAME);
+			if (token) { requestOptions.headers.set(headerName ?? XSRF_HEADER_NAME, token) }
 		}
 
 		const signalController = new SignalController({ signal, timeout })

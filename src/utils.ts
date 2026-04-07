@@ -16,7 +16,7 @@ export const isRequestBodyMethod = (method: RequestMethod | undefined): method i
  * @param body The request body to check.
  * @returns True if the body is a FormData, Blob, ArrayBuffer, TypedArray, DataView, ReadableStream, or URLSearchParams.
  */
-export const isRawBody = (body: unknown): boolean =>
+export const isRawBody = (body: unknown): body is Exclude<BodyInit, string> =>
 	body instanceof FormData || body instanceof Blob || body instanceof ArrayBuffer || body instanceof ReadableStream || body instanceof URLSearchParams || ArrayBuffer.isView(body);
 
 /**
@@ -74,7 +74,7 @@ export const isObject = <T = object>(value: unknown): value is T extends object 
  * @param objects The objects to merge
  * @returns The merged object
  */
-export const objectMerge = (...objects: Record<PropertyKey, unknown>[]): Record<PropertyKey, unknown> | undefined => {
+export const objectMerge = (...objects: Record<string, unknown>[]): Record<string, unknown> | undefined => {
 	// Early return for empty input
 	const length = objects.length;
 	if (length === 0) { return undefined }
@@ -86,7 +86,7 @@ export const objectMerge = (...objects: Record<PropertyKey, unknown>[]): Record<
 		return deepClone(obj);
 	}
 
-	const target = {} as Record<PropertyKey, unknown>;
+	const target = {} as Record<string, unknown>;
 
 	for (const source of objects) {
 		if (!isObject(source)) { return undefined }

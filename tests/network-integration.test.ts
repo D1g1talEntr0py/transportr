@@ -49,7 +49,7 @@ describe('Network Tests', () => {
 			recordLabel: 'Test Records'
 		};
 
-		const result = await transportr.post({ body: postData });
+		const result = await transportr.post(postData);
 
 		expect(typeof(result)).toBe('object');
 		expect(result).toHaveProperty('id'); // Check for ID which the API should return

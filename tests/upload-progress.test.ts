@@ -38,8 +38,7 @@ describe('Upload Progress', () => {
 		mockFetch.mockImplementation(createStreamConsumingFetch({ ok: true }));
 
 		const progressUpdates: DownloadProgress[] = [];
-		await transportr.post('/users', {
-			body,
+		await transportr.post('/users', body, {
 			onUploadProgress: (progress: DownloadProgress) => progressUpdates.push({ ...progress })
 		});
 
@@ -58,8 +57,7 @@ describe('Upload Progress', () => {
 		mockFetch.mockImplementation(createStreamConsumingFetch({ ok: true }));
 
 		const progressUpdates: DownloadProgress[] = [];
-		await transportr.post('/upload', {
-			body: blob,
+		await transportr.post('/upload', blob, {
 			onUploadProgress: (progress: DownloadProgress) => progressUpdates.push({ ...progress })
 		});
 
@@ -76,8 +74,7 @@ describe('Upload Progress', () => {
 		mockFetch.mockImplementation(createStreamConsumingFetch({ ok: true }));
 
 		const progressUpdates: DownloadProgress[] = [];
-		await transportr.put('/upload', {
-			body: buffer,
+		await transportr.put('/upload', buffer, {
 			onUploadProgress: (progress: DownloadProgress) => progressUpdates.push({ ...progress })
 		});
 
@@ -100,8 +97,7 @@ describe('Upload Progress', () => {
 		mockFetch.mockImplementation(createStreamConsumingFetch({ ok: true }));
 
 		const progressUpdates: DownloadProgress[] = [];
-		await transportr.post('/stream', {
-			body: stream,
+		await transportr.post('/stream', stream, {
 			onUploadProgress: (progress: DownloadProgress) => progressUpdates.push({ ...progress })
 		});
 
@@ -119,7 +115,7 @@ describe('Upload Progress', () => {
 			headers: { 'content-type': 'application/json' }
 		}));
 
-		const result = await transportr.post('/users', { body: { name: 'Bob' } });
+		const result = await transportr.post('/users', { name: 'Bob' });
 		expect(result).toEqual({ ok: true });
 	});
 
@@ -129,8 +125,7 @@ describe('Upload Progress', () => {
 		mockFetch.mockImplementation(createStreamConsumingFetch({ ok: true }));
 
 		const progressUpdates: DownloadProgress[] = [];
-		await transportr.put('/resource/1', {
-			body,
+		await transportr.put('/resource/1', body, {
 			onUploadProgress: (progress: DownloadProgress) => progressUpdates.push({ ...progress })
 		});
 
@@ -144,8 +139,7 @@ describe('Upload Progress', () => {
 		mockFetch.mockImplementation(createStreamConsumingFetch({ ok: true }));
 
 		const progressUpdates: DownloadProgress[] = [];
-		await transportr.patch('/resource/1', {
-			body,
+		await transportr.patch('/resource/1', body, {
 			onUploadProgress: (progress: DownloadProgress) => progressUpdates.push({ ...progress })
 		});
 
@@ -159,8 +153,7 @@ describe('Upload Progress', () => {
 		mockFetch.mockImplementation(createStreamConsumingFetch({ ok: true }));
 
 		const progressUpdates: DownloadProgress[] = [];
-		await transportr.post('/upload', {
-			body: bytes,
+		await transportr.post('/upload', bytes, {
 			onUploadProgress: (progress: DownloadProgress) => progressUpdates.push({ ...progress })
 		});
 
@@ -182,7 +175,7 @@ describe('Upload Progress', () => {
 			headers: { 'content-type': 'application/json' }
 		}));
 
-		await transportr.post('/upload', { body: formData, onUploadProgress });
+		await transportr.post('/upload', formData, { onUploadProgress });
 
 		expect(onUploadProgress).not.toHaveBeenCalled();
 	});

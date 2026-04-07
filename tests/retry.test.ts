@@ -126,8 +126,7 @@ describe('Retry', () => {
 
 			const transportr = new Transportr('http://example.com');
 
-			await expect(transportr.post('/test', {
-				body: { data: 'test' },
+			await expect(transportr.post('/test', { data: 'test' }, {
 				retry: { limit: 3, delay: 1, backoffFactor: 1 }
 			})).rejects.toThrow(HttpError);
 
@@ -144,8 +143,7 @@ describe('Retry', () => {
 				}));
 
 			const transportr = new Transportr('http://example.com');
-			const result = await transportr.post<{ id: number }>('/test', {
-				body: { data: 'test' },
+			const result = await transportr.post<{ id: number }>('/test', { data: 'test' }, {
 				retry: { limit: 2, methods: ['POST'], delay: 1, backoffFactor: 1 }
 			});
 
