@@ -1,3 +1,23 @@
+## [3.0.1](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.0...v3.0.1) (2026-04-07)
+
+### Bug Fixes
+
+* update dependencies to resolve CVE-2026-39363 (4858b094e3a88858eb60113ba706b53e451c6158)
+Updates vitest and related dev dependencies to their newest versions to resolve a security vulnerability in a transient dependency (Vite). Includes routine updates for other development dependencies.
+
+
+### Miscellaneous Chores
+
+* add explicit type annotation to defaultOrigin (c938eb124fcb82e539af8f4e0ba02c16ddd39193)
+Improves type safety and predictability by declaring a clear string type for the origin constant.
+
+* **docs:** revise feature comparison (9daaa2457e71ce3b2e34210de871550bb0e824cf)
+
+### Build System
+
+* enable isolatedDeclarations in tsconfig (3a51dae3d455d01a522fa7464255b9e16ce6bf22)
+Enhances build performance and compatibility with transpilers by enforcing isolated declaration generation.
+
 ## [3.0.0](https://github.com/D1g1talEntr0py/transportr/compare/v2.2.1...v3.0.0) (2026-04-05)
 
 ### ⚠ BREAKING CHANGES
