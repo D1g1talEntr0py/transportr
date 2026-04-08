@@ -5,6 +5,12 @@ import { defineConfig, defineProject } from 'vitest/config';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+	resolve: {
+		alias: {
+			'@src': resolve(__dirname, './src'),
+			'@types': resolve(__dirname, './src/@types')
+		}
+	},
 	test: {
 		globals: true,
 		// Use project-based configuration for different environments
@@ -35,12 +41,6 @@ export default defineConfig({
 			include: ['src/**/*.ts'],
 			exclude: ['node_modules/', 'src/@types/'],
 			clean: true,
-		}
-	},
-	resolve: {
-		alias: {
-			'@src': resolve(__dirname, './src'),
-			'@types': resolve(__dirname, './src/@types')
 		}
 	}
 });
