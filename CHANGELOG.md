@@ -1,3 +1,9 @@
+## [3.2.1](https://github.com/D1g1talEntr0py/transportr/compare/v3.2.0...v3.2.1) (2026-04-09)
+
+### Bug Fixes
+
+* **build:** assign modules to 'globalThis' when generating IIFE output (fb1a54344ccc4a94f0b719dc6c0970ff804668f3)
+
 ## [3.2.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.1.5...v3.2.0) (2026-04-09)
 
 ### Features
