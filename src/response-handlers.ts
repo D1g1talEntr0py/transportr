@@ -1,35 +1,28 @@
 import type { Json, ResponseHandler, ServerSentEvent } from '@types';
 
-/** Cached promise for lazy jsdom initialization — resolved once, reused thereafter */
+/** Cached promise for lazy DOM + DOMPurify initialization — resolved once, reused thereafter */
 let domReady: Promise<void> | undefined;
-
-/** Cached promise for lazy DOMPurify initialization — resolved once, reused thereafter */
-let purifyReady: Promise<(dirty: string) => string> | undefined;
-
-/**
- * Returns a bound sanitize function, lazily loading DOMPurify on first invocation.
- * Must be called after ensureDom() to ensure the DOM environment is ready.
- * @returns A Promise resolving to the sanitize function.
- */
-const getSanitize = (): Promise<(dirty: string) => string> =>
-	purifyReady ??= import('dompurify').then(({ default: p }) => (dirty: string): string => p.sanitize(dirty));
+/** DOMPurify instance — set once domReady resolves */
+let purify: typeof import('dompurify')['default'] | undefined;
 
 /**
- * Ensures a DOM environment is available (document, DOMParser, DocumentFragment).
- * In browser environments this is a no-op. In Node.js it lazily imports jsdom on first call.
- * @returns A Promise that resolves when the DOM environment is ready.
+ * Ensures a DOM environment is available (document, DOMParser, DocumentFragment) and
+ * initializes DOMPurify. In browser environments the DOM is already present so only
+ * DOMPurify is imported. In Node.js jsdom is lazily set up first.
+ * @returns A Promise that resolves when the DOM environment and DOMPurify are ready.
  */
-const ensureDom = async (): Promise<void> => {
-	if (typeof document !== 'undefined' && typeof DOMParser !== 'undefined' && typeof DocumentFragment !== 'undefined') { return Promise.resolve() }
+const ensureDom = (): Promise<void> => {
+	if (domReady) { return domReady }
 
-	return domReady ??= import('jsdom').then(({ JSDOM }) => {
-		const { window } = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', { url: 'http://localhost' });
-		globalThis.window = window as unknown as Window & typeof globalThis;
-		Object.assign(globalThis, { document: window.document, DOMParser: window.DOMParser, DocumentFragment: window.DocumentFragment });
-	}).catch(() => {
-		domReady = undefined;
-		throw new Error('jsdom is required for HTML/XML/DOM features in Node.js environments. Install it with: npm install jsdom');
-	});
+	const domSetup: Promise<void> = typeof document === 'undefined' || typeof DOMParser === 'undefined' || typeof DocumentFragment === 'undefined'
+		? import('jsdom').then(({ JSDOM }) => {
+			const { window } = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', { url: 'http://localhost' });
+			globalThis.window = window as unknown as Window & typeof globalThis;
+			Object.assign(globalThis, { document: window.document, DOMParser: window.DOMParser, DocumentFragment: window.DocumentFragment });
+		}).catch(() => { domReady = undefined; throw new Error('jsdom is required for HTML/XML/DOM features in Node.js environments. Install it with: npm install jsdom') })
+		: Promise.resolve();
+
+	return domReady = domSetup.then(() => import('dompurify')).then(({ default: p }) => { purify = p });
 };
 
 /**
@@ -182,8 +175,7 @@ const handleReadableStream: ResponseHandler<ReadableStream<Uint8Array> | null> =
  */
 const handleXml: ResponseHandler<Document> = async (response) => {
 	await ensureDom();
-	const sanitize = await getSanitize();
-	return new DOMParser().parseFromString(sanitize(await response.text()), 'application/xml');
+	return new DOMParser().parseFromString(purify!.sanitize(await response.text()), 'application/xml');
 };
 
 /**
@@ -194,8 +186,7 @@ const handleXml: ResponseHandler<Document> = async (response) => {
  */
 const handleHtml: ResponseHandler<Document> = async (response) => {
 	await ensureDom();
-	const sanitize = await getSanitize();
-	return new DOMParser().parseFromString(sanitize(await response.text()), 'text/html');
+	return new DOMParser().parseFromString(purify!.sanitize(await response.text()), 'text/html');
 };
 
 /**
@@ -206,8 +197,21 @@ const handleHtml: ResponseHandler<Document> = async (response) => {
  */
 const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) => {
 	await ensureDom();
-	const sanitize = await getSanitize();
-	return document.createRange().createContextualFragment(sanitize(await response.text()));
+	return document.createRange().createContextualFragment(purify!.sanitize(await response.text()));
+};
+
+/**
+ * Handles an HTML fragment response, sanitizing with DOMPurify but preserving script tags.
+ * Only available in environments with DOM support.
+ *
+ * **Security Warning:** Script elements in the response are preserved and may execute.
+ * Only use with trusted same-origin content.
+ * @param response The response object from the fetch request.
+ * @returns A Promise that resolves to a DocumentFragment
+ */
+const handleHtmlFragmentWithScripts: ResponseHandler<DocumentFragment> = async (response) => {
+	await ensureDom();
+	return document.createRange().createContextualFragment(purify!.sanitize(await response.text(), { ADD_TAGS: ['script'], ADD_ATTR: ['src', 'type', 'async', 'defer', 'nonce'] }));
 };
 
 /**
@@ -358,4 +362,4 @@ const handleNdjsonStream = <T = Json>(response: Response): AsyncIterable<T> => {
 	};
 };
 
-export { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleEventStream, handleNdjsonStream };
+export { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleHtmlFragmentWithScripts, handleEventStream, handleNdjsonStream };

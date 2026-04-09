@@ -73,6 +73,8 @@ type RequestOptions = Prettify<{
 	onUploadProgress?: (progress: DownloadProgress) => void;
 	/** When false, methods return Result tuples instead of throwing. Defaults to true (throw on error). */
 	unwrap?: boolean;
+	/** When true, script tags in HTML fragment responses are preserved by DOMPurify instead of stripped. Defaults to false. Only applies to getHtmlFragment(). */
+	allowScripts?: boolean;
 } & Omit<RequestInit, 'headers'> & MethodBody>;
 
 /** Configuration for retry behavior on failed requests. */

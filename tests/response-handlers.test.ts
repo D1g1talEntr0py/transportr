@@ -88,6 +88,50 @@ describe('Response Handlers', () => {
 		expect(img?.hasAttribute('onerror')).toBe(false);
 	});
 
+	it('should strip script tags from HTML fragments by default', async () => {
+		const htmlWithScript = '<p>Hello</p><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(htmlWithScript, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test') as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		expect(fragment.querySelector('p')?.textContent).toBe('Hello');
+		expect(fragment.querySelector('script')).toBeNull();
+	});
+
+	it('should preserve script tags in HTML fragments when allowScripts is true', async () => {
+		const htmlWithScript = '<p>Hello</p><script src="/app.js" type="text/javascript"></script>';
+		mockFetch.mockResolvedValue(new Response(htmlWithScript, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		expect(fragment.querySelector('p')?.textContent).toBe('Hello');
+		const script = fragment.querySelector('script');
+		expect(script).not.toBeNull();
+		expect(script?.getAttribute('src')).toBe('/app.js');
+		expect(script?.getAttribute('type')).toBe('text/javascript');
+	});
+
+	it('should still sanitize XSS event handlers even when allowScripts is true', async () => {
+		const htmlWithXss = '<p onclick="alert(1)">Hello</p><script src="/app.js"></script>';
+		mockFetch.mockResolvedValue(new Response(htmlWithXss, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		// Event handler attributes should still be stripped
+		expect(fragment.querySelector('p')?.hasAttribute('onclick')).toBe(false);
+		// But script tags should survive
+		expect(fragment.querySelector('script')).not.toBeNull();
+	});
+
 	it('should handle blob responses', async () => {
 		const expectedBlob = new Blob(['test data'], { type: 'application/octet-stream' });
 		const mockResponse = {

@@ -3,7 +3,7 @@ import { Subscribr } from '@d1g1tal/subscribr';
 import { HttpError } from './http-error';
 import { ResponseStatus } from './response-status';
 import { SignalController } from './signal-controller.js';
-import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleEventStream, handleNdjsonStream } from './response-handlers';
+import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleHtmlFragmentWithScripts, handleEventStream, handleNdjsonStream } from './response-handlers';
 import { isRequestBodyMethod, isRawBody, getCookieValue, isString, isArrayBuffer, isObject, objectMerge, serialize } from './utils';
 import { RequestCachingPolicy, RequestEvent, SignalErrors, XSRF_COOKIE_NAME, XSRF_HEADER_NAME, abortEvent, aborted, defaultMediaType, defaultOrigin, endsWithSlashRegEx, internalServerError, mediaTypes, retryBackoffFactor, retryDelay, retryMethods, retryStatusCodes, timedOut } from './constants';
 import type {	RequestBody, RequestBodyMethod, RequestOptions, ResponseBody, RequestEventHandler, SearchParameters, EventRegistration, ResponseHandler, RequestHeaders, TypedResponse, Json, Entries, HookOptions, HttpErrorOptions, NormalizedRetryOptions, PublishOptions, RetryOptions, RequestTiming, XsrfOptions, ServerSentEvent, RequestEventDataMap, TypedRequestEventHandler, Result } from '@types';
@@ -614,7 +614,8 @@ export class Transportr {
 	 * @returns A promise that resolves to a DocumentFragment, an Element (if selector matched), or void.
 	 */
 	async getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined | Result<DocumentFragment | Element | null | undefined>> {
-		const fragment = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtmlFragment);
+		const allowScripts = (isObject(path) ? path : options)?.allowScripts === true;
+		const fragment = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, allowScripts ? handleHtmlFragmentWithScripts : handleHtmlFragment);
 		if (Array.isArray(fragment)) return fragment;
 		return selector && fragment ? fragment.querySelector(selector) : fragment;
 	}
