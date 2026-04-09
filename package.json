@@ -44,6 +44,10 @@
     "./content-type": {
       "types": "./dist/content-type.d.ts",
       "import": "./dist/content-type.js"
+    },
+    "./iife/*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/iife/*.js"
     }
   },
   "publishConfig": {
