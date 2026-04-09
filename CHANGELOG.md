@@ -1,3 +1,21 @@
+## [3.1.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.3...v3.1.0) (2026-04-09)
+
+### Features
+
+* add IIFE build support and exports (0fc9585da39db7abdd5ba4301ab4d4e8bc201a71)
+Configures tsconfig and workspace settings to support IIFE builds, and adds the corresponding export maps to package.json.
+
+
+### Miscellaneous Chores
+
+* align version with last published package after history reset (9dc31a6cbd91130a8f7d0132fc2ef4c41fa52dec)
+* more fun with the lockfile (b8f25c3c87a5c091fd45975d4e2e659564652053)
+
+### Build System
+
+* **deps:** update dependencies (240f5449ee07bac9f73c11c10810616617d85310)
+Updates various dev dependencies including vitest, typescript-eslint, and tsbuild, alongside the corresponding lockfile updates.
+
 ## [3.0.3](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.2...v3.0.3) (2026-04-07)
 
 ### Bug Fixes
