@@ -101,35 +101,20 @@ describe('Response Handlers', () => {
 		expect(fragment.querySelector('script')).toBeNull();
 	});
 
-	it('should preserve script tags in HTML fragments when allowScripts is true', async () => {
-		const htmlWithScript = '<p>Hello</p><script src="/app.js" type="text/javascript"></script>';
-		mockFetch.mockResolvedValue(new Response(htmlWithScript, {
+	it('should preserve scripts and inline event handlers when allowScripts is true', async () => {
+		const trustedHtml = '<p onclick="handleClick()">Hello</p><script src="/app.js" type="text/javascript"></script>';
+		mockFetch.mockResolvedValue(new Response(trustedHtml, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
 		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
 
 		expect(fragment).toBeInstanceOf(DocumentFragment);
-		expect(fragment.querySelector('p')?.textContent).toBe('Hello');
+		expect(fragment.querySelector('p')?.getAttribute('onclick')).toBe('handleClick()');
 		const script = fragment.querySelector('script');
 		expect(script).not.toBeNull();
 		expect(script?.getAttribute('src')).toBe('/app.js');
 		expect(script?.getAttribute('type')).toBe('text/javascript');
-	});
-
-	it('should still sanitize XSS event handlers even when allowScripts is true', async () => {
-		const htmlWithXss = '<p onclick="alert(1)">Hello</p><script src="/app.js"></script>';
-		mockFetch.mockResolvedValue(new Response(htmlWithXss, {
-			headers: { 'Content-Type': ContentType.HTML }
-		}));
-
-		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
-
-		expect(fragment).toBeInstanceOf(DocumentFragment);
-		// Event handler attributes should still be stripped
-		expect(fragment.querySelector('p')?.hasAttribute('onclick')).toBe(false);
-		// But script tags should survive
-		expect(fragment.querySelector('script')).not.toBeNull();
 	});
 
 	it('should handle blob responses', async () => {
