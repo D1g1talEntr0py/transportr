@@ -1,3 +1,9 @@
+## [3.2.2](https://github.com/D1g1talEntr0py/transportr/compare/v3.2.1...v3.2.2) (2026-04-09)
+
+### Bug Fixes
+
+* **build:** add handling of export 'as' format for IIFE scripts (e7d1857d664196a8fd29352fde320f729645bda8)
+
 ## [3.2.1](https://github.com/D1g1talEntr0py/transportr/compare/v3.2.0...v3.2.1) (2026-04-09)
 
 ### Bug Fixes
