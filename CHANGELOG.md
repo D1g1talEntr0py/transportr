@@ -1,3 +1,43 @@
+## [3.2.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.1.5...v3.2.0) (2026-04-09)
+
+### Features
+
+* add IIFE build support and exports (0fc9585da39db7abdd5ba4301ab4d4e8bc201a71)
+Configures tsconfig and workspace settings to support IIFE builds, and adds the corresponding export maps to package.json.
+
+
+### Miscellaneous Chores
+
+* **release:** 3.1.0 [skip ci] (84e47e41486e07f27af0aecb463f30df63475920)
+## [3.1.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.3...v3.1.0) (2026-04-09)
+
+### Features
+
+* add IIFE build support and exports (0fc9585da39db7abdd5ba4301ab4d4e8bc201a71)
+Configures tsconfig and workspace settings to support IIFE builds, and adds the corresponding export maps to package.json.
+
+### Miscellaneous Chores
+
+* align version with last published package after history reset (9dc31a6cbd91130a8f7d0132fc2ef4c41fa52dec)
+* more fun with the lockfile (b8f25c3c87a5c091fd45975d4e2e659564652053)
+
+### Build System
+
+* **deps:** update dependencies (240f5449ee07bac9f73c11c10810616617d85310)
+Updates various dev dependencies including vitest, typescript-eslint, and tsbuild, alongside the corresponding lockfile updates.
+
+
+### Build System
+
+* **deps:** update dependencies (240f5449ee07bac9f73c11c10810616617d85310)
+Updates various dev dependencies including vitest, typescript-eslint, and tsbuild, alongside the corresponding lockfile updates.
+
+* fail fast if computed version already exists on npm (b5d6c1f122f87faa99f67db93b720e8f04816756)
+
+### Continuous Integration
+
+* add workflow_dispatch trigger to publish workflow (c9ce2fffbbcf5fd8523915a067a6b59a36d8c4bf)
+
 ## [3.1.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.0.3...v3.1.0) (2026-04-09)
 
 ### Features
