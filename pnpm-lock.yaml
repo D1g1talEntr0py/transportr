@@ -19,8 +19,8 @@ importers:
         version: 3.3.3
     devDependencies:
       '@d1g1tal/tsbuild':
-        specifier: ^1.8.0
-        version: 1.8.0(typescript@6.0.2)
+        specifier: ^1.8.1
+        version: 1.8.1(typescript@6.0.2)
       '@eslint/eslintrc':
         specifier: ^3.3.5
         version: 3.3.5
@@ -75,8 +75,8 @@ importers:
 
 packages:
 
-  '@asamuzakjp/css-color@5.1.8':
-    resolution: {integrity: sha512-OISPR9c2uPo23rUdvfEQiLPjoMLOpEeLNnP5iGkxr6tDDxJd3NjD+6fxY0mdaMbIPUjFGL4HFOJqLvow5q4aqQ==}
+  '@asamuzakjp/css-color@5.1.9':
+    resolution: {integrity: sha512-zd9c/Wdso6v1U7v6w3i/hbAr4K7NaSHImdpvmLt+Y9ea5BhilnIGNkfhOJ7FEIuPipAnE9tZeDOll05WDT0kgg==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
 
   '@asamuzakjp/dom-selector@7.0.9':
@@ -159,8 +159,8 @@ packages:
     resolution: {integrity: sha512-4VvYux76M6IHZyyHSRdNZ9pgvZ1bcwr1e49QPkAdAgPgKXwUn7jB45f3lsIiCjfKf6k3RZzcHXYMQL3TXtxW3g==}
     engines: {node: '>=20.15.1'}
 
-  '@d1g1tal/tsbuild@1.8.0':
-    resolution: {integrity: sha512-eH9i/jWkqbzQxxhrC/h5jbY1/4USVd1yWY6DMbP/JOaN81K7/XHnWGny9lUApuQ5q8xDS7byYeMnUnSVosmPpg==}
+  '@d1g1tal/tsbuild@1.8.1':
+    resolution: {integrity: sha512-Bbg7rKa83RFM8UKYD7/Aru/p4tUyJGe/pO+Me4VlrWVKyDyV1yuAmNBYbFvDA+VRJJsPHPoekl9Kg6IHygab3A==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
@@ -1500,7 +1500,7 @@ packages:
 
 snapshots:
 
-  '@asamuzakjp/css-color@5.1.8':
+  '@asamuzakjp/css-color@5.1.9':
     dependencies:
       '@csstools/css-calc': 3.1.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-color-parser': 4.0.2(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
@@ -1567,7 +1567,7 @@ snapshots:
     dependencies:
       '@d1g1tal/collections': 2.2.1
 
-  '@d1g1tal/tsbuild@1.8.0(typescript@6.0.2)':
+  '@d1g1tal/tsbuild@1.8.1(typescript@6.0.2)':
     dependencies:
       '@d1g1tal/watchr': 1.0.6
       esbuild: 0.28.0
@@ -2358,7 +2358,7 @@ snapshots:
 
   jsdom@29.0.2:
     dependencies:
-      '@asamuzakjp/css-color': 5.1.8
+      '@asamuzakjp/css-color': 5.1.9
       '@asamuzakjp/dom-selector': 7.0.9
       '@bramus/specificity': 2.4.2
       '@csstools/css-syntax-patches-for-csstree': 1.1.2(css-tree@3.2.1)
