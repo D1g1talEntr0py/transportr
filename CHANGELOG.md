@@ -1,3 +1,12 @@
+## [3.3.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.2.2...v3.3.0) (2026-04-09)
+
+### Features
+
+* add allowScripts option to getHtmlFragment (806476bea43b1a74c4df5e6b89d2509e3d5ebb90)
+Introduces a new `allowScripts` option to `getHtmlFragment()` that controls whether DOMPurify strips `<script>` tags from HTML fragment responses. By default, scripts are stripped, ensuring safety for cross-origin content. When `allowScripts: true` is provided, DOMPurify preserves `<script>` elements and their attributes, suitable for trusted same-origin fragments.
+
+As part of this enhancement, DOMPurify initialization is refactored. The lazy `domReady` promise now imports and caches the DOMPurify instance, eliminating the previous chain of separate getter functions. A new `handleHtmlFragmentWithScripts` handler is added to support this feature, and comprehensive tests are included to verify script-stripping behavior, script preservation, and the continued sanitization of inline event handlers.
+
 ## [3.2.2](https://github.com/D1g1talEntr0py/transportr/compare/v3.2.1...v3.2.2) (2026-04-09)
 
 ### Bug Fixes
