@@ -32,6 +32,7 @@
     "@semantic-release/changelog",
     ["@semantic-release/npm", { "npmPublish": false }],
     ["@semantic-release/exec", {
+      "verifyReleaseCmd": "npm view @d1g1tal/transportr@${nextRelease.version} version 2>/dev/null | grep -qF '${nextRelease.version}' && { echo 'ERROR: @d1g1tal/transportr@${nextRelease.version} is already published on npm'; exit 1; } || exit 0",
       "prepareCmd": "pnpm lint && pnpm -s build:release && pnpm pack",
       "publishCmd": "pnpm publish --no-git-checks --provenance"
     }],
