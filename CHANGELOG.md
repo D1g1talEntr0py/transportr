@@ -1,3 +1,10 @@
+## [3.3.1](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.0...v3.3.1) (2026-04-09)
+
+### Bug Fixes
+
+* bypasses DOMPurify entirely for trusted content (bc6b70db9199f985ce908688fc4e0ac16e05ec6e)
+Fixes an issue where the handler partially sanitized HTML even when scripts were allowed. Bypassing DOMPurify completely ensures that inline event handlers and other required attributes are preserved, allowing JavaScript to execute reliably when the caller explicitly trusts the content.
+
 ## [3.3.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.2.2...v3.3.0) (2026-04-09)
 
 ### Features

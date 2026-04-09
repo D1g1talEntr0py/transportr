@@ -1,7 +1,7 @@
 {
   "name": "@d1g1tal/transportr",
   "author": "D1g1talEntr0py",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "license": "MIT",
   "description": "JavaScript wrapper for the Fetch API and more...",
   "homepage": "https://github.com/D1g1talEntr0py/transportr#readme",
