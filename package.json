@@ -83,7 +83,7 @@
     }
   },
   "devDependencies": {
-    "@d1g1tal/tsbuild": "^1.8.1",
+    "@d1g1tal/tsbuild": "^1.8.2",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
     "@types/jsdom": "^28.0.1",

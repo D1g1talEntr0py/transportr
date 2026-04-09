@@ -19,8 +19,8 @@ importers:
         version: 3.3.3
     devDependencies:
       '@d1g1tal/tsbuild':
-        specifier: ^1.8.1
-        version: 1.8.1(typescript@6.0.2)
+        specifier: ^1.8.2
+        version: 1.8.2(typescript@6.0.2)
       '@eslint/eslintrc':
         specifier: ^3.3.5
         version: 3.3.5
@@ -159,8 +159,8 @@ packages:
     resolution: {integrity: sha512-4VvYux76M6IHZyyHSRdNZ9pgvZ1bcwr1e49QPkAdAgPgKXwUn7jB45f3lsIiCjfKf6k3RZzcHXYMQL3TXtxW3g==}
     engines: {node: '>=20.15.1'}
 
-  '@d1g1tal/tsbuild@1.8.1':
-    resolution: {integrity: sha512-Bbg7rKa83RFM8UKYD7/Aru/p4tUyJGe/pO+Me4VlrWVKyDyV1yuAmNBYbFvDA+VRJJsPHPoekl9Kg6IHygab3A==}
+  '@d1g1tal/tsbuild@1.8.2':
+    resolution: {integrity: sha512-0RgRpHlXXdc/oveHW4L5IK66cScyJVuexXtHpWz6fShXRKTVxPmyPcyKIkqjH7xUnrjyOV2UNBFdUbOtH2J33g==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
@@ -717,8 +717,8 @@ packages:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
 
-  baseline-browser-mapping@2.10.16:
-    resolution: {integrity: sha512-Lyf3aK28zpsD1yQMiiHD4RvVb6UdMoo8xzG2XzFIfR9luPzOpcBlAsT/qfB1XWS1bxWT+UtE4WmQgsp297FYOA==}
+  baseline-browser-mapping@2.10.17:
+    resolution: {integrity: sha512-HdrkN8eVG2CXxeifv/VdJ4A4RSra1DTW8dc/hdxzhGHN8QePs6gKaWM9pHPcpCoxYZJuOZ8drHmbdpLHjCYjLA==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -1567,7 +1567,7 @@ snapshots:
     dependencies:
       '@d1g1tal/collections': 2.2.1
 
-  '@d1g1tal/tsbuild@1.8.1(typescript@6.0.2)':
+  '@d1g1tal/tsbuild@1.8.2(typescript@6.0.2)':
     dependencies:
       '@d1g1tal/watchr': 1.0.6
       esbuild: 0.28.0
@@ -2046,7 +2046,7 @@ snapshots:
 
   balanced-match@4.0.4: {}
 
-  baseline-browser-mapping@2.10.16: {}
+  baseline-browser-mapping@2.10.17: {}
 
   bidi-js@1.0.3:
     dependencies:
@@ -2063,7 +2063,7 @@ snapshots:
 
   browserslist@4.28.2:
     dependencies:
-      baseline-browser-mapping: 2.10.16
+      baseline-browser-mapping: 2.10.17
       caniuse-lite: 1.0.30001787
       electron-to-chromium: 1.5.334
       node-releases: 2.0.37
