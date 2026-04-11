@@ -1,3 +1,30 @@
+## [3.3.2](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.1...v3.3.2) (2026-04-11)
+
+### Performance Improvements
+
+* improve stream processing and options handling (da83c8fd54c83cb73e30cc82b12fa1fc74a92d77)
+Enhances the handling of EventStream and NDJSON responses by introducing a robust `readDelimited` generator, correctly parsing Server-Sent Events according to spec. Refactors stream response handlers to use standard DOMParser where appropriate and properly manage object URLs safely with `withObjectURL`.
+
+Optimizes request options processing to utilize native Headers and URLSearchParams constructors, avoiding deep merges where unnecessary.
+
+
+### Miscellaneous Chores
+
+* format and config updates (78c2e2826a1aad447869b1ca25d2afc79dadbf08)
+Updates `.gitignore` to ignore the `benchmarks/` directory. Adjusts ESLint config to no longer require JSDoc for arrow functions. Disables IIFE generation in `tsconfig.json`.
+
+
+### Tests
+
+* add stream tests (58f0d8214aa8c35fb211e541d3946dcb6f23349b)
+Adds thorough testing for the updated stream handling, including passing options as the first argument, stream error handling, and applying hooks.
+
+
+### Build System
+
+* update dependencies (162a4cc3a35ce06df2cdb5ba858a942b7639fcaa)
+Updates various dependencies and their types, including `@d1g1tal/subscribr`, `@d1g1tal/tsbuild`, `@types/node`, and others in the lockfile.
+
 ## [3.3.1](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.0...v3.3.1) (2026-04-09)
 
 ### Bug Fixes
