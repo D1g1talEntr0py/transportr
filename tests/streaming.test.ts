@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Transportr } from '../src/transportr.js';
+import { HttpError } from '../src/http-error.js';
 import type { ServerSentEvent } from '../src/@types/index.js';
 
 /**
@@ -428,6 +429,149 @@ describe('Streaming Features', () => {
 
 			expect(hook).toHaveBeenCalledOnce();
 			for await (const _record of stream as AsyncIterable<unknown>) { break }
+		});
+	});
+
+	describe('getEventStream with options as first argument', () => {
+		it('should accept options object as the first argument without a path', async () => {
+			const transportr = new Transportr('https://api.example.com/stream');
+			mockFetch.mockResolvedValueOnce(createStreamingResponse(['data: hello\n\n']));
+
+			const events: ServerSentEvent[] = [];
+			for await (const event of await transportr.getEventStream({ method: 'GET' }) as AsyncIterable<ServerSentEvent>) {
+				events.push(event);
+			}
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.data).toBe('hello');
+		});
+	});
+
+	describe('getJsonStream with options as first argument', () => {
+		it('should accept options object as the first argument without a path', async () => {
+			const transportr = new Transportr('https://api.example.com/export');
+			mockFetch.mockResolvedValueOnce(new Response(
+				createStream(['{"id":1}\n']),
+				{ status: 200, headers: { 'content-type': 'application/x-ndjson' } }
+			));
+
+			const records: unknown[] = [];
+			for await (const record of await transportr.getJsonStream({ method: 'GET' }) as AsyncIterable<unknown>) {
+				records.push(record);
+			}
+
+			expect(records).toHaveLength(1);
+			expect(records[0]).toEqual({ id: 1 });
+		});
+	});
+
+	describe('Stream error handling with default unwrap', () => {
+		it('should throw HttpError from getEventStream when server returns error', async () => {
+			const transportr = new Transportr('https://api.example.com');
+			mockFetch.mockResolvedValueOnce(new Response('Unauthorized', {
+				status: 401,
+				statusText: 'Unauthorized'
+			}));
+
+			await expect(transportr.getEventStream('/events')).rejects.toThrow(HttpError);
+		});
+
+		it('should throw HttpError from getJsonStream when server returns error', async () => {
+			const transportr = new Transportr('https://api.example.com');
+			mockFetch.mockResolvedValueOnce(new Response('Server Error', {
+				status: 500,
+				statusText: 'Internal Server Error'
+			}));
+
+			await expect(transportr.getJsonStream('/export')).rejects.toThrow(HttpError);
+		});
+	});
+
+	describe('Stream hooks returning values', () => {
+		it('should apply beforeRequest hook result on getEventStream', async () => {
+			const transportr = new Transportr('https://api.example.com');
+			mockFetch.mockResolvedValueOnce(createStreamingResponse(['data: ok\n\n']));
+
+			const events: ServerSentEvent[] = [];
+			for await (const event of await transportr.getEventStream('/events', {
+				hooks: {
+					beforeRequest: [(_options, _url) => {
+						return { searchParams: { key: 'value' } };
+					}]
+				}
+			}) as AsyncIterable<ServerSentEvent>) {
+				events.push(event);
+			}
+
+			expect(events).toHaveLength(1);
+			const calledUrl = String(mockFetch.mock.lastCall![0]);
+			expect(calledUrl).toContain('key=value');
+		});
+
+		it('should apply afterResponse hook result on getEventStream', async () => {
+			const transportr = new Transportr('https://api.example.com');
+			mockFetch.mockResolvedValueOnce(createStreamingResponse(['data: original\n\n']));
+
+			const replacementResponse = createStreamingResponse(['data: replaced\n\n']);
+			const events: ServerSentEvent[] = [];
+			for await (const event of await transportr.getEventStream('/events', {
+				hooks: {
+					afterResponse: [() => replacementResponse]
+				}
+			}) as AsyncIterable<ServerSentEvent>) {
+				events.push(event);
+			}
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.data).toBe('replaced');
+		});
+
+		it('should apply beforeRequest hook result on getJsonStream', async () => {
+			const transportr = new Transportr('https://api.example.com');
+			mockFetch.mockResolvedValueOnce(new Response(
+				createStream(['{"id":1}\n']),
+				{ status: 200, headers: { 'content-type': 'application/x-ndjson' } }
+			));
+
+			const records: unknown[] = [];
+			for await (const record of await transportr.getJsonStream('/export', {
+				hooks: {
+					beforeRequest: [(_options, _url) => {
+						return { searchParams: { page: '1' } };
+					}]
+				}
+			}) as AsyncIterable<unknown>) {
+				records.push(record);
+			}
+
+			expect(records).toHaveLength(1);
+			const calledUrl = String(mockFetch.mock.lastCall![0]);
+			expect(calledUrl).toContain('page=1');
+		});
+
+		it('should apply afterResponse hook result on getJsonStream', async () => {
+			const transportr = new Transportr('https://api.example.com');
+			mockFetch.mockResolvedValueOnce(new Response(
+				createStream(['{"id":1}\n']),
+				{ status: 200, headers: { 'content-type': 'application/x-ndjson' } }
+			));
+
+			const replacementResponse = new Response(
+				createStream(['{"id":99}\n']),
+				{ status: 200, headers: { 'content-type': 'application/x-ndjson' } }
+			);
+
+			const records: unknown[] = [];
+			for await (const record of await transportr.getJsonStream('/export', {
+				hooks: {
+					afterResponse: [() => replacementResponse]
+				}
+			}) as AsyncIterable<unknown>) {
+				records.push(record);
+			}
+
+			expect(records).toHaveLength(1);
+			expect(records[0]).toEqual({ id: 99 });
 		});
 	});
 });
