@@ -42,7 +42,7 @@ export default defineConfig({ ignores: [ 'node_modules/**', 'tests/**', 'dist/**
 		'jsdoc/require-jsdoc': [ 'error',	{
 				exemptEmptyConstructors: true,
 				require: {
-					ArrowFunctionExpression: true,
+					ArrowFunctionExpression: false,
 					ClassDeclaration: true,
 					FunctionExpression: true,
 					MethodDefinition: true

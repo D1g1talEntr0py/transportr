@@ -14,5 +14,6 @@
 
 dist
 node_modules
+benchmarks/
 tests/coverage/
 .tsbuild/
