@@ -89,10 +89,10 @@ const aborted: ResponseStatus = new ResponseStatus(499, 'Aborted');
 const timedOut: ResponseStatus = new ResponseStatus(504, 'Request Timeout');
 
 /** Default HTTP status codes that trigger a retry */
-const retryStatusCodes: ReadonlyArray<number> = [ 408, 413, 429, 500, 502, 503, 504 ];
+const retryStatusCodes: Array<number> = [ 408, 413, 429, 500, 502, 503, 504 ];
 
 /** Default HTTP methods allowed to retry (idempotent methods only) */
-const retryMethods: ReadonlyArray<RequestMethod> = [ 'GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS' ];
+const retryMethods: Array<RequestMethod> = [ 'GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS' ];
 
 /** Default delay in ms before the first retry */
 const retryDelay: number = 300;

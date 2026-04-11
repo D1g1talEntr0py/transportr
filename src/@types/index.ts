@@ -18,7 +18,7 @@ type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPT
 type RequestBodyMethod = Extract<RequestMethod, 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
 type RequestNoBodyMethod = Exclude<RequestMethod, RequestBodyMethod>;
 type RequestHeaders = Prettify<TypedHeaders & { [K in Exclude<typeof RequestHeader[keyof typeof RequestHeader], keyof TypedHeaders>]?: string; } & HeadersInit>;
-type SearchParameters = URLSearchParams | string | string[][] | Record<string, string | number | boolean>;
+type SearchParameters = string | string[][] | Record<string, string> | URLSearchParams | undefined;
 type AuthorizationScheme = 'Basic' | 'Bearer' | 'Digest' | 'HOBA' | 'Mutual' | 'Negotiate' | 'OAuth' | 'SCRAM-SHA-1' | 'SCRAM-SHA-256' | 'vapid';
 type ResponseHandler<T extends ResponseBody = ResponseBody> = (response: Response) => Promise<T>;
 type RequestLifecycleEvent = 'configured' | 'success' | 'error' | 'aborted' | 'timeout' | 'retry' | 'complete' | 'all-complete';
@@ -49,7 +49,7 @@ type MethodBody = {
 	method?: RequestBodyMethod;
 	body?: RequestBody;
 } | {
-	method?: RequestNoBodyMethod;
+	method: RequestNoBodyMethod;
 	body?: never;
 };
 

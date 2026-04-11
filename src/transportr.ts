@@ -30,6 +30,8 @@ export class Transportr {
 	private static signalControllers = new Set<SignalController>();
 	/** Map of in-flight deduplicated requests keyed by URL + method */
 	private static inflightRequests = new Map<string, Promise<Response>>();
+	/** Cached config for the common "no retry" case (retry === undefined) */
+	private static readonly noRetryConfig: NormalizedRetryOptions = { limit: 0, statusCodes: [], methods: [], delay: retryDelay, backoffFactor: retryBackoffFactor };
 	/** Cache for parsed MediaType instances to avoid re-parsing the same content-type strings */
 	private static mediaTypeCache = new Map(Object.values(mediaTypes).map((mediaType) => [ mediaType.toString(), mediaType ]));
 	private static contentTypeHandlers: Entries<string, ResponseHandler<ResponseBody>> = [
@@ -505,13 +507,21 @@ export class Transportr {
 				}
 			}
 
-			const allowedMethods = response.headers.get('allow')?.split(',').map((method: string) => method.trim());
+			const allowHeader = response.headers.get('allow');
+			let allowedMethods: string[] | undefined;
+			if (allowHeader) {
+				const parts = allowHeader.split(',');
+				allowedMethods = new Array(parts.length);
+				for (let i = 0, length = parts.length; i < length; i++) {
+					allowedMethods[i] = parts[i]!.trim();
+				}
+			}
 
 			this.publish({ name: RequestEvent.SUCCESS, data: allowedMethods, global: options.global });
 
-			return unwrap ? allowedMethods : [true, allowedMethods] as Result<string[] | undefined>;
+			return unwrap ? allowedMethods : [ true, allowedMethods ];
 		} catch (error) {
-			if (!unwrap) return [false, error as HttpError] as Result<string[] | undefined>;
+			if (!unwrap) { return [ false, error as HttpError ] }
 			throw error;
 		}
 	}
@@ -842,7 +852,9 @@ export class Transportr {
 	 * @returns A promise that resolves to the response body or void.
 	 */
 	private async _get<T extends ResponseBody>(path?: string | RequestOptions, userOptions?: RequestOptions, options: RequestOptions = {}, responseHandler?: ResponseHandler<T>): Promise<T | undefined | Result<T | undefined>> {
-		return this.execute<T>(path, userOptions, { ...options, method: 'GET', body: undefined }, responseHandler);
+		options.method = 'GET';
+		options.body = undefined;
+		return this.execute<T>(path, userOptions, options, responseHandler);
 	}
 
 	/**
@@ -872,10 +884,11 @@ export class Transportr {
 
 		try {
 			const url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
-			const dedupeKey = canDedupe ? `${method}:${url.href}` : '';
+			let dedupeKey: string | undefined;
 
 			// If deduplication is enabled and an in-flight request exists, clone its response
 			if (canDedupe) {
+				dedupeKey = `${method}:${url.href}`;
 				const inflight = Transportr.inflightRequests.get(dedupeKey);
 				if (inflight) { return (await inflight).clone() as TypedResponse<T> }
 			}
@@ -998,27 +1011,21 @@ export class Transportr {
 					 */
 					transform(chunk, controller) {
 						loaded += chunk.byteLength;
-						onDownloadProgress({
-							loaded,
-							total,
-							percentage: total !== null && total > 0 ? Math.round((loaded / total) * 100) : null
-						});
+						onDownloadProgress({ loaded, total, percentage: total !== null && total > 0 ? Math.round((loaded / total) * 100) : null });
 						controller.enqueue(chunk);
 					}
 				});
 
-				const body = response.body.pipeThrough(transform);
-				return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers }) as TypedResponse<T>;
+				return new Response(response.body.pipeThrough(transform), { status: response.status, statusText: response.statusText, headers: response.headers }) as TypedResponse<T>;
 			};
 
 			if (canDedupe) {
-				const promise = doFetch();
-				Transportr.inflightRequests.set(dedupeKey, promise as Promise<Response>);
+				const typedResponse = doFetch();
+				Transportr.inflightRequests.set(dedupeKey!, typedResponse);
 				try {
-					const response = await promise;
-					return wrapProgress(response);
+					return wrapProgress(await typedResponse);
 				} finally {
-					Transportr.inflightRequests.delete(dedupeKey);
+					Transportr.inflightRequests.delete(dedupeKey!);
 				}
 			}
 
@@ -1026,8 +1033,7 @@ export class Transportr {
 		} finally {
 			Transportr.signalControllers.delete(signalController.destroy());
 			if (!requestOptions.signal?.aborted) {
-				const timing = getTiming();
-				this.publish({ name: RequestEvent.COMPLETE, data: { timing }, global });
+				this.publish({ name: RequestEvent.COMPLETE, data: { timing: getTiming() }, global });
 				if (Transportr.signalControllers.size === 0) {
 					this.publish({ name: RequestEvent.ALL_COMPLETE, global });
 				}
@@ -1041,13 +1047,13 @@ export class Transportr {
 	 * @returns Normalized retry configuration.
 	 */
 	private static normalizeRetryOptions(retry?: number | RetryOptions): NormalizedRetryOptions {
-		if (retry === undefined) { return { limit: 0, statusCodes: [], methods: [], delay: retryDelay, backoffFactor: retryBackoffFactor } }
-		if (typeof retry === 'number') { return { limit: retry, statusCodes: [ ...retryStatusCodes ], methods: [ ...retryMethods ], delay: retryDelay, backoffFactor: retryBackoffFactor } }
+		if (retry === undefined) { return Transportr.noRetryConfig }
+		if (typeof retry === 'number') { return { limit: retry, statusCodes: retryStatusCodes, methods: retryMethods, delay: retryDelay, backoffFactor: retryBackoffFactor } }
 
 		return {
 			limit: retry.limit ?? 0,
-			statusCodes: retry.statusCodes ?? [ ...retryStatusCodes ],
-			methods: retry.methods ?? [ ...retryMethods ],
+			statusCodes: retry.statusCodes ?? retryStatusCodes,
+			methods: retry.methods ?? retryMethods,
 			delay: retry.delay ?? retryDelay,
 			backoffFactor: retry.backoffFactor ?? retryBackoffFactor
 		};
@@ -1061,6 +1067,7 @@ export class Transportr {
 	 */
 	private static retryDelay(config: NormalizedRetryOptions, attempt: number): Promise<void> {
 		const ms = typeof config.delay === 'function' ? config.delay(attempt) : config.delay * (config.backoffFactor ** (attempt - 1));
+
 		return new Promise(resolve => setTimeout(resolve, ms));
 	}
 
@@ -1074,7 +1081,7 @@ export class Transportr {
 	 * @returns A promise that resolves to the response body.
 	 */
 	private executeBodyMethod<T extends ResponseBody>(method: RequestBodyMethod, path: string | RequestBody | undefined, body?: RequestBody | RequestOptions, options?: RequestOptions, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined | Result<T | undefined>> {
-		const [resolvedPath, resolvedBody, resolvedOptions] = isString(path) ? [path, body as RequestBody, options] : [undefined, path, body as RequestOptions];
+		const [ resolvedPath, resolvedBody, resolvedOptions ] = isString(path) ? [ path, body as RequestBody, options ] : [ undefined, path, body as RequestOptions ];
 
 		return this.execute<T>(resolvedPath, Object.assign(resolvedOptions ?? {}, { body: resolvedBody, method }), {}, responseHandler);
 	}
@@ -1099,8 +1106,7 @@ export class Transportr {
 			// Run beforeRequest hooks: global → instance → per-request
 			let url = Transportr.createUrl(this._baseUrl, path, requestOptions.searchParams);
 
-			const beforeRequestHookSets = [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ];
-			for (const hooks of beforeRequestHookSets) {
+			for (const hooks of [ Transportr.globalHooks.beforeRequest, this.hooks.beforeRequest, requestHooks?.beforeRequest ]) {
 				if (!hooks) { continue }
 				for (const hook of hooks) {
 					const result = await hook(requestOptions, url);
@@ -1114,8 +1120,7 @@ export class Transportr {
 			let response = await this._request<T>(path, requestConfig);
 
 			// Run afterResponse hooks: global → instance → per-request
-			const afterResponseHookSets = [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ];
-			for (const hooks of afterResponseHookSets) {
+			for (const hooks of [ Transportr.globalHooks.afterResponse, this.hooks.afterResponse, requestHooks?.afterResponse ]) {
 				if (!hooks) { continue }
 				for (const hook of hooks) {
 					const result = await hook(response, requestOptions);
@@ -1132,12 +1137,12 @@ export class Transportr {
 
 				this.publish({ name: RequestEvent.SUCCESS, data, global: requestConfig.global });
 
-				return unwrap ? data : [true, data] as Result<T | undefined>;
+				return unwrap ? data : [ true, data ];
 			} catch (cause) {
 				throw await this.handleError(path as string, response, { cause: cause as Error }, requestOptions);
 			}
 		} catch (error) {
-			if (!unwrap) return [false, error as HttpError] as Result<T | undefined>;
+			if (!unwrap) { return [ false, error as HttpError ] }
 			throw error;
 		}
 	}
@@ -1172,9 +1177,12 @@ export class Transportr {
 			} else if (Array.isArray(headers)) {
 				// Handle array of tuples format
 				for (const [ name, value ] of headers) { target.set(name, value) }
-			} else if (isObject<Record<string, string | undefined>>(headers)) {
-				// Handle Record<string, string> format - use Object.entries() for better performance
-				for (const [name, value] of Object.entries(headers)) {
+			} else {
+				// Handle Record<string, string> format - use Object.keys() to avoid intermediate tuple array
+				const keys = Object.keys(headers);
+				for (let i = 0, length = keys.length; i < length; i++) {
+					const name = keys[i]!;
+					const value = (headers as Record<string, string | undefined>)[name];
 					if (value !== undefined) { target.set(name, value) }
 				}
 			}
@@ -1205,7 +1213,7 @@ export class Transportr {
 				for (let i = 0; i < keys.length; i++) {
 					const name = keys[i]!;
 					const value = searchParams[name];
-					if (value !== undefined) { target.set(name, String(value)) }
+					if (value !== undefined) { target.set(name, typeof value === 'string' ? value : String(value)) }
 				}
 			}
 		}
@@ -1222,18 +1230,13 @@ export class Transportr {
 	 * @returns Processed request options with signal controller and global flag.
 	 */
 	private processRequestOptions({ body: userBody, headers: userHeaders, searchParams: userSearchParams, ...userOptions }: RequestOptions, { headers, searchParams, ...options }: RequestOptions): RequestConfiguration {
-		// Optimize: Use shallow merge for non-nested properties instead of deep objectMerge
-		// The instance _options are already merged with defaults in the constructor
+		// Native copy constructors for Headers/URLSearchParams skip JS-level merge of instance defaults
 		const requestOptions = {
-			// Spread instance options (already merged with defaults)
 			...this._options,
-			// Spread user options (shallow merge, sufficient for flat properties)
 			...userOptions,
-			// Spread method-specific options (e.g., method: 'POST')
 			...options,
-			// Deep merge required for headers and searchParams
-			headers: Transportr.mergeHeaders(new Headers(), this._options.headers, userHeaders, headers),
-			searchParams: Transportr.mergeSearchParams(new URLSearchParams(), this._options.searchParams, userSearchParams, searchParams)
+			headers: Transportr.mergeHeaders(new Headers(this._options.headers), userHeaders, headers),
+			searchParams: Transportr.mergeSearchParams(new URLSearchParams(this._options.searchParams), userSearchParams, searchParams)
 		};
 
 		if (isRequestBodyMethod(requestOptions.method)) {
@@ -1243,9 +1246,7 @@ export class Transportr {
 				requestOptions.headers.delete('content-type');
 			} else {
 				const instanceBody = this._options.body;
-				const body = isObject<Record<string, unknown>>(instanceBody) && isObject<Record<string, unknown>>(userBody)
-					? objectMerge(instanceBody, userBody)
-					: (userBody !== undefined ? userBody : instanceBody);
+				const body = isObject<Record<string, unknown>>(instanceBody) && isObject<Record<string, unknown>>(userBody)	? objectMerge(instanceBody, userBody)	: (userBody !== undefined ? userBody : instanceBody);
 				const isJson = requestOptions.headers.get('content-type')?.includes('json') ?? false;
 				Object.assign(requestOptions, { body: isJson && isObject(body) ? serialize(body) : body });
 			}
@@ -1308,13 +1309,9 @@ export class Transportr {
 		mediaType = MediaType.parse(contentType) ?? undefined;
 
 		if (mediaType !== undefined) {
-			// Evict oldest entries when cache exceeds limit to prevent unbounded growth
+			// Evict oldest entry when cache exceeds limit to prevent unbounded growth
 			if (Transportr.mediaTypeCache.size >= 100) {
-				const oldestEntry = Transportr.mediaTypeCache.keys().next();
-
-				if (!oldestEntry.done) {
-					Transportr.mediaTypeCache.delete(oldestEntry.value);
-				}
+				Transportr.mediaTypeCache.delete(Transportr.mediaTypeCache.keys().next().value!);
 			}
 			Transportr.mediaTypeCache.set(contentType, mediaType);
 		}
@@ -1366,8 +1363,7 @@ export class Transportr {
 		let error = new HttpError(Transportr.generateResponseStatusFromError(cause?.name, response), { message, cause, entity, url, method, timing });
 
 		// Run beforeError hooks: global → instance → per-request
-		const beforeErrorHookSets = [ Transportr.globalHooks.beforeError, this.hooks.beforeError, requestOptions?.hooks?.beforeError ];
-		for (const hooks of beforeErrorHookSets) {
+		for (const hooks of [ Transportr.globalHooks.beforeError, this.hooks.beforeError, requestOptions?.hooks?.beforeError ]) {
 			if (!hooks) { continue }
 			for (const hook of hooks) {
 				const result = await hook(error);

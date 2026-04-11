@@ -1,9 +1,10 @@
+import type { DOMPurify } from 'dompurify';
 import type { Json, ResponseHandler, ServerSentEvent } from '@types';
 
 /** Cached promise for lazy DOM + DOMPurify initialization — resolved once, reused thereafter */
 let domReady: Promise<void> | undefined;
 /** DOMPurify instance — set once domReady resolves */
-let purify: typeof import('dompurify')['default'] | undefined;
+let purify: DOMPurify | undefined;
 
 /**
  * Ensures a DOM environment is available (document, DOMParser, DocumentFragment) and
@@ -14,15 +15,49 @@ let purify: typeof import('dompurify')['default'] | undefined;
 const ensureDom = (): Promise<void> => {
 	if (domReady) { return domReady }
 
-	const domSetup: Promise<void> = typeof document === 'undefined' || typeof DOMParser === 'undefined' || typeof DocumentFragment === 'undefined'
-		? import('jsdom').then(({ JSDOM }) => {
+	const domSetup: Promise<void> = typeof document === 'undefined' || typeof DOMParser === 'undefined' || typeof DocumentFragment === 'undefined' ?
+		import('jsdom').then(({ JSDOM }) => {
 			const { window } = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', { url: 'http://localhost' });
+
 			globalThis.window = window as unknown as Window & typeof globalThis;
+
 			Object.assign(globalThis, { document: window.document, DOMParser: window.DOMParser, DocumentFragment: window.DocumentFragment });
-		}).catch(() => { domReady = undefined; throw new Error('jsdom is required for HTML/XML/DOM features in Node.js environments. Install it with: npm install jsdom') })
-		: Promise.resolve();
+		}).catch(() => {
+			domReady = undefined;
+			throw new Error('jsdom is required for HTML/XML/DOM features in Node.js environments. Install it with: npm install jsdom');
+		}) : Promise.resolve();
 
 	return domReady = domSetup.then(() => import('dompurify')).then(({ default: p }) => { purify = p });
+};
+
+/**
+ * Sanitizes the response text and parses it as a DOM Document using DOMParser.
+ * @param response The response to parse.
+ * @param mimeType The MIME type to use when parsing the document.
+ * @returns A Promise that resolves to a parsed Document.
+ */
+const parseSanitizedDocument = async (response: Response, mimeType: DOMParserSupportedType): Promise<Document> => {
+	await ensureDom();
+
+	return new DOMParser().parseFromString(purify!.sanitize(await response.text()), mimeType);
+};
+
+/**
+ * Creates an object URL from the response blob, constructs a Promise with the given executor,
+ * and ensures the URL is revoked after the promise settles.
+ * @param response The response to create the object URL from.
+ * @param executor A function receiving the object URL, resolve, and reject callbacks.
+ * @returns A Promise that resolves to the value produced by the executor.
+ */
+const withObjectURL = async <T>(response: Response, executor: (objectURL: string, resolve: (value: T) => void, reject: (reason?: unknown) => void) => void): Promise<T> => {
+	await ensureDom();
+
+	const objectURL = URL.createObjectURL(await response.blob());
+	try {
+		return new Promise<T>((res, rej) => executor(objectURL, res, rej));
+	} finally {
+		URL.revokeObjectURL(objectURL);
+	}
 };
 
 /**
@@ -42,28 +77,19 @@ const handleText: ResponseHandler<string> = async (response) => await response.t
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to void
  */
-const handleScript: ResponseHandler<void> = async (response) => {
-	await ensureDom();
-	const objectURL = URL.createObjectURL(await response.blob());
-
-	return new Promise((resolve, reject) => {
+const handleScript: ResponseHandler<void> = (response) => {
+	return withObjectURL(response, (objectURL, resolve, reject) => {
 		const script = document.createElement('script');
 		Object.assign(script, { src: objectURL, type: 'text/javascript', async: true });
 
-		/**
-		 * Revoke the object URL and resolve the promise once the script has loaded.
-		 */
+		/** Resolve the promise once the script has loaded. */
 		script.onload = () => {
-			URL.revokeObjectURL(objectURL);
 			document.head.removeChild(script);
 			resolve();
 		};
 
-		/**
-		 * Revoke the object URL and reject the promise if the script fails to load.
-		 */
+		/** Reject the promise if the script fails to load. */
 		script.onerror = () => {
-			URL.revokeObjectURL(objectURL);
 			document.head.removeChild(script);
 			reject(new Error('Script failed to load'));
 		};
@@ -78,25 +104,15 @@ const handleScript: ResponseHandler<void> = async (response) => {
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to void
  */
-const handleCss: ResponseHandler<void> = async (response) => {
-	await ensureDom();
-	const objectURL = URL.createObjectURL(await response.blob());
-
-	return new Promise((resolve, reject) => {
+const handleCss: ResponseHandler<void> = (response) => {
+	return withObjectURL(response, (objectURL, resolve, reject) => {
 		const link = document.createElement('link');
 		Object.assign(link, { href: objectURL, type: 'text/css', rel: 'stylesheet' });
 
-		/**
-		 * Revoke the object URL and resolve the promise once the stylesheet has loaded.
-		 * @returns A Promise that resolves to void
-		 */
-		link.onload = () => resolve(URL.revokeObjectURL(objectURL));
+		link.onload = () => resolve();
 
-		/**
-		 * Revoke the object URL, remove the link element, and reject the promise if the stylesheet fails to load.
-		 */
+		/** Remove the link element and reject the promise if the stylesheet fails to load. */
 		link.onerror = () => {
-			URL.revokeObjectURL(objectURL);
 			document.head.removeChild(link);
 			reject(new Error('Stylesheet load failed'));
 		};
@@ -126,32 +142,14 @@ const handleBlob: ResponseHandler<Blob> = async (response) => await response.blo
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to an HTMLImageElement
  */
-const handleImage: ResponseHandler<HTMLImageElement> = async (response) => {
-	await ensureDom();
-	const objectURL = URL.createObjectURL(await response.blob());
+const handleImage: ResponseHandler<HTMLImageElement> = (response) => withObjectURL(response, (objectURL, resolve, reject) => {
+	const img = new Image();
 
-	return new Promise((resolve, reject) => {
-		const img = new Image();
+	img.onload = () => resolve(img);
+	img.onerror = () => reject(new Error('Image failed to load'));
 
-		/**
-		 * Revoke the object URL once the image has loaded to free up memory and resolve with the image.
-		 */
-		img.onload = () => {
-			URL.revokeObjectURL(objectURL);
-			resolve(img);
-		};
-
-		/**
-		 * Revoke the object URL and reject the promise if the image fails to load.
-		 */
-		img.onerror = () => {
-			URL.revokeObjectURL(objectURL);
-			reject(new Error('Image failed to load'));
-		};
-
-		img.src = objectURL;
-	});
-};
+	img.src = objectURL;
+});
 
 /**
  * Handles a buffer response.
@@ -173,10 +171,7 @@ const handleReadableStream: ResponseHandler<ReadableStream<Uint8Array> | null> =
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a Document
  */
-const handleXml: ResponseHandler<Document> = async (response) => {
-	await ensureDom();
-	return new DOMParser().parseFromString(purify!.sanitize(await response.text()), 'application/xml');
-};
+const handleXml: ResponseHandler<Document> = async (response) => parseSanitizedDocument(response, 'application/xml');
 
 /**
  * Handles an HTML response.
@@ -184,10 +179,7 @@ const handleXml: ResponseHandler<Document> = async (response) => {
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a Document
  */
-const handleHtml: ResponseHandler<Document> = async (response) => {
-	await ensureDom();
-	return new DOMParser().parseFromString(purify!.sanitize(await response.text()), 'text/html');
-};
+const handleHtml: ResponseHandler<Document> = async (response) => parseSanitizedDocument(response, 'text/html');
 
 /**
  * Handles an HTML fragment response.
@@ -197,6 +189,7 @@ const handleHtml: ResponseHandler<Document> = async (response) => {
  */
 const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) => {
 	await ensureDom();
+
 	return document.createRange().createContextualFragment(purify!.sanitize(await response.text()));
 };
 
@@ -211,7 +204,88 @@ const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) =
  */
 const handleHtmlFragmentWithScripts: ResponseHandler<DocumentFragment> = async (response) => {
 	await ensureDom();
+
 	return document.createRange().createContextualFragment(await response.text());
+};
+
+/**
+ * Reads delimited segments from a ReadableStream, yielding each segment as a string.
+ * Handles buffering, decoding, and automatic reader cancellation on early exit or error.
+ * @param body The ReadableStream to read from.
+ * @param delimiter The delimiter string that separates segments.
+ * @param flushRemaining Whether to yield remaining buffered content when the stream ends.
+ * @yields {string} Each delimited segment as a raw string.
+ */
+async function* readDelimited(body: ReadableStream<Uint8Array>, delimiter: string, flushRemaining: boolean): AsyncGenerator<string> {
+	const reader = body.getReader();
+	const decoder = new TextDecoder();
+	let buffer = '';
+
+	try {
+		for (;;) {
+			let index: number;
+			while ((index = buffer.indexOf(delimiter)) !== -1) {
+				yield buffer.slice(0, index);
+				buffer = buffer.slice(index + delimiter.length);
+			}
+
+			const { done, value } = await reader.read();
+			if (done) { break }
+			buffer += decoder.decode(value, { stream: true });
+		}
+
+		if (flushRemaining) {
+			const remaining = (buffer + decoder.decode()).trim();
+			if (remaining) { yield remaining }
+		}
+	} finally {
+		await reader.cancel();
+	}
+}
+
+/**
+ * Parses a raw SSE event block into a ServerSentEvent object.
+ * Follows the EventStream specification for field parsing (event, data, id, retry).
+ * @param rawEvent The raw event text (lines separated by \n, without the trailing \n\n delimiter).
+ * @returns A parsed ServerSentEvent, or undefined for empty dispatch events.
+ */
+const parseServerSentEvent = (rawEvent: string): ServerSentEvent | undefined => {
+	let event = 'message';
+	let id = '';
+	let retry: number | undefined;
+	const dataLines: string[] = [];
+
+	const lines = rawEvent.split('\n');
+	for (let i = 0, length = lines.length; i < length; i++) {
+		const line = lines[i]!;
+		// comment line
+		if (line.charCodeAt(0) === 58) { continue }
+
+		const colonIndex = line.indexOf(':');
+		let field: string;
+		let value: string;
+		if (colonIndex === -1) {
+			field = line;
+			value = '';
+		} else {
+			field = line.slice(0, colonIndex);
+			// strip single leading space after colon per spec
+			value = line.charCodeAt(colonIndex + 1) === 32	? line.slice(colonIndex + 2)	: line.slice(colonIndex + 1);
+		}
+
+		switch (field) {
+			case 'event': event = value; break;
+			case 'data': dataLines.push(value); break;
+			case 'id': id = value; break;
+			case 'retry': {
+				const n = parseInt(value, 10);
+				if (!isNaN(n)) { retry = n }
+				break;
+			}
+		}
+	}
+
+	return (dataLines.length > 0 || event !== 'message') ? { event, data: dataLines.join('\n'), id, retry } : undefined;
 };
 
 /**
@@ -221,88 +295,16 @@ const handleHtmlFragmentWithScripts: ResponseHandler<DocumentFragment> = async (
  * @param response The response object from the fetch request.
  * @returns An AsyncIterable of parsed ServerSentEvent objects.
  */
-const handleEventStream = (response: Response): AsyncIterable<ServerSentEvent> => {
-	return {
-		/** @returns An async iterator for SSE events. */
-		[Symbol.asyncIterator](): AsyncIterator<ServerSentEvent> {
-			const reader = response.body!.getReader();
-			const decoder = new TextDecoder();
-			let buffer = '';
-			let done = false;
-
-			return {
-				/** @returns The next parsed SSE event or done signal. */
-				async next(): Promise<IteratorResult<ServerSentEvent>> {
-					while (!done) {
-						// Try to extract a complete event from the buffer
-						const eventEnd = buffer.indexOf('\n\n');
-						if (eventEnd !== -1) {
-							const rawEvent = buffer.slice(0, eventEnd);
-							buffer = buffer.slice(eventEnd + 2);
-
-							const sse: ServerSentEvent = { event: 'message', data: '', id: '', retry: undefined };
-							const dataLines: string[] = [];
-
-							const lines = rawEvent.split('\n');
-							for (let i = 0; i < lines.length; i++) {
-								const line = lines[i]!;
-								// comment line, ignore
-								if (line.startsWith(':')) { continue }
-
-								const colonIndex = line.indexOf(':');
-								let field: string;
-								let value: string;
-								if (colonIndex === -1) {
-									field = line;
-									value = '';
-								} else {
-									field = line.slice(0, colonIndex);
-									value = line.slice(colonIndex + 1);
-									// strip leading space
-									if (value.charCodeAt(0) === 32) { value = value.slice(1) }
-								}
-
-								switch (field) {
-									case 'event': sse.event = value; break;
-									case 'data': dataLines.push(value); break;
-									case 'id': sse.id = value; break;
-									case 'retry': {
-										const n = parseInt(value, 10);
-										if (!isNaN(n)) sse.retry = n;
-										break;
-									}
-								}
-							}
-
-							sse.data = dataLines.join('\n');
-							if (sse.data || sse.event !== 'message') {
-								return { value: sse, done: false };
-							}
-							continue; // empty event, skip
-						}
-
-						// Read more data from the stream
-						const result = await reader.read();
-						if (result.done) {
-							done = true;
-							break;
-						}
-						buffer += decoder.decode(result.value, { stream: true });
-					}
-
-					return { value: undefined as unknown as ServerSentEvent, done: true };
-				},
-
-				/** @returns Done signal after cancelling the reader. */
-				async return(): Promise<IteratorResult<ServerSentEvent>> {
-					await reader.cancel();
-					done = true;
-					return { value: undefined as unknown as ServerSentEvent, done: true };
-				}
-			};
+const handleEventStream = (response: Response): AsyncIterable<ServerSentEvent> => ({
+	/** @yields {ServerSentEvent} Parsed ServerSentEvent objects from the stream. */
+	async *[Symbol.asyncIterator]() {
+		for await (const rawEvent of readDelimited(response.body!, '\n\n', false)) {
+			if (!rawEvent) { continue }
+			const sse = parseServerSentEvent(rawEvent);
+			if (sse) { yield sse }
 		}
-	};
-};
+	}
+});
 
 /**
  * Parses an NDJSON (Newline Delimited JSON) response into an AsyncIterable of typed JSON values.
@@ -311,55 +313,29 @@ const handleEventStream = (response: Response): AsyncIterable<ServerSentEvent> =
  * @param response The response object from the fetch request.
  * @returns An AsyncIterable of parsed JSON values.
  */
-const handleNdjsonStream = <T = Json>(response: Response): AsyncIterable<T> => {
-	return {
-		/** @returns An async iterator for NDJSON lines. */
-		[Symbol.asyncIterator](): AsyncIterator<T> {
-			const reader = response.body!.getReader();
-			const decoder = new TextDecoder();
-			let buffer = '';
-			let done = false;
-
-			return {
-				/** @returns The next parsed JSON value or done signal. */
-				async next(): Promise<IteratorResult<T>> {
-					while (!done) {
-						const lineEnd = buffer.indexOf('\n');
-						if (lineEnd !== -1) {
-							const line = buffer.slice(0, lineEnd).trim();
-							buffer = buffer.slice(lineEnd + 1);
-							if (line) {
-								return { value: JSON.parse(line) as T, done: false };
-							}
-							continue; // empty line, skip
-						}
-
-						const result = await reader.read();
-						if (result.done) {
-							done = true;
-							// Process remaining buffer
-							const remaining = (buffer + decoder.decode()).trim();
-							buffer = '';
-							if (remaining) {
-								return { value: JSON.parse(remaining) as T, done: false };
-							}
-							break;
-						}
-						buffer += decoder.decode(result.value, { stream: true });
-					}
-
-					return { value: undefined as unknown as T, done: true };
-				},
-
-				/** @returns Done signal after cancelling the reader. */
-				async return(): Promise<IteratorResult<T>> {
-					await reader.cancel();
-					done = true;
-					return { value: undefined as unknown as T, done: true };
-				}
-			};
+const handleNdjsonStream = <T = Json>(response: Response): AsyncIterable<T> => ({
+	/** @yields {T} Parsed JSON values from the NDJSON stream. */
+	async *[Symbol.asyncIterator]() {
+		for await (const line of readDelimited(response.body!, '\n', true)) {
+			const trimmed = line.trim();
+			if (trimmed) { yield JSON.parse(trimmed) as T }
 		}
-	};
-};
+	}
+});
 
-export { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleHtmlFragmentWithScripts, handleEventStream, handleNdjsonStream };
+export {
+	handleText,
+	handleScript,
+	handleCss,
+	handleJson,
+	handleBlob,
+	handleImage,
+	handleBuffer,
+	handleReadableStream,
+	handleXml,
+	handleHtml,
+	handleHtmlFragment,
+	handleHtmlFragmentWithScripts,
+	handleEventStream,
+	handleNdjsonStream
+};
