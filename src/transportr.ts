@@ -132,6 +132,7 @@ export class Transportr {
 	 * @returns A new {@link EventRegistration} instance.
 	 */
 	static register<E extends keyof RequestEventDataMap>(event: E, handler: TypedRequestEventHandler<E>, context?: unknown): EventRegistration;
+
 	/**
 	 * @internal
 	 * @param event The event to subscribe to.
@@ -283,6 +284,7 @@ export class Transportr {
 	 * @returns An object that can be used to remove the event handler.
 	 */
 	register<E extends keyof RequestEventDataMap>(event: E, handler: TypedRequestEventHandler<E>, context?: unknown): EventRegistration;
+
 	/**
 	 * @internal
 	 * @param event The event to subscribe to.
