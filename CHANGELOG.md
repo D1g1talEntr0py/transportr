@@ -1,3 +1,16 @@
+## [3.3.3](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.2...v3.3.3) (2026-04-14)
+
+### Bug Fixes
+
+* **build:** restore IIFE format output (2698d3de6591c06bac77654e05dbad27d10ac2c9)
+Replaces the accidentally disabled IIFE build configuration so the library can once again be consumed via standard script tags in a browser environment.
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump dev dependencies (f835b889d7f9af06823d4e8d6f96d9425916527a)
+Updates several development dependencies to their latest versions, including `@typescript-eslint` packages, `@d1g1tal/tsbuild`, and `globals`. The lockfile is updated accordingly to reflect the new dependency tree and resolved versions.
+
 ## [3.3.2](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.1...v3.3.2) (2026-04-11)
 
 ### Performance Improvements
