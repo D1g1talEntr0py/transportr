@@ -1,3 +1,9 @@
+## [3.3.4](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.3...v3.3.4) (2026-04-14)
+
+### Bug Fixes
+
+* **build:** update tsbuild to fix missing source map reference in iife output (b06dbefd2db54e1739d36a7db3e4babf59feaf41)
+
 ## [3.3.3](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.2...v3.3.3) (2026-04-14)
 
 ### Bug Fixes
