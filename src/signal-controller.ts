@@ -5,7 +5,10 @@ import type { AbortConfiguration, AbortEvent, AbortSignalEvent } from '@types';
 export class SignalController {
 	private readonly abortSignal: AbortSignal;
 	private readonly abortController = new AbortController();
-	private readonly events = new Map<EventListener, string>();
+	/** Lazily-allocated. Tracks user-attached listeners for cleanup. */
+	private events: Map<EventListener, string> | undefined;
+	/** True when the signal is a composite (AbortSignal.any wrapper) — only then must we remove the internal abort listener. */
+	private readonly hasComposite: boolean;
 
 	/**
 	 * Creates a new SignalController instance.
@@ -17,11 +20,27 @@ export class SignalController {
 	constructor({ signal, timeout = Infinity }: AbortConfiguration = {}) {
 		if (timeout < 0) { throw new RangeError('The timeout cannot be negative') }
 
-		const signals = [ this.abortController.signal ];
-		if (signal != null) { signals.push(signal) }
-		if (timeout !== Infinity) { signals.push(AbortSignal.timeout(timeout)) }
+		const hasExternal = signal != null;
+		const hasTimeout = timeout !== Infinity;
 
-		(this.abortSignal = AbortSignal.any(signals)).addEventListener(SignalEvents.ABORT, this, eventListenerOptions);
+		// Fast path: no external signal and no timeout — reuse the internal controller's signal directly.
+		// Avoids AbortSignal.any allocation and the abort listener (only required for timeout dispatch).
+		if (!hasExternal && !hasTimeout) {
+			this.abortSignal = this.abortController.signal;
+			this.hasComposite = false;
+			return;
+		}
+
+		const signals: AbortSignal[] = [ this.abortController.signal ];
+		if (hasExternal) { signals.push(signal) }
+		if (hasTimeout) { signals.push(AbortSignal.timeout(timeout)) }
+
+		this.abortSignal = AbortSignal.any(signals);
+		this.hasComposite = true;
+		// Only register the abort listener when a timeout is in play (it dispatches the synthetic timeout event).
+		if (hasTimeout) {
+			this.abortSignal.addEventListener(SignalEvents.ABORT, this, eventListenerOptions);
+		}
 	}
 
 	/**
@@ -78,13 +97,18 @@ export class SignalController {
 	 * @returns The SignalController
 	 */
 	destroy(): SignalController {
-		this.abortSignal.removeEventListener(SignalEvents.ABORT, this, eventListenerOptions);
-
-		for (const [ eventListener, type ] of this.events) {
-			this.abortSignal.removeEventListener(type, eventListener, eventListenerOptions);
+		// Only remove the internal abort listener if it was actually registered (composite signals with a timeout).
+		if (this.hasComposite) {
+			this.abortSignal.removeEventListener(SignalEvents.ABORT, this, eventListenerOptions);
 		}
 
-		this.events.clear();
+		const events = this.events;
+		if (events !== undefined) {
+			for (const [ eventListener, type ] of events) {
+				this.abortSignal.removeEventListener(type, eventListener, eventListenerOptions);
+			}
+			events.clear();
+		}
 
 		return this;
 	}
@@ -98,7 +122,7 @@ export class SignalController {
 	 */
 	private addEventListener(type: string, eventListener: EventListener): SignalController {
 		this.abortSignal.addEventListener(type, eventListener, eventListenerOptions);
-		this.events.set(eventListener, type);
+		(this.events ??= new Map()).set(eventListener, type);
 
 		return this;
 	}

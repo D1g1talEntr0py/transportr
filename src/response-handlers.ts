@@ -65,7 +65,7 @@ const withObjectURL = async <T>(response: Response, executor: (objectURL: string
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a string
  */
-const handleText: ResponseHandler<string> = async (response) => await response.text();
+const handleText: ResponseHandler<string> = (response) => response.text();
 
 /**
  * Handles a script response by appending it to the Document HTMLHeadElement
@@ -126,14 +126,14 @@ const handleCss: ResponseHandler<void> = (response) => {
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a JsonObject
  */
-const handleJson: ResponseHandler<Json> = async (response) => await response.json() as Json;
+const handleJson: ResponseHandler<Json> = (response) => response.json() as Promise<Json>;
 
 /**
  * Handles a Blob response.
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a Blob
  */
-const handleBlob: ResponseHandler<Blob> = async (response) => await response.blob();
+const handleBlob: ResponseHandler<Blob> = (response) => response.blob();
 
 /**
  * Handles an image response by creating an object URL and returning an HTMLImageElement.
@@ -156,14 +156,14 @@ const handleImage: ResponseHandler<HTMLImageElement> = (response) => withObjectU
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to an ArrayBuffer
  */
-const handleBuffer: ResponseHandler<ArrayBuffer> = async (response) => await response.arrayBuffer();
+const handleBuffer: ResponseHandler<ArrayBuffer> = (response) => response.arrayBuffer();
 
 /**
  * Handles a ReadableStream response.
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a ReadableStream
  */
-const handleReadableStream: ResponseHandler<ReadableStream<Uint8Array> | null> = async (response) => Promise.resolve(response.body);
+const handleReadableStream: ResponseHandler<ReadableStream<Uint8Array> | null> = (response) => Promise.resolve(response.body);
 
 /**
  * Handles an XML response.
@@ -219,14 +219,22 @@ const handleHtmlFragmentWithScripts: ResponseHandler<DocumentFragment> = async (
 async function* readDelimited(body: ReadableStream<Uint8Array>, delimiter: string, flushRemaining: boolean): AsyncGenerator<string> {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();
+	const delimLength = delimiter.length;
 	let buffer = '';
+	let cursor = 0;
 
 	try {
 		for (;;) {
 			let index: number;
-			while ((index = buffer.indexOf(delimiter)) !== -1) {
-				yield buffer.slice(0, index);
-				buffer = buffer.slice(index + delimiter.length);
+			while ((index = buffer.indexOf(delimiter, cursor)) !== -1) {
+				yield buffer.slice(cursor, index);
+				cursor = index + delimLength;
+			}
+
+			// Compact the buffer when the unread region is small relative to the consumed prefix.
+			if (cursor > 0 && cursor >= buffer.length - cursor) {
+				buffer = cursor < buffer.length ? buffer.slice(cursor) : '';
+				cursor = 0;
 			}
 
 			const { done, value } = await reader.read();
@@ -235,7 +243,8 @@ async function* readDelimited(body: ReadableStream<Uint8Array>, delimiter: strin
 		}
 
 		if (flushRemaining) {
-			const remaining = (buffer + decoder.decode()).trim();
+			const tail = (cursor < buffer.length ? buffer.slice(cursor) : '') + decoder.decode();
+			const remaining = tail.trim();
 			if (remaining) { yield remaining }
 		}
 	} finally {
@@ -253,7 +262,9 @@ const parseServerSentEvent = (rawEvent: string): ServerSentEvent | undefined => 
 	let event = 'message';
 	let id = '';
 	let retry: number | undefined;
-	const dataLines: string[] = [];
+	// Lazy data accumulation: most SSE events contain exactly one `data:` line, so avoid the array allocation in that case.
+	let firstData: string | undefined;
+	let extraData: string[] | undefined;
 
 	const lines = rawEvent.split('\n');
 	for (let i = 0, length = lines.length; i < length; i++) {
@@ -275,7 +286,13 @@ const parseServerSentEvent = (rawEvent: string): ServerSentEvent | undefined => 
 
 		switch (field) {
 			case 'event': event = value; break;
-			case 'data': dataLines.push(value); break;
+			case 'data':
+				if (firstData === undefined) {
+					firstData = value;
+				} else {
+					(extraData ??= []).push(value);
+				}
+				break;
 			case 'id': id = value; break;
 			case 'retry': {
 				const n = parseInt(value, 10);
@@ -285,7 +302,12 @@ const parseServerSentEvent = (rawEvent: string): ServerSentEvent | undefined => 
 		}
 	}
 
-	return (dataLines.length > 0 || event !== 'message') ? { event, data: dataLines.join('\n'), id, retry } : undefined;
+	if (firstData === undefined && event === 'message') { return undefined }
+
+	const data = extraData === undefined
+		? (firstData ?? '')
+		: `${firstData}\n${extraData.join('\n')}`;
+	return { event, data, id, retry };
 };
 
 /**

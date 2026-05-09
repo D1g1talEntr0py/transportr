@@ -26,13 +26,27 @@ export const isRawBody = (body: unknown): body is Exclude<BodyInit, string> =>
  * @returns The cookie value or undefined.
  */
 export const getCookieValue = (name: string): string | undefined => {
-	if (typeof document === 'undefined' || !document.cookie) { return }
+	if (typeof document === 'undefined') { return }
+	const cookieStr = document.cookie;
+	if (!cookieStr) { return }
 
 	const prefix = `${name}=`;
-	const cookies = document.cookie.split(';');
-	for (let i = 0, length = cookies.length; i < length; i++) {
-		const cookie = cookies[i]!.trim();
-		if (cookie.startsWith(prefix)) { return decodeURIComponent(cookie.slice(prefix.length)) }
+	const prefixLength = prefix.length;
+	const cookieLength = cookieStr.length;
+	let start = 0;
+
+	while (start < cookieLength) {
+		// Skip leading whitespace (cookies are separated by '; ').
+		while (start < cookieLength && cookieStr.charCodeAt(start) === 32) { start++ }
+
+		let end = cookieStr.indexOf(';', start);
+		if (end === -1) { end = cookieLength }
+
+		if (end - start >= prefixLength && cookieStr.startsWith(prefix, start)) {
+			return decodeURIComponent(cookieStr.slice(start + prefixLength, end));
+		}
+
+		start = end + 1;
 	}
 
 	return undefined;
@@ -88,20 +102,32 @@ export const objectMerge = (...objects: Record<string, unknown>[]): Record<strin
 
 	const target = {} as Record<string, unknown>;
 
-	for (const source of objects) {
+	for (let s = 0, sLength = objects.length; s < sLength; s++) {
+		const source = objects[s]!;
 		if (!isObject(source)) { return undefined }
 
-		for (const [property, sourceValue] of Object.entries(source)) {
+		const keys = Object.keys(source);
+		for (let i = 0, length = keys.length; i < length; i++) {
+			const property = keys[i]!;
+			const sourceValue = source[property];
 			const targetValue = target[property];
 			if (Array.isArray(sourceValue)) {
-				// Handle arrays - source values come first, then unique target values
-				// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-				target[property] = [ ...sourceValue, ...(Array.isArray(targetValue) ? targetValue.filter((item) => !sourceValue.includes(item)) : []) ];
+				// Handle arrays — source values come first, then unique target values.
+				if (Array.isArray(targetValue)) {
+					const merged: unknown[] = sourceValue.slice();
+					for (let j = 0, tLength = (targetValue as unknown[]).length; j < tLength; j++) {
+						const item = (targetValue as unknown[])[j];
+						if (!sourceValue.includes(item)) { merged.push(item) }
+					}
+					target[property] = merged;
+				} else {
+					target[property] = sourceValue.slice();
+				}
 			} else if (isObject<Record<string, unknown>>(sourceValue)) {
-				// Handle plain objects using the isObject function | I am already testing that the targetValue is an object
+				// Handle plain objects using the isObject function — we already test targetValue.
 				target[property] = isObject<Record<string, unknown>>(targetValue) ? objectMerge(targetValue, sourceValue)! : deepClone(sourceValue);
 			} else {
-				// Primitive values and null/undefined
+				// Primitive values and null/undefined.
 				target[property] = sourceValue;
 			}
 		}
