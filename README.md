@@ -40,7 +40,7 @@ The HTTP client space in JavaScript/TypeScript is crowded. Here's where Transpor
 | ofetch | 9.3 kB | 3.8 kB | ≥ 18 | Fetch | Universal, minimal API |
 | wretch | 4.8 kB | 1.9 kB | ≥ 14 | Fetch | Fluent-chain, middleware-based |
 | got | — | ~43 kB | ≥ 18 | http/https | Node-only, feature-rich |
-| transportr | 27 kB | 8.5 kB* | ≥ 20 | Fetch | Content-type-aware, event-driven |
+| transportr | 27 kB | 8.5 kB* | ≥ 22 | Fetch | Content-type-aware, event-driven |
 
 Sizes from [Bundlephobia](https://bundlephobia.com). \*Transportr bundles `@d1g1tal/media-type`, `@d1g1tal/subscribr`, and DOMPurify. Optional `jsdom` peer dependency is **not** included — only needed for HTML/XML/DOM features in Node.js.
 
@@ -229,7 +229,7 @@ await api.get('/data', { hooks: { beforeError: [notify] } }); // Only this call
 
 ## Requirements
 
-- **Node.js** ≥ 20.0.0 or a modern browser with native [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and `AbortController` support
+- **Node.js** ≥ 22.0.0 or a modern browser with native [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) and `AbortController` support
 - `jsdom` is an **optional peer dependency** — only needed for HTML/XML/DOM features in Node.js. Install it separately if you use `getHtml()`, `getXml()`, `getHtmlFragment()`, `getScript()`, `getStylesheet()`, or `getImage()` in a non-browser environment:
 
 ```bash
