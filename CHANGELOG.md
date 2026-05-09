@@ -1,3 +1,21 @@
+## [3.3.5](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.4...v3.3.5) (2026-05-09)
+
+### Performance Improvements
+
+* optimize response handlers and core hot paths (7c6253b24eec6e62e7cf5ba3802f72b9cb6437a1)
+Optimizes reading chunked text/EventSource streams by avoiding excessive string slices and arrays.
+Updates the request core by factoring out internal retry logic and applying several performance-focused hot path optimizations.
+Optimizes object property merging and array merges when building request options.
+
+
+### Build System
+
+* update dependencies (7e30da61b41c5edf7d51d410518865cdb797882f)
+Updates various dependencies and unifies node engine to >=20.0.0 across all packages.
+
+* update pnpm-workspace allowBuilds (cfabc24e652af782549fe7cf671ef46bef464388)
+Simplifies the pnpm-workspace config by only keeping esbuild in the `allowBuilds` list.
+
 ## [3.3.4](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.3...v3.3.4) (2026-04-14)
 
 ### Bug Fixes
