@@ -6,11 +6,11 @@ import type { ResponseBody, RequestTiming, HttpErrorOptions } from '@src/@types/
  * @author D1g1talEntr0py <jason.dimeo@gmail.com>
  */
 class HttpError extends Error {
-	private readonly _entity: ResponseBody;
-	private readonly responseStatus: ResponseStatus;
-	private readonly _url: URL | undefined;
-	private readonly _method: string | undefined;
-	private readonly _timing: RequestTiming | undefined;
+	readonly #entity: ResponseBody;
+	readonly #responseStatus: ResponseStatus;
+	readonly #url: URL | undefined;
+	readonly #method: string | undefined;
+	readonly #timing: RequestTiming | undefined;
 
 	/**
 	 * Creates an instance of HttpError.
@@ -19,11 +19,11 @@ class HttpError extends Error {
 	 */
 	constructor(status: ResponseStatus, { message, cause, entity, url, method, timing }: HttpErrorOptions = {}) {
 		super(message, { cause });
-		this._entity = entity;
-		this.responseStatus = status;
-		this._url = url;
-		this._method = method;
-		this._timing = timing;
+		this.#entity = entity;
+		this.#responseStatus = status;
+		this.#url = url;
+		this.#method = method;
+		this.#timing = timing;
 	}
 
 	/**
@@ -31,7 +31,7 @@ class HttpError extends Error {
 	 * @returns The entity property of the class.
 	 */
 	get entity(): ResponseBody {
-		return this._entity;
+		return this.#entity;
 	}
 
 	/**
@@ -39,7 +39,7 @@ class HttpError extends Error {
 	 * @returns The status code of the {@link Response}.
 	 */
 	get statusCode(): number {
-		return this.responseStatus.code;
+		return this.#responseStatus.code;
 	}
 
 	/**
@@ -47,7 +47,7 @@ class HttpError extends Error {
 	 * @returns The status code and status text of the {@link Response}.
 	 */
 	get statusText(): string {
-		return this.responseStatus?.text;
+		return this.#responseStatus?.text;
 	}
 
 	/**
@@ -55,7 +55,7 @@ class HttpError extends Error {
 	 * @returns The URL or undefined.
 	 */
 	get url(): URL | undefined {
-		return this._url;
+		return this.#url;
 	}
 
 	/**
@@ -63,7 +63,7 @@ class HttpError extends Error {
 	 * @returns The method string or undefined.
 	 */
 	get method(): string | undefined {
-		return this._method;
+		return this.#method;
 	}
 
 	/**
@@ -71,7 +71,7 @@ class HttpError extends Error {
 	 * @returns The timing object or undefined.
 	 */
 	get timing(): RequestTiming | undefined {
-		return this._timing;
+		return this.#timing;
 	}
 
 	/**

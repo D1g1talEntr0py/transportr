@@ -24,45 +24,45 @@ type RequestConfiguration = {
  * @author D1g1talEntr0py <jason.dimeo@gmail.com>
  */
 export class Transportr {
-	private readonly _baseUrl: URL;
-	private readonly _origin: string;
+	readonly #baseUrl: URL;
+	readonly #origin: string;
 	/** Pre-normalized base pathname with any trailing slash stripped — reused per request to avoid repeated regex/replace work. */
-	private readonly _basePath: string;
-	private readonly _options: RequestOptions;
+	readonly #basePath: string;
+	readonly #options: RequestOptions;
 	/** Pre-built Headers template for methods that strip Content-Type (GET/HEAD/OPTIONS/etc.). Cloned per request. Rebuilt by `configure()` when defaults change. */
-	private _noBodyHeadersTemplate: Headers;
-	private readonly subscribr: Subscribr;
-	private readonly hooks: Required<HookOptions> = { beforeRequest: [], afterResponse: [], beforeError: [] };
+	#noBodyHeadersTemplate: Headers;
+	readonly #subscribr: Subscribr;
+	readonly #hooks: Required<HookOptions> = { beforeRequest: [], afterResponse: [], beforeError: [] };
 	/** Aggregate count of hooks registered on this instance — zero phases are skipped without array allocation. */
-	private readonly hookCount: HookCount = { beforeRequest: 0, afterResponse: 0, beforeError: 0 };
+	readonly #hookCount: HookCount = { beforeRequest: 0, afterResponse: 0, beforeError: 0 };
 	/** Per-event subscription counts on this instance — used to skip publish() entirely when no listeners exist. */
-	private readonly subCounts: Record<string, number> = Object.create(null) as Record<string, number>;
-	private static globalSubscribr = new Subscribr();
-	private static globalHooks: Required<HookOptions> = { beforeRequest: [], afterResponse: [], beforeError: [] };
+	readonly #subCounts: Record<string, number> = Object.create(null) as Record<string, number>;
+	static #globalSubscribr = new Subscribr();
+	static #globalHooks: Required<HookOptions> = { beforeRequest: [], afterResponse: [], beforeError: [] };
 	/** Aggregate count of registered global hooks — zero means we skip the entire global-hook loop. */
-	private static globalHookCount: HookCount = { beforeRequest: 0, afterResponse: 0, beforeError: 0 };
+	static #globalHookCount: HookCount = { beforeRequest: 0, afterResponse: 0, beforeError: 0 };
 	/** Per-event subscription counts on the global subscribr — mirrors `subCounts` per instance. */
-	private static globalSubCounts: Record<string, number> = Object.create(null) as Record<string, number>;
-	private static signalControllers = new Set<SignalController>();
+	static #globalSubCounts: Record<string, number> = Object.create(null) as Record<string, number>;
+	static #signalControllers = new Set<SignalController>();
 	/** Map of in-flight deduplicated requests keyed by URL + method */
-	private static inflightRequests = new Map<string, Promise<Response>>();
+	static #inflightRequests = new Map<string, Promise<Response>>();
 	/** Cached config for the common "no retry" case (retry === undefined) */
-	private static readonly noRetryConfig: NormalizedRetryOptions = { limit: 0, statusCodes: [], methods: [], delay: retryDelay, backoffFactor: retryBackoffFactor };
+	static readonly #noRetryConfig: NormalizedRetryOptions = { limit: 0, statusCodes: [], methods: [], delay: retryDelay, backoffFactor: retryBackoffFactor };
 	/** Memoized normalized retry options keyed by the user-provided RetryOptions object (reference identity). */
-	private static readonly retryConfigCache = new WeakMap<object, NormalizedRetryOptions>();
+	static readonly #retryConfigCache = new WeakMap<object, NormalizedRetryOptions>();
 	/** Cache for parsed MediaType instances to avoid re-parsing the same content-type strings */
-	private static mediaTypeCache = new Map(Object.values(mediaTypes).map((mediaType) => [ mediaType.toString(), mediaType ]));
+	static #mediaTypeCache = new Map([[ defaultMediaType.toString(), defaultMediaType ]]);
 	/** Cache mapping raw response Content-Type header strings to their resolved ResponseHandler (or null when no handler matches). */
-	private static readonly handlerResolutionCache = new Map<string, ResponseHandler<ResponseBody> | null>();
-	private static contentTypeHandlers: Entries<string, ResponseHandler<ResponseBody>> = [
-		[ mediaTypes.TEXT.type, handleText ],
-		[ mediaTypes.JSON.subtype, handleJson ],
-		[ mediaTypes.BIN.subtype, handleReadableStream ],
-		[ mediaTypes.HTML.subtype, handleHtml ],
-		[ mediaTypes.XML.subtype, handleXml ],
-		[ mediaTypes.PNG.type, handleImage as ResponseHandler<ResponseBody> ],
-		[ mediaTypes.JAVA_SCRIPT.subtype, handleScript as ResponseHandler<ResponseBody> ],
-		[ mediaTypes.CSS.subtype, handleCss as ResponseHandler<ResponseBody> ]
+	static readonly #handlerResolutionCache = new Map<string, ResponseHandler<ResponseBody> | null>();
+	static #contentTypeHandlers: Entries<string, ResponseHandler<ResponseBody>> = [
+		[ mediaTypes.TEXT, handleText ],
+		[ mediaTypes.JSON, handleJson ],
+		[ mediaTypes.BIN, handleReadableStream ],
+		[ mediaTypes.HTML, handleHtml ],
+		[ mediaTypes.XML, handleXml ],
+		[ mediaTypes.PNG, handleImage ],
+		[ mediaTypes.JAVA_SCRIPT, handleScript ],
+		[ mediaTypes.CSS, handleCss ]
 	];
 
 	/**
@@ -74,16 +74,16 @@ export class Transportr {
 	constructor(url: URL | string | RequestOptions = defaultOrigin, options: RequestOptions = {}) {
 		if (isObject(url)) { [ url, options ] = [ defaultOrigin, url ] }
 
-		this._baseUrl = Transportr.getBaseUrl(url);
-		this._origin = this._baseUrl.origin;
+		this.#baseUrl = Transportr.#getBaseUrl(url);
+		this.#origin = this.#baseUrl.origin;
 		// Normalize once: strip a single trailing '/' so per-request URL building is plain string concatenation.
-		const basePath = this._baseUrl.pathname;
-		this._basePath = basePath.length > 0 && basePath.charCodeAt(basePath.length - 1) === 47 ? basePath.slice(0, -1) : basePath;
-		this._options = Transportr.createOptions(options, Transportr.defaultRequestOptions);
+		const basePath = this.#baseUrl.pathname;
+		this.#basePath = basePath.length > 0 && basePath.charCodeAt(basePath.length - 1) === 47 ? basePath.slice(0, -1) : basePath;
+		this.#options = Transportr.#createOptions(options, Transportr.#defaultRequestOptions);
 		// Pre-build a Headers template for methods that drop Content-Type (GET/HEAD/OPTIONS/etc.).
-		this._noBodyHeadersTemplate = new Headers(this._options.headers);
-		this._noBodyHeadersTemplate.delete('content-type');
-		this.subscribr = new Subscribr();
+		this.#noBodyHeadersTemplate = new Headers(this.#options.headers);
+		this.#noBodyHeadersTemplate.delete('content-type');
+		this.#subscribr = new Subscribr();
 	}
 
 	/** Credentials Policy */
@@ -131,11 +131,11 @@ export class Transportr {
 	static readonly RequestEvent: typeof RequestEvent = RequestEvent;
 
 	/** Default Request Options */
-	private static readonly defaultRequestOptions: RequestOptions = {
+	static readonly #defaultRequestOptions: RequestOptions = {
 		body: undefined,
 		cache: RequestCachingPolicy.NO_STORE,
 		credentials: Transportr.CredentialsPolicy.SAME_ORIGIN,
-		headers: new Headers({ 'content-type': defaultMediaType, 'accept': defaultMediaType }),
+		headers: new Headers({ 'content-type': defaultMediaType.toString(), accept: defaultMediaType.toString() }),
 		searchParams: undefined,
 		integrity: undefined,
 		keepalive: undefined,
@@ -168,8 +168,8 @@ export class Transportr {
 	 * @returns A new {@link EventRegistration} instance.
 	 */
 	static register(event: RequestEvent, handler: RequestEventHandler, context?: unknown): EventRegistration {
-		const registration = Transportr.globalSubscribr.subscribe(event, handler, context);
-		Transportr.globalSubCounts[event] = (Transportr.globalSubCounts[event] ?? 0) + 1;
+		const registration = Transportr.#globalSubscribr.subscribe(event, handler, context);
+		Transportr.#globalSubCounts[event] = (Transportr.#globalSubCounts[event] ?? 0) + 1;
 		return registration;
 	}
 
@@ -180,11 +180,11 @@ export class Transportr {
 	 * @returns True if the {@link EventRegistration} was removed, false otherwise.
 	 */
 	static unregister(eventRegistration: EventRegistration): boolean {
-		const removed = Transportr.globalSubscribr.unsubscribe(eventRegistration);
+		const removed = Transportr.#globalSubscribr.unsubscribe(eventRegistration);
 		if (removed) {
 			const event = eventRegistration.eventName;
-			const next = (Transportr.globalSubCounts[event] ?? 1) - 1;
-			if (next <= 0) { delete Transportr.globalSubCounts[event] } else { Transportr.globalSubCounts[event] = next }
+			const next = (Transportr.#globalSubCounts[event] ?? 1) - 1;
+			if (next <= 0) { delete Transportr.#globalSubCounts[event] } else { Transportr.#globalSubCounts[event] = next }
 		}
 		return removed;
 	}
@@ -195,12 +195,12 @@ export class Transportr {
 	 * This will also clear the {@link Transportr#signalControllers} set.
 	 */
 	static abortAll(): void {
-		for (const signalController of this.signalControllers) {
+		for (const signalController of this.#signalControllers) {
 			signalController.abort(abortEvent());
 		}
 
 		// Clear the set after aborting all requests
-		this.signalControllers.clear();
+		this.#signalControllers.clear();
 	}
 
 	/**
@@ -253,9 +253,9 @@ export class Transportr {
 	 */
 	static registerContentTypeHandler(contentType: string, handler: ResponseHandler): void {
 		// Prepend so custom handlers take priority over built-in ones
-		Transportr.contentTypeHandlers.unshift([ contentType, handler ]);
+		Transportr.#contentTypeHandlers.unshift([ contentType, handler ]);
 		// Invalidate the resolution cache so previously cached lookups can pick up the new handler.
-		Transportr.handlerResolutionCache.clear();
+		Transportr.#handlerResolutionCache.clear();
 	}
 
 	/**
@@ -265,11 +265,11 @@ export class Transportr {
 	 * @returns True if the handler was found and removed, false otherwise.
 	 */
 	static unregisterContentTypeHandler(contentType: string): boolean {
-		const index = Transportr.contentTypeHandlers.findIndex(([ type ]) => type === contentType);
+		const index = Transportr.#contentTypeHandlers.findIndex(([ type ]) => type === contentType);
 		if (index === -1) { return false }
 
-		Transportr.contentTypeHandlers.splice(index, 1);
-		Transportr.handlerResolutionCache.clear();
+		Transportr.#contentTypeHandlers.splice(index, 1);
+		Transportr.#handlerResolutionCache.clear();
 
 		return true;
 	}
@@ -282,19 +282,19 @@ export class Transportr {
 	 */
 	static addHooks(hooks: HookOptions): void {
 		const { beforeRequest, afterResponse, beforeError } = hooks;
-		if (beforeRequest) { Transportr.globalHooks.beforeRequest.push(...beforeRequest); Transportr.globalHookCount.beforeRequest += beforeRequest.length }
-		if (afterResponse) { Transportr.globalHooks.afterResponse.push(...afterResponse); Transportr.globalHookCount.afterResponse += afterResponse.length }
-		if (beforeError) { Transportr.globalHooks.beforeError.push(...beforeError); Transportr.globalHookCount.beforeError += beforeError.length }
+		if (beforeRequest) { Transportr.#globalHooks.beforeRequest.push(...beforeRequest); Transportr.#globalHookCount.beforeRequest += beforeRequest.length }
+		if (afterResponse) { Transportr.#globalHooks.afterResponse.push(...afterResponse); Transportr.#globalHookCount.afterResponse += afterResponse.length }
+		if (beforeError) { Transportr.#globalHooks.beforeError.push(...beforeError); Transportr.#globalHookCount.beforeError += beforeError.length }
 	}
 
 	/**
 	 * Removes all global lifecycle hooks.
 	 */
 	static clearHooks(): void {
-		Transportr.globalHooks = { beforeRequest: [], afterResponse: [], beforeError: [] };
-		Transportr.globalHookCount.beforeRequest = 0;
-		Transportr.globalHookCount.afterResponse = 0;
-		Transportr.globalHookCount.beforeError = 0;
+		Transportr.#globalHooks = { beforeRequest: [], afterResponse: [], beforeError: [] };
+		Transportr.#globalHookCount.beforeRequest = 0;
+		Transportr.#globalHookCount.afterResponse = 0;
+		Transportr.#globalHookCount.beforeError = 0;
 	}
 
 	/**
@@ -303,10 +303,10 @@ export class Transportr {
 	 */
 	static unregisterAll(): void {
 		Transportr.abortAll();
-		Transportr.globalSubscribr = new Subscribr();
-		Transportr.globalSubCounts = Object.create(null) as Record<string, number>;
+		Transportr.#globalSubscribr = new Subscribr();
+		Transportr.#globalSubCounts = Object.create(null) as Record<string, number>;
 		Transportr.clearHooks();
-		Transportr.inflightRequests.clear();
+		Transportr.#inflightRequests.clear();
 	}
 
 	/**
@@ -315,7 +315,7 @@ export class Transportr {
 	 * @returns The baseUrl property.
 	 */
 	get baseUrl(): URL {
-		return this._baseUrl;
+		return this.#baseUrl;
 	}
 
 	/**
@@ -336,8 +336,8 @@ export class Transportr {
 	 * @returns An object that can be used to remove the event handler.
 	 */
 	register(event: RequestEvent, handler: RequestEventHandler, context?: unknown): EventRegistration {
-		const registration = this.subscribr.subscribe(event, handler, context);
-		this.subCounts[event] = (this.subCounts[event] ?? 0) + 1;
+		const registration = this.#subscribr.subscribe(event, handler, context);
+		this.#subCounts[event] = (this.#subCounts[event] ?? 0) + 1;
 		return registration;
 	}
 
@@ -348,11 +348,11 @@ export class Transportr {
 	 * @returns True if the {@link EventRegistration} was removed, false otherwise.
 	 */
 	unregister(eventRegistration: EventRegistration): boolean {
-		const removed = this.subscribr.unsubscribe(eventRegistration);
+		const removed = this.#subscribr.unsubscribe(eventRegistration);
 		if (removed) {
 			const event = eventRegistration.eventName;
-			const next = (this.subCounts[event] ?? 1) - 1;
-			if (next <= 0) { delete this.subCounts[event] } else { this.subCounts[event] = next }
+			const next = (this.#subCounts[event] ?? 1) - 1;
+			if (next <= 0) { delete this.#subCounts[event] } else { this.#subCounts[event] = next }
 		}
 		return removed;
 	}
@@ -366,9 +366,9 @@ export class Transportr {
 	 */
 	addHooks(hooks: HookOptions): this {
 		const { beforeRequest, afterResponse, beforeError } = hooks;
-		if (beforeRequest) { this.hooks.beforeRequest.push(...beforeRequest); this.hookCount.beforeRequest += beforeRequest.length }
-		if (afterResponse) { this.hooks.afterResponse.push(...afterResponse); this.hookCount.afterResponse += afterResponse.length }
-		if (beforeError) { this.hooks.beforeError.push(...beforeError); this.hookCount.beforeError += beforeError.length }
+		if (beforeRequest) { this.#hooks.beforeRequest.push(...beforeRequest); this.#hookCount.beforeRequest += beforeRequest.length }
+		if (afterResponse) { this.#hooks.afterResponse.push(...afterResponse); this.#hookCount.afterResponse += afterResponse.length }
+		if (beforeError) { this.#hooks.beforeError.push(...beforeError); this.#hookCount.beforeError += beforeError.length }
 		return this;
 	}
 
@@ -377,12 +377,12 @@ export class Transportr {
 	 * @returns This instance for method chaining.
 	 */
 	clearHooks(): this {
-		this.hooks.beforeRequest.length = 0;
-		this.hooks.afterResponse.length = 0;
-		this.hooks.beforeError.length = 0;
-		this.hookCount.beforeRequest = 0;
-		this.hookCount.afterResponse = 0;
-		this.hookCount.beforeError = 0;
+		this.#hooks.beforeRequest.length = 0;
+		this.#hooks.afterResponse.length = 0;
+		this.#hooks.beforeError.length = 0;
+		this.#hookCount.beforeRequest = 0;
+		this.#hookCount.afterResponse = 0;
+		this.#hookCount.beforeError = 0;
 		return this;
 	}
 
@@ -397,14 +397,14 @@ export class Transportr {
 	 */
 	configure({ headers, searchParams, hooks, ...options }: RequestOptions): this {
 		if (headers) {
-			Transportr.mergeHeaders(this._options.headers as Headers, headers);
+			Transportr.#mergeHeaders(this.#options.headers as Headers, headers);
 			// Header defaults changed — rebuild the no-body Content-Type-stripped template used by the fast path.
-			this._noBodyHeadersTemplate = new Headers(this._options.headers);
-			this._noBodyHeadersTemplate.delete('content-type');
+			this.#noBodyHeadersTemplate = new Headers(this.#options.headers);
+			this.#noBodyHeadersTemplate.delete('content-type');
 		}
-		if (searchParams) { Transportr.mergeSearchParams(this._options.searchParams as URLSearchParams, searchParams) }
+		if (searchParams) { Transportr.#mergeSearchParams(this.#options.searchParams as URLSearchParams, searchParams) }
 		// `options` is a fresh rest object; Object.assign is a no-op if it has no own keys, so skip the count check.
-		Object.assign(this._options, options);
+		Object.assign(this.#options, options);
 		if (hooks) { this.addHooks(hooks) }
 		return this;
 	}
@@ -415,14 +415,16 @@ export class Transportr {
 	 */
 	destroy(): void {
 		this.clearHooks();
-		this.subscribr.destroy();
-		for (const k in this.subCounts) { delete this.subCounts[k] }
+		this.#subscribr.destroy();
+		for (const k in this.#subCounts) { delete this.#subCounts[k] }
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	get<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	get<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	get<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined>;
 	/**
 	 * This function returns a promise that resolves to the result of a request to the specified path with
 	 * the specified options, where the method is GET.
@@ -433,13 +435,17 @@ export class Transportr {
 	 * @returns A promise that resolves to the response of the request.
 	 */
 	async get<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this._get<T>(path, options);
+		return this.#get<T>(path, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	post<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	post<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	post<T extends ResponseBody = ResponseBody>(path: string | undefined, body?: RequestBody, options?: RequestOptions): Promise<T | undefined>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	post<T extends ResponseBody = ResponseBody>(body: RequestBody, options?: RequestOptions): Promise<T | undefined>;
 	/**
 	 * This function makes a POST request to the given path with the given body and options.
 	 *
@@ -451,13 +457,17 @@ export class Transportr {
 	 * @returns A promise that resolves to the response body.
 	 */
 	async post<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.executeBodyMethod<T>('POST', path, body, options);
+		return this.#executeBodyMethod<T>('POST', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	put<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	put<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	put<T extends ResponseBody = ResponseBody>(path: string | undefined, body?: RequestBody, options?: RequestOptions): Promise<T | undefined>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	put<T extends ResponseBody = ResponseBody>(body: RequestBody, options?: RequestOptions): Promise<T | undefined>;
 	/**
 	 * This function returns a promise that resolves to the result of a request to the specified path with
 	 * the specified options, where the method is PUT.
@@ -470,13 +480,17 @@ export class Transportr {
 	 * @returns The return value of the #request method.
 	 */
 	async put<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.executeBodyMethod<T>('PUT', path, body, options);
+		return this.#executeBodyMethod<T>('PUT', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	patch<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	patch<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	patch<T extends ResponseBody = ResponseBody>(path: string | undefined, body?: RequestBody, options?: RequestOptions): Promise<T | undefined>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	patch<T extends ResponseBody = ResponseBody>(body: RequestBody, options?: RequestOptions): Promise<T | undefined>;
 	/**
 	 * It takes a path and options, and returns a request with the method set to PATCH.
 	 *
@@ -488,13 +502,15 @@ export class Transportr {
 	 * @returns A promise that resolves to the response of the request.
 	 */
 	async patch<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.executeBodyMethod<T>('PATCH', path, body, options);
+		return this.#executeBodyMethod<T>('PATCH', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	delete<T extends ResponseBody = ResponseBody>(path: string | undefined, body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	delete<T extends ResponseBody = ResponseBody>(body: RequestBody, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	delete<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined>;
 	/**
 	 * It takes a path and options, and returns a request with the method set to DELETE.
 	 *
@@ -505,13 +521,15 @@ export class Transportr {
 	 * @returns The result of the request.
 	 */
 	async delete<T extends ResponseBody = ResponseBody>(path?: string | RequestBody, body?: RequestBody | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.executeBodyMethod<T>('DELETE', path, body, options);
+		return this.#executeBodyMethod<T>('DELETE', path, body, options);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	head<T extends ResponseBody = ResponseBody>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	head<T extends ResponseBody = ResponseBody>(path: RequestOptions & { unwrap: false }): Promise<Result<T | undefined>>;
+	/** Throws on failure and resolves to the response body (default behavior). */
+	head<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined>;
 	/**
 	 * Returns the response headers of a request to the given path.
 	 *
@@ -521,13 +539,15 @@ export class Transportr {
 	 * @returns A promise that resolves to the response object.
 	 */
 	async head<T extends ResponseBody = ResponseBody>(path?: string | RequestOptions, options?: RequestOptions): Promise<T | undefined | Result<T | undefined>> {
-		return this.execute<T>(path, options, { method: 'HEAD' });
+		return this.#execute<T>(path, options, { method: 'HEAD' });
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	options(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<string[] | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	options(path: RequestOptions & { unwrap: false }): Promise<Result<string[] | undefined>>;
+	/** Throws on failure and resolves to allowed methods (default behavior). */
+	options(path?: string | RequestOptions, options?: RequestOptions): Promise<string[] | undefined>;
 	/**
 	 * It returns a promise that resolves to the allowed request methods for the given resource path.
 	 *
@@ -539,20 +559,20 @@ export class Transportr {
 	async options(path?: string | RequestOptions, options: RequestOptions = {}): Promise<string[] | undefined | Result<string[] | undefined>> {
 		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
 
-		const requestConfig = this.processRequestOptions(options, { method: 'OPTIONS' });
+		const requestConfig = this.#processRequestOptions(options, { method: 'OPTIONS' });
 		const { requestOptions } = requestConfig;
 		const unwrap = requestOptions.unwrap !== false;
 		const requestHooks = requestOptions.hooks;
 
 		try {
 			// Run beforeRequest hooks: global → instance → per-request
-			const url = Transportr.createUrl(this, path, requestOptions.searchParams);
-			await this.runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
+			const url = Transportr.#createUrl(this, path, requestOptions.searchParams);
+			await this.#runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
 
-			let response: Response = await this._request(path, requestConfig);
+			let response: Response = await this.#request(path, requestConfig);
 
 			// Run afterResponse hooks: global → instance → per-request
-			response = await this.runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
+			response = await this.#runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
 
 			const allowHeader = response.headers.get('allow');
 			let allowedMethods: string[] | undefined;
@@ -564,7 +584,7 @@ export class Transportr {
 				}
 			}
 
-			this.publish({ name: RequestEvent.SUCCESS, data: allowedMethods, global: options.global });
+			this.#publish({ name: RequestEvent.SUCCESS, data: allowedMethods, global: options.global });
 
 			return unwrap ? allowedMethods : [ true, allowedMethods ];
 		} catch (error) {
@@ -577,6 +597,8 @@ export class Transportr {
 	request<T = unknown>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<TypedResponse<T>>>;
 	/** Returns a Result tuple instead of throwing. */
 	request<T = unknown>(path: RequestOptions & { unwrap: false }): Promise<Result<TypedResponse<T>>>;
+	/** Throws on failure and resolves to the typed response (default behavior). */
+	request<T = unknown>(path?: string | RequestOptions, options?: RequestOptions): Promise<TypedResponse<T>>;
 	/**
 	 * It takes a path and options, and makes a request to the server
 	 * @async
@@ -588,13 +610,13 @@ export class Transportr {
 	async request<T = unknown>(path?: string | RequestOptions, options: RequestOptions = {}): Promise<TypedResponse<T> | Result<TypedResponse<T>>> {
 		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
 
-		const requestConfig = this.processRequestOptions(options, {});
+		const requestConfig = this.#processRequestOptions(options, {});
 		const unwrap = requestConfig.requestOptions.unwrap !== false;
 
 		try {
-			const response = await this._request<T>(path, requestConfig);
+			const response = await this.#request<T>(path, requestConfig);
 
-			this.publish({ name: RequestEvent.SUCCESS, data: response, global: options.global });
+			this.#publish({ name: RequestEvent.SUCCESS, data: response, global: options.global });
 
 			return unwrap ? response : [true, response] as Result<TypedResponse<T>>;
 		} catch (error) {
@@ -607,6 +629,8 @@ export class Transportr {
 	getJson(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<Json | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	getJson(path: RequestOptions & { unwrap: false }): Promise<Result<Json | undefined>>;
+	/** Throws on failure and resolves to JSON content (default behavior). */
+	getJson(path?: string | RequestOptions, options?: RequestOptions): Promise<Json | undefined>;
 	/**
 	 * It gets the JSON representation of the resource at the given path.
 	 *
@@ -617,13 +641,15 @@ export class Transportr {
 	 * @returns A promise that resolves to the response body as a typed JSON value.
 	 */
 	async getJson(path?: string | RequestOptions, options?: RequestOptions): Promise<Json | undefined | Result<Json | undefined>> {
-		return this._get(path, options, { headers: { accept: `${mediaTypes.JSON}` } }, handleJson);
+		return this.#get(path, options, { headers: { accept: `${mediaTypes.JSON}` } }, handleJson);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getXml(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<Document | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	getXml(path: RequestOptions & { unwrap: false }): Promise<Result<Document | undefined>>;
+	/** Throws on failure and resolves to XML content (default behavior). */
+	getXml(path?: string | RequestOptions, options?: RequestOptions): Promise<Document | undefined>;
 	/**
 	 * It gets the XML representation of the resource at the given path.
 	 *
@@ -633,13 +659,15 @@ export class Transportr {
 	 * @returns The result of the function call to #get.
 	 */
 	async getXml(path?: string | RequestOptions, options?: RequestOptions): Promise<Document | undefined | Result<Document | undefined>> {
-		return this._get(path, options, { headers: { accept: `${mediaTypes.XML}` } }, handleXml);
+		return this.#get(path, options, { headers: { accept: `${mediaTypes.XML}` } }, handleXml);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getHtml(path: string | undefined, options: RequestOptions & { unwrap: false }, selector?: string): Promise<Result<Document | Element | null | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	getHtml(path: RequestOptions & { unwrap: false }): Promise<Result<Document | Element | null | undefined>>;
+	/** Throws on failure and resolves to parsed HTML (default behavior). */
+	getHtml(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<Document | Element | null | undefined>;
 	/**
 	 * Get the HTML content of the specified path.
 	 * When a selector is provided, returns only the first matching element from the parsed document.
@@ -651,7 +679,7 @@ export class Transportr {
 	 * @returns A promise that resolves to a Document, an Element (if selector matched), or void.
 	 */
 	async getHtml(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<Document | Element | null | undefined | Result<Document | Element | null | undefined>> {
-		const doc = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtml);
+		const doc = await this.#get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtml);
 		if (Array.isArray(doc)) return doc;
 		return selector && doc ? doc.querySelector(selector) : doc;
 	}
@@ -660,6 +688,8 @@ export class Transportr {
 	getHtmlFragment(path: string | undefined, options: RequestOptions & { unwrap: false }, selector?: string): Promise<Result<DocumentFragment | Element | null | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	getHtmlFragment(path: RequestOptions & { unwrap: false }): Promise<Result<DocumentFragment | Element | null | undefined>>;
+	/** Throws on failure and resolves to parsed HTML fragment (default behavior). */
+	getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined>;
 	/**
 	 * It returns a promise that resolves to the HTML fragment at the given path.
 	 * When a selector is provided, returns only the first matching element from the parsed fragment.
@@ -672,7 +702,7 @@ export class Transportr {
 	 */
 	async getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined | Result<DocumentFragment | Element | null | undefined>> {
 		const allowScripts = (isObject(path) ? path : options)?.allowScripts === true;
-		const fragment = await this._get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, allowScripts ? handleHtmlFragmentWithScripts : handleHtmlFragment);
+		const fragment = await this.#get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, allowScripts ? handleHtmlFragmentWithScripts : handleHtmlFragment);
 		if (Array.isArray(fragment)) return fragment;
 		return selector && fragment ? fragment.querySelector(selector) : fragment;
 	}
@@ -680,6 +710,8 @@ export class Transportr {
 	getScript(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<void>>;
 	/** Returns a Result tuple instead of throwing. */
 	getScript(path: RequestOptions & { unwrap: false }): Promise<Result<void>>;
+	/** Throws on failure and resolves when the script is loaded (default behavior). */
+	getScript(path?: string | RequestOptions, options?: RequestOptions): Promise<void>;
 	/**
 	 * It gets a script from the server, and appends the script to the Document HTMLHeadElement
 	 * @param path The path to the script.
@@ -687,13 +719,15 @@ export class Transportr {
 	 * @returns A promise that resolves to void.
 	 */
 	async getScript(path?: string | RequestOptions, options?: RequestOptions): Promise<void | Result<void>> {
-		return this._get(path, options, { headers: { accept: `${mediaTypes.JAVA_SCRIPT}` } }, handleScript);
+		return this.#get(path, options, { headers: { accept: `${mediaTypes.JAVA_SCRIPT}` } }, handleScript);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getStylesheet(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<void>>;
 	/** Returns a Result tuple instead of throwing. */
 	getStylesheet(path: RequestOptions & { unwrap: false }): Promise<Result<void>>;
+	/** Throws on failure and resolves when the stylesheet is loaded (default behavior). */
+	getStylesheet(path?: string | RequestOptions, options?: RequestOptions): Promise<void>;
 	/**
 	 * Gets a stylesheet from the server, and adds it as a Blob URL.
 	 * @param path The path to the stylesheet.
@@ -701,13 +735,15 @@ export class Transportr {
 	 * @returns A promise that resolves to void.
 	 */
 	async getStylesheet(path?: string | RequestOptions, options?: RequestOptions): Promise<void | Result<void>> {
-		return this._get(path, options, { headers: { accept: `${mediaTypes.CSS}` } }, handleCss);
+		return this.#get(path, options, { headers: { accept: `${mediaTypes.CSS}` } }, handleCss);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getBlob(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<Blob | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	getBlob(path: RequestOptions & { unwrap: false }): Promise<Result<Blob | undefined>>;
+	/** Throws on failure and resolves to Blob data (default behavior). */
+	getBlob(path?: string | RequestOptions, options?: RequestOptions): Promise<Blob | undefined>;
 	/**
 	 * It returns a blob from the specified path.
 	 * @param path The path to the resource.
@@ -715,11 +751,13 @@ export class Transportr {
 	 * @returns A promise that resolves to a Blob or void.
 	 */
 	async getBlob(path?: string | RequestOptions, options?: RequestOptions): Promise<Blob | undefined | Result<Blob | undefined>> {
-		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBlob);
+		return this.#get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBlob);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getImage(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<HTMLImageElement | undefined>>;
+	/** Throws on failure and resolves to an image element (default behavior). */
+	getImage(path?: string | RequestOptions, options?: RequestOptions): Promise<HTMLImageElement | undefined>;
 	/**
 	 * It returns a promise that resolves to an `HTMLImageElement`.
 	 * The object URL created to load the image is automatically revoked to prevent memory leaks.
@@ -728,14 +766,16 @@ export class Transportr {
 	 * @param options The options for the request.
 	 * @returns A promise that resolves to an `HTMLImageElement` or `void`.
 	 */
-	async getImage(path?: string, options?: RequestOptions): Promise<HTMLImageElement | undefined | Result<HTMLImageElement | undefined>> {
-		return this._get(path, options, { headers: { accept: 'image/*' } }, handleImage);
+	async getImage(path?: string | RequestOptions, options?: RequestOptions): Promise<HTMLImageElement | undefined | Result<HTMLImageElement | undefined>> {
+		return this.#get(path, options, { headers: { accept: 'image/*' } }, handleImage);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getBuffer(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<ArrayBuffer | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	getBuffer(path: RequestOptions & { unwrap: false }): Promise<Result<ArrayBuffer | undefined>>;
+	/** Throws on failure and resolves to ArrayBuffer data (default behavior). */
+	getBuffer(path?: string | RequestOptions, options?: RequestOptions): Promise<ArrayBuffer | undefined>;
 	/**
 	 * It gets a buffer from the specified path
 	 * @param path The path to the resource.
@@ -743,13 +783,15 @@ export class Transportr {
 	 * @returns A promise that resolves to an ArrayBuffer or void.
 	 */
 	async getBuffer(path?: string | RequestOptions, options?: RequestOptions): Promise<ArrayBuffer | undefined | Result<ArrayBuffer | undefined>> {
-		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBuffer);
+		return this.#get(path, options, { headers: { accept: 'application/octet-stream' } }, handleBuffer);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getStream(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<ReadableStream<Uint8Array> | null | undefined>>;
 	/** Returns a Result tuple instead of throwing. */
 	getStream(path: RequestOptions & { unwrap: false }): Promise<Result<ReadableStream<Uint8Array> | null | undefined>>;
+	/** Throws on failure and resolves to a readable stream (default behavior). */
+	getStream(path?: string | RequestOptions, options?: RequestOptions): Promise<ReadableStream<Uint8Array> | null | undefined>;
 	/**
 	 * It returns a readable stream of the response body from the specified path.
 	 * @param path The path to the resource.
@@ -757,13 +799,15 @@ export class Transportr {
 	 * @returns A promise that resolves to a ReadableStream, null, or void.
 	 */
 	async getStream(path?: string | RequestOptions, options?: RequestOptions): Promise<ReadableStream<Uint8Array> | null | undefined | Result<ReadableStream<Uint8Array> | null | undefined>> {
-		return this._get(path, options, { headers: { accept: 'application/octet-stream' } }, handleReadableStream);
+		return this.#get(path, options, { headers: { accept: 'application/octet-stream' } }, handleReadableStream);
 	}
 
 	/** Returns a Result tuple instead of throwing. */
 	getEventStream(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<ServerSentEvent>>>;
 	/** Returns a Result tuple instead of throwing. */
 	getEventStream(path: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<ServerSentEvent>>>;
+	/** Throws on failure and resolves to an SSE async iterable (default behavior). */
+	getEventStream(path?: string | RequestOptions, options?: RequestOptions): Promise<AsyncIterable<ServerSentEvent>>;
 	/**
 	 * Opens a Server-Sent Events stream and returns an AsyncIterable of typed events.
 	 * Follows the EventStream specification for parsing event, data, id, and retry fields.
@@ -783,20 +827,20 @@ export class Transportr {
 	async getEventStream(path?: string | RequestOptions, options?: RequestOptions): Promise<AsyncIterable<ServerSentEvent> | Result<AsyncIterable<ServerSentEvent>>> {
 		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
 
-		const requestConfig = this.processRequestOptions(options ?? {}, { method: options?.body ? 'POST' : 'GET', headers: { accept: `${mediaTypes.EVENT_STREAM}` } });
+		const requestConfig = this.#processRequestOptions(options ?? {}, { method: options?.body ? 'POST' : 'GET', headers: { accept: `${mediaTypes.EVENT_STREAM}` } });
 		const { requestOptions } = requestConfig;
 		const unwrap = requestOptions.unwrap !== false;
 		const requestHooks = requestOptions.hooks;
 
 		try {
-			const url = Transportr.createUrl(this, path, requestOptions.searchParams);
-			await this.runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
+			const url = Transportr.#createUrl(this, path, requestOptions.searchParams);
+			await this.#runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
 
-			const response = await this._request(path, requestConfig);
+			const response = await this.#request(path, requestConfig);
 
-			const afterResponse: Response = await this.runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
+			const afterResponse: Response = await this.#runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
 
-			this.publish({ name: RequestEvent.SUCCESS, data: afterResponse, global: requestConfig.global });
+			this.#publish({ name: RequestEvent.SUCCESS, data: afterResponse, global: requestConfig.global });
 
 			const stream = handleEventStream(afterResponse);
 			return unwrap ? stream : [true, stream] as Result<AsyncIterable<ServerSentEvent>>;
@@ -810,6 +854,8 @@ export class Transportr {
 	getJsonStream<T = Json>(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<T>>>;
 	/** Returns a Result tuple instead of throwing. */
 	getJsonStream<T = Json>(path: RequestOptions & { unwrap: false }): Promise<Result<AsyncIterable<T>>>;
+	/** Throws on failure and resolves to an NDJSON async iterable (default behavior). */
+	getJsonStream<T = Json>(path?: string | RequestOptions, options?: RequestOptions): Promise<AsyncIterable<T>>;
 	/**
 	 * Opens an NDJSON (Newline Delimited JSON) stream and returns an AsyncIterable of typed JSON values.
 	 * Each line is independently parsed as JSON, making it suitable for streaming large datasets
@@ -830,20 +876,20 @@ export class Transportr {
 	async getJsonStream<T = Json>(path?: string | RequestOptions, options?: RequestOptions): Promise<AsyncIterable<T> | Result<AsyncIterable<T>>> {
 		if (isObject(path)) { [ path, options ] = [ undefined, path ] }
 
-		const requestConfig = this.processRequestOptions(options ?? {}, { method: 'GET', headers: { accept: `${mediaTypes.NDJSON}` } });
+		const requestConfig = this.#processRequestOptions(options ?? {}, { method: 'GET', headers: { accept: `${mediaTypes.NDJSON}` } });
 		const { requestOptions } = requestConfig;
 		const unwrap = requestOptions.unwrap !== false;
 		const requestHooks = requestOptions.hooks;
 
 		try {
-			const url = Transportr.createUrl(this, path, requestOptions.searchParams);
-			await this.runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
+			const url = Transportr.#createUrl(this, path, requestOptions.searchParams);
+			await this.#runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
 
-			const response = await this._request(path, requestConfig);
+			const response = await this.#request(path, requestConfig);
 
-			const afterResponse: Response = await this.runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
+			const afterResponse: Response = await this.#runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
 
-			this.publish({ name: RequestEvent.SUCCESS, data: afterResponse, global: requestConfig.global });
+			this.#publish({ name: RequestEvent.SUCCESS, data: afterResponse, global: requestConfig.global });
 
 			const stream = handleNdjsonStream<T>(afterResponse);
 			return unwrap ? stream : [ true, stream ] as Result<AsyncIterable<T>>;
@@ -862,10 +908,10 @@ export class Transportr {
 	 * @param responseHandler The response handler for the request.
 	 * @returns A promise that resolves to the response body or void.
 	 */
-	private async _get<T extends ResponseBody>(path?: string | RequestOptions, userOptions?: RequestOptions, options: RequestOptions = {}, responseHandler?: ResponseHandler<T>): Promise<T | undefined | Result<T | undefined>> {
+	async #get<T extends ResponseBody>(path?: string | RequestOptions, userOptions?: RequestOptions, options: RequestOptions = {}, responseHandler?: ResponseHandler<T>): Promise<T | undefined | Result<T | undefined>> {
 		options.method = 'GET';
 		options.body = undefined;
-		return this.execute<T>(path, userOptions, options, responseHandler);
+		return this.#execute<T>(path, userOptions, options, responseHandler);
 	}
 
 	/**
@@ -877,24 +923,24 @@ export class Transportr {
 	 * @param config The processed request configuration produced by `processRequestOptions`.
 	 * @returns A promise resolving to the typed response.
 	 */
-	private async _request<T = unknown>(path: string | undefined, config: RequestConfiguration): Promise<TypedResponse<T>> {
+	async #request<T = unknown>(path: string | undefined, config: RequestConfiguration): Promise<TypedResponse<T>> {
 		const { signalController, requestOptions, global } = config;
-		Transportr.signalControllers.add(signalController);
+		Transportr.#signalControllers.add(signalController);
 
-		const retryConfig = Transportr.normalizeRetryOptions(requestOptions.retry);
+		const retryConfig = Transportr.#normalizeRetryOptions(requestOptions.retry);
 		const method = requestOptions.method ?? 'GET';
 		const canRetry = retryConfig.limit > 0 && retryConfig.methods.includes(method);
 		const canDedupe = requestOptions.dedupe === true && (method === 'GET' || method === 'HEAD');
 		const startTime = performance.now();
 
 		try {
-			const url = Transportr.createUrl(this, path, requestOptions.searchParams);
+			const url = Transportr.#createUrl(this, path, requestOptions.searchParams);
 			let dedupeKey: string | undefined;
 
 			// If deduplication is enabled and an in-flight request exists, clone its response.
 			if (canDedupe) {
 				dedupeKey = `${method}:${url.href}`;
-				const inflight = Transportr.inflightRequests.get(dedupeKey);
+				const inflight = Transportr.#inflightRequests.get(dedupeKey);
 				if (inflight) { return (await inflight).clone() }
 			}
 
@@ -905,25 +951,25 @@ export class Transportr {
 				(requestOptions as RequestOptions & { duplex?: string }).duplex = 'half';
 			}
 
-			const responsePromise = this._doFetch<T>(url, requestOptions, path, method, canRetry, retryConfig, originalBody, onUploadProgress, startTime, global);
+			const responsePromise = this.#doFetch<T>(url, requestOptions, path, method, canRetry, retryConfig, originalBody, onUploadProgress, startTime, global);
 
 			if (canDedupe) {
-				Transportr.inflightRequests.set(dedupeKey!, responsePromise);
+				Transportr.#inflightRequests.set(dedupeKey!, responsePromise);
 				try {
-					return Transportr._wrapDownloadProgress(await responsePromise, requestOptions);
+					return Transportr.#wrapDownloadProgress(await responsePromise, requestOptions);
 				} finally {
-					Transportr.inflightRequests.delete(dedupeKey!);
+					Transportr.#inflightRequests.delete(dedupeKey!);
 				}
 			}
 
-			return Transportr._wrapDownloadProgress(await responsePromise, requestOptions);
+			return Transportr.#wrapDownloadProgress(await responsePromise, requestOptions);
 		} finally {
-			Transportr.signalControllers.delete(signalController.destroy());
+			Transportr.#signalControllers.delete(signalController.destroy());
 			if (!requestOptions.signal?.aborted) {
 				const end = performance.now();
-				this.publish({ name: RequestEvent.COMPLETE, data: { timing: { start: startTime, end, duration: end - startTime } }, global });
-				if (Transportr.signalControllers.size === 0) {
-					this.publish({ name: RequestEvent.ALL_COMPLETE, global });
+				this.#publish({ name: RequestEvent.COMPLETE, data: { timing: { start: startTime, end, duration: end - startTime } }, global });
+				if (Transportr.#signalControllers.size === 0) {
+					this.#publish({ name: RequestEvent.ALL_COMPLETE, global });
 				}
 			}
 		}
@@ -944,17 +990,17 @@ export class Transportr {
 	 * @param global Whether this request publishes to global event subscribers.
 	 * @returns The typed response.
 	 */
-	private async _doFetch<T>(url: URL, requestOptions: RequestOptions, path: string | undefined, method: string, canRetry: boolean, retryConfig: NormalizedRetryOptions, originalBody: RequestBody | undefined, onUploadProgress: RequestOptions['onUploadProgress'], startTime: number, global: boolean): Promise<TypedResponse<T>> {
+	async #doFetch<T>(url: URL, requestOptions: RequestOptions, path: string | undefined, method: string, canRetry: boolean, retryConfig: NormalizedRetryOptions, originalBody: RequestBody | undefined, onUploadProgress: RequestOptions['onUploadProgress'], startTime: number, global: boolean): Promise<TypedResponse<T>> {
 		let attempt = 0;
 		while (true) {
 			try {
-				if (onUploadProgress) { await Transportr._wrapUploadBody(requestOptions, originalBody, onUploadProgress) }
+				if (onUploadProgress) { await Transportr.#wrapUploadBody(requestOptions, originalBody, onUploadProgress) }
 				const response = await fetch<T>(url, requestOptions);
 				if (!response.ok) {
 					if (canRetry && attempt < retryConfig.limit && retryConfig.statusCodes.includes(response.status)) {
 						attempt++;
-						this.publish({ name: RequestEvent.RETRY, data: { attempt, status: response.status, method, path, timing: Transportr._snapshotTiming(startTime) }, global });
-						await Transportr.retryDelay(retryConfig, attempt);
+						this.#publish({ name: RequestEvent.RETRY, data: { attempt, status: response.status, method, path, timing: Transportr.#snapshotTiming(startTime) }, global });
+						await Transportr.#retryDelay(retryConfig, attempt);
 						continue;
 					}
 					// Capture response body for error diagnostics (subject to consumer opt-out via captureErrorBody=false).
@@ -962,7 +1008,7 @@ export class Transportr {
 					if ((requestOptions as RequestOptions & { captureErrorBody?: boolean }).captureErrorBody !== false) {
 						try { entity = await response.text() } catch { /* body may be unavailable */ }
 					}
-					throw await this.handleError(path, response, { entity, url, method, timing: Transportr._snapshotTiming(startTime) }, requestOptions);
+					throw await this.#handleError(path, response, { entity, url, method, timing: Transportr.#snapshotTiming(startTime) }, requestOptions);
 				}
 
 				return response;
@@ -972,12 +1018,12 @@ export class Transportr {
 				// Network error — retry if allowed.
 				if (canRetry && attempt < retryConfig.limit) {
 					attempt++;
-					this.publish({ name: RequestEvent.RETRY, data: { attempt, error: (cause as Error).message, method, path, timing: Transportr._snapshotTiming(startTime) }, global });
-					await Transportr.retryDelay(retryConfig, attempt);
+					this.#publish({ name: RequestEvent.RETRY, data: { attempt, error: (cause as Error).message, method, path, timing: Transportr.#snapshotTiming(startTime) }, global });
+					await Transportr.#retryDelay(retryConfig, attempt);
 					continue;
 				}
 
-				throw await this.handleError(path, undefined, { cause: cause as Error, url, method, timing: Transportr._snapshotTiming(startTime) }, requestOptions);
+				throw await this.#handleError(path, undefined, { cause: cause as Error, url, method, timing: Transportr.#snapshotTiming(startTime) }, requestOptions);
 			}
 		}
 	}
@@ -989,7 +1035,7 @@ export class Transportr {
 	 * @param originalBody The original body before any wrapping.
 	 * @param onUploadProgress The progress callback (already validated as defined by the caller).
 	 */
-	private static async _wrapUploadBody(requestOptions: RequestOptions, originalBody: RequestBody | undefined, onUploadProgress: NonNullable<RequestOptions['onUploadProgress']>): Promise<void> {
+	static async #wrapUploadBody(requestOptions: RequestOptions, originalBody: RequestBody | undefined, onUploadProgress: NonNullable<RequestOptions['onUploadProgress']>): Promise<void> {
 		if (originalBody == null) { return }
 
 		let bytes: Uint8Array | null = null;
@@ -1040,7 +1086,7 @@ export class Transportr {
 	 * @param requestOptions The request options carrying the optional onDownloadProgress callback.
 	 * @returns The original response or a new response with progress tracking.
 	 */
-	private static _wrapDownloadProgress<T>(response: TypedResponse<T>, requestOptions: RequestOptions): TypedResponse<T> {
+	static #wrapDownloadProgress<T>(response: TypedResponse<T>, requestOptions: RequestOptions): TypedResponse<T> {
 		const onDownloadProgress = requestOptions.onDownloadProgress;
 		if (!onDownloadProgress || !response.body) return response;
 
@@ -1069,7 +1115,7 @@ export class Transportr {
 	 * @param startTime The start timestamp from `performance.now()`.
 	 * @returns Timing information for the request.
 	 */
-	private static _snapshotTiming(startTime: number): RequestTiming {
+	static #snapshotTiming(startTime: number): RequestTiming {
 		const end = performance.now();
 		return { start: startTime, end, duration: end - startTime };
 	}
@@ -1079,12 +1125,12 @@ export class Transportr {
 	 * @param retry The retry option from request options.
 	 * @returns Normalized retry configuration.
 	 */
-	private static normalizeRetryOptions(retry?: number | RetryOptions): NormalizedRetryOptions {
-		if (retry === undefined) { return Transportr.noRetryConfig }
+	static #normalizeRetryOptions(retry?: number | RetryOptions): NormalizedRetryOptions {
+		if (retry === undefined) { return Transportr.#noRetryConfig }
 		if (typeof retry === 'number') { return { limit: retry, statusCodes: retryStatusCodes, methods: retryMethods, delay: retryDelay, backoffFactor: retryBackoffFactor } }
 
 		// Object identity cache: most consumers reuse the same options object across requests.
-		const cached = Transportr.retryConfigCache.get(retry);
+		const cached = Transportr.#retryConfigCache.get(retry);
 		if (cached !== undefined) { return cached }
 
 		const normalized: NormalizedRetryOptions = {
@@ -1094,7 +1140,7 @@ export class Transportr {
 			delay: retry.delay ?? retryDelay,
 			backoffFactor: retry.backoffFactor ?? retryBackoffFactor
 		};
-		Transportr.retryConfigCache.set(retry, normalized);
+		Transportr.#retryConfigCache.set(retry, normalized);
 		return normalized;
 	}
 
@@ -1104,7 +1150,7 @@ export class Transportr {
 	 * @param attempt The current attempt number (1-based).
 	 * @returns A promise that resolves after the delay.
 	 */
-	private static retryDelay(config: NormalizedRetryOptions, attempt: number): Promise<void> {
+	static #retryDelay(config: NormalizedRetryOptions, attempt: number): Promise<void> {
 		const ms = typeof config.delay === 'function' ? config.delay(attempt) : config.delay * (config.backoffFactor ** (attempt - 1));
 
 		return new Promise(resolve => setTimeout(resolve, ms));
@@ -1119,15 +1165,15 @@ export class Transportr {
 	 * @param responseHandler Optional response handler override.
 	 * @returns A promise that resolves to the response body.
 	 */
-	private executeBodyMethod<T extends ResponseBody>(method: RequestBodyMethod, path: string | RequestBody | undefined, body?: RequestBody | RequestOptions, options?: RequestOptions, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined | Result<T | undefined>> {
+	#executeBodyMethod<T extends ResponseBody>(method: RequestBodyMethod, path: string | RequestBody | undefined, body?: RequestBody | RequestOptions, options?: RequestOptions, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined | Result<T | undefined>> {
 		const [ resolvedPath, resolvedBody, resolvedOptions ] = isString(path) ? [ path, body as RequestBody, options ] : [ undefined, path, body as RequestOptions ];
 
-		// Important: do NOT mutate `resolvedOptions` here \u2014 callers may reuse the same options reference across requests.
+		// Important: do NOT mutate `resolvedOptions` here — callers may reuse the same options reference across requests.
 		// Build a fresh options object that overlays method/body via Object.assign on a new target (one allocation).
 		const merged = resolvedOptions !== undefined
 			? Object.assign({} as RequestOptions, resolvedOptions, { body: resolvedBody, method })
 			: { body: resolvedBody, method } as RequestOptions;
-		return this.execute<T>(resolvedPath, merged, {}, responseHandler);
+		return this.#execute<T>(resolvedPath, merged, {}, responseHandler);
 	}
 
 	/**
@@ -1139,23 +1185,23 @@ export class Transportr {
 	 * @param perRequest Per-request beforeRequest hooks, if any.
 	 * @returns The (possibly rebuilt) request URL.
 	 */
-	private async runBeforeRequestHooks(requestOptions: RequestOptions, url: URL, path: string | undefined, perRequest: BeforeRequestHook[] | undefined): Promise<URL> {
-		const globalHooks = Transportr.globalHooks.beforeRequest;
-		const instanceHooks = this.hooks.beforeRequest;
+	async #runBeforeRequestHooks(requestOptions: RequestOptions, url: URL, path: string | undefined, perRequest: BeforeRequestHook[] | undefined): Promise<URL> {
+		const globalHooks = Transportr.#globalHooks.beforeRequest;
+		const instanceHooks = this.#hooks.beforeRequest;
 		const perRequestLength = perRequest === undefined ? 0 : perRequest.length;
 		if (globalHooks.length === 0 && instanceHooks.length === 0 && perRequestLength === 0) { return url }
 
 		for (let i = 0, length = globalHooks.length; i < length; i++) {
 			const result = await globalHooks[i]!(requestOptions, url);
-			if (result) { Object.assign(requestOptions, result); if (result.searchParams !== undefined) { url = Transportr.createUrl(this, path, requestOptions.searchParams) } }
+			if (result) { Object.assign(requestOptions, result); if (result.searchParams !== undefined) { url = Transportr.#createUrl(this, path, requestOptions.searchParams) } }
 		}
 		for (let i = 0, length = instanceHooks.length; i < length; i++) {
 			const result = await instanceHooks[i]!(requestOptions, url);
-			if (result) { Object.assign(requestOptions, result); if (result.searchParams !== undefined) { url = Transportr.createUrl(this, path, requestOptions.searchParams) } }
+			if (result) { Object.assign(requestOptions, result); if (result.searchParams !== undefined) { url = Transportr.#createUrl(this, path, requestOptions.searchParams) } }
 		}
 		for (let i = 0; i < perRequestLength; i++) {
 			const result = await perRequest![i]!(requestOptions, url);
-			if (result) { Object.assign(requestOptions, result); if (result.searchParams !== undefined) { url = Transportr.createUrl(this, path, requestOptions.searchParams) } }
+			if (result) { Object.assign(requestOptions, result); if (result.searchParams !== undefined) { url = Transportr.#createUrl(this, path, requestOptions.searchParams) } }
 		}
 		return url;
 	}
@@ -1168,9 +1214,9 @@ export class Transportr {
 	 * @param perRequest Per-request afterResponse hooks, if any.
 	 * @returns The (possibly replaced) response.
 	 */
-	private async runAfterResponseHooks(response: Response, requestOptions: RequestOptions, perRequest: AfterResponseHook[] | undefined): Promise<Response> {
-		const globalHooks = Transportr.globalHooks.afterResponse;
-		const instanceHooks = this.hooks.afterResponse;
+	async #runAfterResponseHooks(response: Response, requestOptions: RequestOptions, perRequest: AfterResponseHook[] | undefined): Promise<Response> {
+		const globalHooks = Transportr.#globalHooks.afterResponse;
+		const instanceHooks = this.#hooks.afterResponse;
 		const perRequestLength = perRequest === undefined ? 0 : perRequest.length;
 		if (globalHooks.length === 0 && instanceHooks.length === 0 && perRequestLength === 0) { return response }
 
@@ -1196,9 +1242,9 @@ export class Transportr {
 	 * @param perRequest Per-request beforeError hooks, if any.
 	 * @returns The (possibly transformed) error.
 	 */
-	private async runBeforeErrorHooks(error: HttpError, perRequest: BeforeErrorHook[] | undefined): Promise<HttpError> {
-		const globalHooks = Transportr.globalHooks.beforeError;
-		const instanceHooks = this.hooks.beforeError;
+	async #runBeforeErrorHooks(error: HttpError, perRequest: BeforeErrorHook[] | undefined): Promise<HttpError> {
+		const globalHooks = Transportr.#globalHooks.beforeError;
+		const instanceHooks = this.#hooks.beforeError;
 		const perRequestLength = perRequest === undefined ? 0 : perRequest.length;
 		if (globalHooks.length === 0 && instanceHooks.length === 0 && perRequestLength === 0) { return error }
 
@@ -1225,33 +1271,33 @@ export class Transportr {
 	 * @param responseHandler The response handler for the request.
 	 * @returns A response handler function.
 	 */
-	private async execute<T extends ResponseBody>(path?: string | RequestOptions, userOptions: RequestOptions = {}, options: RequestOptions = {}, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined | Result<T | undefined>> {
+	async #execute<T extends ResponseBody>(path?: string | RequestOptions, userOptions: RequestOptions = {}, options: RequestOptions = {}, responseHandler?: ResponseHandler<NoInfer<T>>): Promise<T | undefined | Result<T | undefined>> {
 		if (isObject(path)) { [ path, userOptions ] = [ undefined, path ] }
 
-		const requestConfig = this.processRequestOptions(userOptions, options);
+		const requestConfig = this.#processRequestOptions(userOptions, options);
 		const { requestOptions } = requestConfig;
 		const unwrap = requestOptions.unwrap !== false;
 		const requestHooks = requestOptions.hooks;
 
 		try {
-			const url = Transportr.createUrl(this, path, requestOptions.searchParams);
-			await this.runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
+			const url = Transportr.#createUrl(this, path, requestOptions.searchParams);
+			await this.#runBeforeRequestHooks(requestOptions, url, path, requestHooks?.beforeRequest);
 
-			let response = await this._request<T>(path, requestConfig);
-			response = await this.runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
+			let response = await this.#request<T>(path, requestConfig);
+			response = await this.#runAfterResponseHooks(response, requestOptions, requestHooks?.afterResponse);
 
 			try {
 				if (!responseHandler && response.status !== 204) {
-					responseHandler = this.getResponseHandler<T>(response.headers.get('content-type'));
+					responseHandler = this.#getResponseHandler<T>(response.headers.get('content-type'));
 				}
 
 				const data = await responseHandler?.(response);
 
-				this.publish({ name: RequestEvent.SUCCESS, data, global: requestConfig.global });
+				this.#publish({ name: RequestEvent.SUCCESS, data, global: requestConfig.global });
 
 				return unwrap ? data : [ true, data ];
 			} catch (cause) {
-				throw await this.handleError(path, response, { cause: cause as Error }, requestOptions);
+				throw await this.#handleError(path, response, { cause: cause as Error }, requestOptions);
 			}
 		} catch (error) {
 			if (!unwrap) { return [ false, error as HttpError ] }
@@ -1265,9 +1311,9 @@ export class Transportr {
 	 * @param userOptions The default options for the request.
 	 * @returns A new set of options for the request.
 	 */
-	private static createOptions({ headers: userHeaders, searchParams: userSearchParams, ...userOptions }: RequestOptions, { headers, searchParams, ...options }: RequestOptions): RequestOptions {
-		headers = Transportr.mergeHeaders(new Headers(), userHeaders, headers);
-		searchParams = Transportr.mergeSearchParams(new URLSearchParams(), userSearchParams, searchParams);
+	static #createOptions({ headers: userHeaders, searchParams: userSearchParams, ...userOptions }: RequestOptions, { headers, searchParams, ...options }: RequestOptions): RequestOptions {
+		headers = Transportr.#mergeHeaders(new Headers(), userHeaders, headers);
+		searchParams = Transportr.#mergeSearchParams(new URLSearchParams(), userSearchParams, searchParams);
 
 		return { ...objectMerge(options, userOptions)!, headers, searchParams };
 	}
@@ -1278,7 +1324,7 @@ export class Transportr {
 	 * @param headerSources Variable number of header sources to merge.
 	 * @returns The merged Headers object.
 	 */
-	private static mergeHeaders(target: Headers, ...headerSources: (RequestHeaders | undefined)[]): Headers {
+	static #mergeHeaders(target: Headers, ...headerSources: (RequestHeaders | undefined)[]): Headers {
 		for (const headers of headerSources) {
 			if (headers === undefined) { continue }
 
@@ -1309,7 +1355,7 @@ export class Transportr {
 	 * @param sources The search parameters to merge.
 	 * @returns The merged URLSearchParams object.
 	 */
-	private static mergeSearchParams(target: URLSearchParams, ...sources: (SearchParameters | undefined)[]): URLSearchParams {
+	static #mergeSearchParams(target: URLSearchParams, ...sources: (SearchParameters | undefined)[]): URLSearchParams {
 		for (const searchParams of sources) {
 			if (searchParams === undefined) { continue }
 
@@ -1345,28 +1391,28 @@ export class Transportr {
 	 * @param options Additional method-specific options.
 	 * @returns Processed request options with signal controller and global flag.
 	 */
-	private processRequestOptions(userOptions: RequestOptions, options: RequestOptions): RequestConfiguration {
+	#processRequestOptions(userOptions: RequestOptions, options: RequestOptions): RequestConfiguration {
 		const userHeaders = userOptions.headers;
 		const userSearchParams = userOptions.searchParams;
 		const userBody = userOptions.body;
 		const optHeaders = options.headers;
 		const optSearchParams = options.searchParams;
 
-		const method = (options.method ?? userOptions.method ?? this._options.method ?? 'GET');
+		const method = (options.method ?? userOptions.method ?? this.#options.method ?? 'GET');
 		const isBodyMethod = isRequestBodyMethod(method);
 		// Headers fast path: when the method strips Content-Type AND there are no overrides, clone the pre-stripped template.
 		let headers: Headers;
 		if (!isBodyMethod && userHeaders === undefined && optHeaders === undefined) {
-			headers = new Headers(this._noBodyHeadersTemplate);
+			headers = new Headers(this.#noBodyHeadersTemplate);
 		} else {
-			headers = new Headers(this._options.headers);
+			headers = new Headers(this.#options.headers);
 			if (userHeaders !== undefined || optHeaders !== undefined) {
-				Transportr.mergeHeaders(headers, userHeaders, optHeaders);
+				Transportr.#mergeHeaders(headers, userHeaders, optHeaders);
 			}
 		}
 
 		// SearchParams fast path: skip construction entirely when both inputs and instance defaults are empty.
-		const instanceSearchParams = this._options.searchParams as URLSearchParams | undefined;
+		const instanceSearchParams = this.#options.searchParams as URLSearchParams | undefined;
 		const hasInstanceSearchParams = instanceSearchParams !== undefined && instanceSearchParams.size > 0;
 		let searchParams: URLSearchParams;
 		if (!hasInstanceSearchParams && userSearchParams === undefined && optSearchParams === undefined) {
@@ -1374,14 +1420,14 @@ export class Transportr {
 		} else {
 			searchParams = new URLSearchParams(instanceSearchParams);
 			if (userSearchParams !== undefined || optSearchParams !== undefined) {
-				Transportr.mergeSearchParams(searchParams, userSearchParams, optSearchParams);
+				Transportr.#mergeSearchParams(searchParams, userSearchParams, optSearchParams);
 			}
 		}
 
 		// Build requestOptions via Object.assign to avoid the rest-object allocations the spread/destructure pattern produces.
 		// Object.assign copies explicit `undefined` properties, so a user-passed `{ method: undefined }` correctly overrides
-		// the instance default for the value handed to fetch \u2014 we only use the local `method` var for retry/dedupe routing.
-		const requestOptions = Object.assign({} as RequestOptions, this._options, userOptions, options);
+		// the instance default for the value handed to fetch — we only use the local `method` var for retry/dedupe routing.
+		const requestOptions = Object.assign({} as RequestOptions, this.#options, userOptions, options);
 		requestOptions.headers = headers;
 		requestOptions.searchParams = searchParams;
 
@@ -1391,7 +1437,7 @@ export class Transportr {
 				requestOptions.body = userBody;
 				headers.delete('content-type');
 			} else {
-				const instanceBody = this._options.body;
+				const instanceBody = this.#options.body;
 				const body = isObject<Record<string, unknown>>(instanceBody) && isObject<Record<string, unknown>>(userBody) ? objectMerge(instanceBody, userBody) : (userBody !== undefined ? userBody : instanceBody);
 				const contentType = headers.get('content-type');
 				const isJson = contentType !== null && contentType.includes('json');
@@ -1399,7 +1445,7 @@ export class Transportr {
 			}
 		} else {
 			if (requestOptions.body instanceof URLSearchParams) {
-				Transportr.mergeSearchParams(searchParams, requestOptions.body);
+				Transportr.#mergeSearchParams(searchParams, requestOptions.body);
 			}
 			requestOptions.body = undefined;
 			// Headers were already built without Content-Type via the fast path; only need to strip when overrides reintroduced it.
@@ -1419,11 +1465,11 @@ export class Transportr {
 		}
 
 		const signalController = new SignalController({ signal, timeout })
-			.onAbort((event) => this.publish({ name: RequestEvent.ABORTED, event, global }))
-			.onTimeout((event) => this.publish({ name: RequestEvent.TIMEOUT, event, global }));
+			.onAbort((event) => this.#publish({ name: RequestEvent.ABORTED, event, global }))
+			.onTimeout((event) => this.#publish({ name: RequestEvent.TIMEOUT, event, global }));
 
 		requestOptions.signal = signalController.signal;
-		this.publish({ name: RequestEvent.CONFIGURED, data: requestOptions, global });
+		this.#publish({ name: RequestEvent.CONFIGURED, data: requestOptions, global });
 
 		return { signalController, requestOptions, global };
 	}
@@ -1433,7 +1479,7 @@ export class Transportr {
 	 * @param url The URL or string to parse.
 	 * @returns The base URL.
 	 */
-	private static getBaseUrl(url: URL | string): URL {
+	static #getBaseUrl(url: URL | string): URL {
 		if (url instanceof URL) { return url }
 
 		if (!isString(url)) { throw new TypeError('Invalid URL') }
@@ -1448,11 +1494,11 @@ export class Transportr {
 	 * @param contentType The content-type string to parse.
 	 * @returns The parsed MediaType instance, or undefined if parsing fails.
 	 */
-	private static getOrParseMediaType(contentType: string | null): MediaType | undefined {
+	static #getOrParseMediaType(contentType: string | null): MediaType | undefined {
 		if (contentType === null) { return }
 
 		// Check the predefined mediaTypes map first (fastest lookup) or the cache
-		let mediaType = Transportr.mediaTypeCache.get(contentType);
+		let mediaType = Transportr.#mediaTypeCache.get(contentType);
 
 		if (mediaType !== undefined) { return mediaType }
 
@@ -1461,10 +1507,10 @@ export class Transportr {
 
 		if (mediaType !== undefined) {
 			// Evict oldest entry when cache exceeds limit to prevent unbounded growth
-			if (Transportr.mediaTypeCache.size >= 100) {
-				Transportr.mediaTypeCache.delete(Transportr.mediaTypeCache.keys().next().value!);
+			if (Transportr.#mediaTypeCache.size >= 100) {
+				Transportr.#mediaTypeCache.delete(Transportr.#mediaTypeCache.keys().next().value!);
 			}
-			Transportr.mediaTypeCache.set(contentType, mediaType);
+			Transportr.#mediaTypeCache.set(contentType, mediaType);
 		}
 
 		return mediaType;
@@ -1479,7 +1525,7 @@ export class Transportr {
 	 * @param searchParams The search parameters to append to the URL.
 	 * @returns A new URL with the given path and search parameters.
 	 */
-	private static createUrl(source: Transportr | URL, path?: string, searchParams?: SearchParameters): URL {
+	static #createUrl(source: Transportr | URL, path?: string, searchParams?: SearchParameters): URL {
 		let requestUrl: URL;
 		if (source instanceof URL) {
 			// Legacy/direct-call path \u2014 strip a single trailing slash from pathname.
@@ -1487,11 +1533,11 @@ export class Transportr {
 			const normalizedBase = basePath.charCodeAt(basePath.length - 1) === 47 ? basePath.slice(0, -1) : basePath;
 			requestUrl = path ? new URL(`${normalizedBase}${path}`, source.origin) : new URL(source);
 		} else {
-			requestUrl = path ? new URL(`${source._basePath}${path}`, source._origin) : new URL(source._baseUrl);
+			requestUrl = path ? new URL(`${source.#basePath}${path}`, source.#origin) : new URL(source.#baseUrl);
 		}
 
 		if (searchParams) {
-			Transportr.mergeSearchParams(requestUrl.searchParams, searchParams);
+			Transportr.#mergeSearchParams(requestUrl.searchParams, searchParams);
 		}
 
 		return requestUrl;
@@ -1503,7 +1549,7 @@ export class Transportr {
 	 * @param response The Response object.
 	 * @returns A ResponseStatus object.
 	 */
-	private static generateResponseStatusFromError(errorName?: string, { status, statusText }: Response = new Response()): ResponseStatus {
+	static #generateResponseStatusFromError(errorName?: string, { status, statusText }: Response = new Response()): ResponseStatus {
 		switch (errorName) {
 			case SignalErrors.ABORT: return aborted;
 			case SignalErrors.TIMEOUT: return timedOut;
@@ -1519,13 +1565,13 @@ export class Transportr {
 	 * @param requestOptions The original request options that led to the error, used for hooks context.
 	 * @returns An HttpError object.
 	 */
-	private async handleError(path?: string, response?: Response, { cause, entity, url, method, timing }: Omit<HttpErrorOptions, 'message'> = {}, requestOptions?: RequestOptions): Promise<HttpError> {
+	async #handleError(path?: string, response?: Response, { cause, entity, url, method, timing }: Omit<HttpErrorOptions, 'message'> = {}, requestOptions?: RequestOptions): Promise<HttpError> {
 		const message = method && url	? `${method} ${url.href} failed${response ? ` with status ${response.status}` : ''}` : `An error has occurred with your request to: '${path}'`;
-		let error = new HttpError(Transportr.generateResponseStatusFromError(cause?.name, response), { message, cause, entity, url, method, timing });
+		let error = new HttpError(Transportr.#generateResponseStatusFromError(cause?.name, response), { message, cause, entity, url, method, timing });
 
-		error = await this.runBeforeErrorHooks(error, requestOptions?.hooks?.beforeError);
+		error = await this.#runBeforeErrorHooks(error, requestOptions?.hooks?.beforeError);
 
-		this.publish({ name: RequestEvent.ERROR, data: error });
+		this.#publish({ name: RequestEvent.ERROR, data: error });
 
 		return error;
 	}
@@ -1536,15 +1582,15 @@ export class Transportr {
 	 * which avoids both the CustomEvent allocation and the validateEventName/forEach overhead inside Subscribr.
 	 * @param eventObject The event object to publish.
 	 */
-	private publish({ name, event, data, global = true }: PublishOptions): void {
-		const hasGlobal = global && (Transportr.globalSubCounts[name] ?? 0) > 0;
-		const hasLocal = (this.subCounts[name] ?? 0) > 0;
+	#publish({ name, event, data, global = true }: PublishOptions): void {
+		const hasGlobal = global && (Transportr.#globalSubCounts[name] ?? 0) > 0;
+		const hasLocal = (this.#subCounts[name] ?? 0) > 0;
 		if (!hasGlobal && !hasLocal) { return }
 
 		// Lazily allocate the CustomEvent only when at least one subscriber exists.
 		const evt = event ?? new CustomEvent(name);
-		if (hasGlobal) { Transportr.globalSubscribr.publish(name, evt, data) }
-		if (hasLocal) { this.subscribr.publish(name, evt, data) }
+		if (hasGlobal) { Transportr.#globalSubscribr.publish(name, evt, data) }
+		if (hasLocal) { this.#subscribr.publish(name, evt, data) }
 	}
 
 	/**
@@ -1552,30 +1598,43 @@ export class Transportr {
 	 * @param contentType The content type of the response.
 	 * @returns A response handler function.
 	 */
-	private getResponseHandler<T extends ResponseBody>(contentType?: string | null): ResponseHandler<T> | undefined {
+	#getResponseHandler<T extends ResponseBody>(contentType?: string | null): ResponseHandler<T> | undefined {
 		if (!contentType) { return }
 
 		// Fast path: result already resolved for this exact Content-Type string.
-		const cached = Transportr.handlerResolutionCache.get(contentType);
+		const cached = Transportr.#handlerResolutionCache.get(contentType);
 		if (cached !== undefined) { return cached === null ? undefined : cached as ResponseHandler<T> }
 
-		const mediaType = Transportr.getOrParseMediaType(contentType);
+		const mediaType = Transportr.#getOrParseMediaType(contentType);
 		if (!mediaType) {
-			Transportr.handlerResolutionCache.set(contentType, null);
+			Transportr.#handlerResolutionCache.set(contentType, null);
 			return;
 		}
 
-		const handlers = Transportr.contentTypeHandlers;
+		const handlers = Transportr.#contentTypeHandlers;
 		for (let i = 0, length = handlers.length; i < length; i++) {
 			const entry = handlers[i]!;
 			if (mediaType.matches(entry[0])) {
 				const resolved = entry[1];
-				Transportr.handlerResolutionCache.set(contentType, resolved);
+				Transportr.#handlerResolutionCache.set(contentType, resolved);
 				return resolved as ResponseHandler<T>;
 			}
 		}
 
-		Transportr.handlerResolutionCache.set(contentType, null);
+		// Structured syntax suffix fallback for types like application/*+json and application/*+xml.
+		const subtype = mediaType.subtype;
+		if (subtype.endsWith('+json')) {
+			Transportr.#handlerResolutionCache.set(contentType, handleJson);
+			return handleJson as ResponseHandler<T>;
+		}
+
+		if (subtype.endsWith('+xml')) {
+			Transportr.#handlerResolutionCache.set(contentType, handleXml);
+			return handleXml as ResponseHandler<T>;
+		}
+
+		Transportr.#handlerResolutionCache.set(contentType, null);
+
 		return undefined;
 	}
 

@@ -15,17 +15,16 @@ let purify: DOMPurify | undefined;
 const ensureDom = (): Promise<void> => {
 	if (domReady) { return domReady }
 
-	const domSetup: Promise<void> = typeof document === 'undefined' || typeof DOMParser === 'undefined' || typeof DocumentFragment === 'undefined' ?
-		import('jsdom').then(({ JSDOM }) => {
-			const { window } = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', { url: 'http://localhost' });
+	const domSetup: Promise<void> = typeof document === 'undefined' || typeof DOMParser === 'undefined' || typeof DocumentFragment === 'undefined' ? import('jsdom').then(({ JSDOM }) => {
+		const { window } = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>', { url: 'http://localhost' });
 
-			globalThis.window = window as unknown as Window & typeof globalThis;
+		globalThis.window = window as unknown as Window & typeof globalThis;
 
-			Object.assign(globalThis, { document: window.document, DOMParser: window.DOMParser, DocumentFragment: window.DocumentFragment });
-		}).catch(() => {
-			domReady = undefined;
-			throw new Error('jsdom is required for HTML/XML/DOM features in Node.js environments. Install it with: npm install jsdom');
-		}) : Promise.resolve();
+		Object.assign(globalThis, { document: window.document, DOMParser: window.DOMParser, DocumentFragment: window.DocumentFragment });
+	}).catch(() => {
+		domReady = undefined;
+		throw new Error('jsdom is required for HTML/XML/DOM features in Node.js environments. Install it with: npm install jsdom');
+	}) : Promise.resolve();
 
 	return domReady = domSetup.then(() => import('dompurify')).then(({ default: p }) => { purify = p });
 };
@@ -79,8 +78,7 @@ const handleText: ResponseHandler<string> = (response) => response.text();
  */
 const handleScript: ResponseHandler<void> = (response) => {
 	return withObjectURL(response, (objectURL, resolve, reject) => {
-		const script = document.createElement('script');
-		Object.assign(script, { src: objectURL, type: 'text/javascript', async: true });
+		const script = Object.assign(document.createElement('script'), { src: objectURL, type: 'text/javascript', async: true });
 
 		/** Resolve the promise once the script has loaded. */
 		script.onload = () => {
@@ -106,8 +104,7 @@ const handleScript: ResponseHandler<void> = (response) => {
  */
 const handleCss: ResponseHandler<void> = (response) => {
 	return withObjectURL(response, (objectURL, resolve, reject) => {
-		const link = document.createElement('link');
-		Object.assign(link, { href: objectURL, type: 'text/css', rel: 'stylesheet' });
+		const link = Object.assign(document.createElement('link'), { href: objectURL, type: 'text/css', rel: 'stylesheet' });
 
 		link.onload = () => resolve();
 
@@ -239,7 +236,9 @@ async function* readDelimited(body: ReadableStream<Uint8Array>, delimiter: strin
 			}
 
 			const { done, value } = await reader.read();
+
 			if (done) { break }
+
 			buffer += decoder.decode(value, { stream: true });
 		}
 
@@ -268,8 +267,9 @@ const parseServerSentEvent = (rawEvent: string): ServerSentEvent | undefined => 
 	let extraData: string[] | undefined;
 
 	const lines = rawEvent.split('\n');
-	for (let i = 0, length = lines.length; i < length; i++) {
-		const line = lines[i]!;
+	for (let i = 0, line, length = lines.length; i < length; i++) {
+		line = lines[i]!;
+
 		// comment line
 		if (line.charCodeAt(0) === 58) { continue }
 
@@ -286,15 +286,22 @@ const parseServerSentEvent = (rawEvent: string): ServerSentEvent | undefined => 
 		}
 
 		switch (field) {
-			case 'event': event = value; break;
-			case 'data':
+			case 'event': {
+				event = value;
+				break;
+			}
+			case 'data': {
 				if (firstData === undefined) {
 					firstData = value;
 				} else {
 					(extraData ??= []).push(value);
 				}
 				break;
-			case 'id': id = value; break;
+			}
+			case 'id': {
+				id = value;
+				break;
+			}
 			case 'retry': {
 				const n = parseInt(value, 10);
 				if (!isNaN(n)) { retry = n }
@@ -305,9 +312,8 @@ const parseServerSentEvent = (rawEvent: string): ServerSentEvent | undefined => 
 
 	if (firstData === undefined && event === 'message') { return undefined }
 
-	const data = extraData === undefined
-		? (firstData ?? '')
-		: `${firstData}\n${extraData.join('\n')}`;
+	const data = extraData === undefined ? (firstData ?? '') : `${firstData}\n${extraData.join('\n')}`;
+
 	return { event, data, id, retry };
 };
 

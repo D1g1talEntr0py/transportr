@@ -54,7 +54,9 @@ describe('Hooks', () => {
 			const transportr = new Transportr(apiBaseUrl);
 			transportr.addHooks({
 				beforeRequest: [(options) => {
-					options.headers?.set('x-custom-header', 'test-value');
+					const headers = new Headers(options.headers);
+					headers.set('x-custom-header', 'test-value');
+					return { ...options, headers };
 				}]
 			});
 

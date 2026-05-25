@@ -3,12 +3,12 @@ import type { AbortConfiguration, AbortEvent, AbortSignalEvent } from '@types';
 
 /** Class representing a controller for abort signals, allowing for aborting requests and handling timeout events */
 export class SignalController {
-	private readonly abortSignal: AbortSignal;
-	private readonly abortController = new AbortController();
+	readonly #abortSignal: AbortSignal;
+	readonly #abortController = new AbortController();
 	/** Lazily-allocated. Tracks user-attached listeners for cleanup. */
-	private events: Map<EventListener, string> | undefined;
+	#events: Map<EventListener, string> | undefined;
 	/** True when the signal is a composite (AbortSignal.any wrapper) — only then must we remove the internal abort listener. */
-	private readonly hasComposite: boolean;
+	readonly #hasComposite: boolean;
 
 	/**
 	 * Creates a new SignalController instance.
@@ -26,20 +26,20 @@ export class SignalController {
 		// Fast path: no external signal and no timeout — reuse the internal controller's signal directly.
 		// Avoids AbortSignal.any allocation and the abort listener (only required for timeout dispatch).
 		if (!hasExternal && !hasTimeout) {
-			this.abortSignal = this.abortController.signal;
-			this.hasComposite = false;
+			this.#abortSignal = this.#abortController.signal;
+			this.#hasComposite = false;
 			return;
 		}
 
-		const signals: AbortSignal[] = [ this.abortController.signal ];
+		const signals: AbortSignal[] = [ this.#abortController.signal ];
 		if (hasExternal) { signals.push(signal) }
 		if (hasTimeout) { signals.push(AbortSignal.timeout(timeout)) }
 
-		this.abortSignal = AbortSignal.any(signals);
-		this.hasComposite = true;
+		this.#abortSignal = AbortSignal.any(signals);
+		this.#hasComposite = true;
 		// Only register the abort listener when a timeout is in play (it dispatches the synthetic timeout event).
 		if (hasTimeout) {
-			this.abortSignal.addEventListener(SignalEvents.ABORT, this, eventListenerOptions);
+			this.#abortSignal.addEventListener(SignalEvents.ABORT, this, eventListenerOptions);
 		}
 	}
 
@@ -50,8 +50,8 @@ export class SignalController {
 	 * @see https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener#specifying_this_using_bind
 	 */
 	handleEvent({ target: { reason } }: AbortSignalEvent): void {
-		if (this.abortController.signal.aborted) { return }
-		if (reason instanceof DOMException && reason.name === SignalErrors.TIMEOUT) { this.abortSignal.dispatchEvent(timeoutEvent()) }
+		if (this.#abortController.signal.aborted) { return }
+		if (reason instanceof DOMException && reason.name === SignalErrors.TIMEOUT) { this.#abortSignal.dispatchEvent(timeoutEvent()) }
 	}
 
 	/**
@@ -59,7 +59,7 @@ export class SignalController {
 	 * @returns The signal
 	 */
 	get signal(): AbortSignal {
-		return this.abortSignal;
+		return this.#abortSignal;
 	}
 
 	/**
@@ -69,7 +69,7 @@ export class SignalController {
 	 * @returns The SignalController
 	 */
 	onAbort(eventListener: EventListener): SignalController {
-		return this.addEventListener(SignalEvents.ABORT, eventListener);
+		return this.#addEventListener(SignalEvents.ABORT, eventListener);
 	}
 
 	/**
@@ -79,7 +79,7 @@ export class SignalController {
 	 * @returns The SignalController
 	 */
 	onTimeout(eventListener: EventListener): SignalController {
-		return this.addEventListener(SignalEvents.TIMEOUT, eventListener);
+		return this.#addEventListener(SignalEvents.TIMEOUT, eventListener);
 	}
 
 	/**
@@ -88,7 +88,7 @@ export class SignalController {
 	 * @param event The event to abort with
 	 */
 	abort(event: AbortEvent = abortEvent()): void {
-		this.abortController.abort(event.detail?.cause);
+		this.#abortController.abort(event.detail?.cause);
 	}
 
 	/**
@@ -98,14 +98,14 @@ export class SignalController {
 	 */
 	destroy(): SignalController {
 		// Only remove the internal abort listener if it was actually registered (composite signals with a timeout).
-		if (this.hasComposite) {
-			this.abortSignal.removeEventListener(SignalEvents.ABORT, this, eventListenerOptions);
+		if (this.#hasComposite) {
+			this.#abortSignal.removeEventListener(SignalEvents.ABORT, this, eventListenerOptions);
 		}
 
-		const events = this.events;
+		const events = this.#events;
 		if (events !== undefined) {
 			for (const [ eventListener, type ] of events) {
-				this.abortSignal.removeEventListener(type, eventListener, eventListenerOptions);
+				this.#abortSignal.removeEventListener(type, eventListener, eventListenerOptions);
 			}
 			events.clear();
 		}
@@ -120,9 +120,9 @@ export class SignalController {
 	 * @param eventListener The listener to add
 	 * @returns The SignalController
 	 */
-	private addEventListener(type: string, eventListener: EventListener): SignalController {
-		this.abortSignal.addEventListener(type, eventListener, eventListenerOptions);
-		(this.events ??= new Map()).set(eventListener, type);
+	#addEventListener(type: string, eventListener: EventListener): SignalController {
+		this.#abortSignal.addEventListener(type, eventListener, eventListenerOptions);
+		(this.#events ??= new Map()).set(eventListener, type);
 
 		return this;
 	}

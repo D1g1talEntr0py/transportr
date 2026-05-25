@@ -21,30 +21,59 @@ describe('Browser Environment Content Handlers', () => {
 		}
 	});
 
-	it('should include browser-specific content type handlers when browser environment is available', async () => {
-		// Re-import Transportr after setting up the browser environment mocks
+	it('should handle text/plain content type', async () => {
 		const { Transportr } = await import('../src/transportr.js');
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('hello world', { status: 200, headers: { 'content-type': 'text/plain' } })
+		);
+		const transportr = new Transportr('http://localhost');
+		const result = await transportr.get('/test');
+		expect(result).toBe('hello world');
+		vi.restoreAllMocks();
+	});
 
-		// Access the private contentTypeHandlers property
-		const contentTypeHandlers = (Transportr as any).contentTypeHandlers;
-		const handlerTypes = contentTypeHandlers.map(([type]: [string, any]) => type);
+	it('should handle application/json content type', async () => {
+		const { Transportr } = await import('../src/transportr.js');
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } })
+		);
+		const transportr = new Transportr('http://localhost');
+		const result = await transportr.get('/test');
+		expect(result).toEqual({ ok: true });
+		vi.restoreAllMocks();
+	});
 
-		// Should have basic handlers
-		expect(handlerTypes).toContain('text');
-		expect(handlerTypes).toContain('json');
-		expect(handlerTypes).toContain('octet-stream');
+	it('should handle application/octet-stream content type', async () => {
+		const { Transportr } = await import('../src/transportr.js');
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(new Uint8Array([1, 2, 3]).buffer, { status: 200, headers: { 'content-type': 'application/octet-stream' } })
+		);
+		const transportr = new Transportr('http://localhost');
+		const result = await transportr.get('/file');
+		expect(result).toBeDefined();
+		vi.restoreAllMocks();
+	});
 
-		// Should have DOM-specific handlers
-		expect(handlerTypes).toContain('html');
-		expect(handlerTypes).toContain('xml');
+	it('should handle text/html content type', async () => {
+		const { Transportr } = await import('../src/transportr.js');
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('<html><body>hello</body></html>', { status: 200, headers: { 'content-type': 'text/html' } })
+		);
+		const transportr = new Transportr('http://localhost');
+		const result = await transportr.get('/page');
+		expect(result).toBeDefined();
+		vi.restoreAllMocks();
+	});
 
-		// Should have browser-specific handlers (these are the lines 166-168 we want to cover)
-		expect(handlerTypes).toContain('image'); // PNG handler
-		expect(handlerTypes).toContain('javascript'); // JS handler
-		expect(handlerTypes).toContain('css'); // CSS handler
-
-		// Should have more handlers than just the basic 3
-		expect(contentTypeHandlers.length).toBeGreaterThan(3);
+	it('should handle application/xml content type', async () => {
+		const { Transportr } = await import('../src/transportr.js');
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('<root><item>1</item></root>', { status: 200, headers: { 'content-type': 'application/xml' } })
+		);
+		const transportr = new Transportr('http://localhost');
+		const result = await transportr.get('/data.xml');
+		expect(result).toBeDefined();
+		vi.restoreAllMocks();
 	});
 
 	it('should properly detect browser environment when all APIs are available', async () => {
@@ -56,27 +85,20 @@ describe('Browser Environment Content Handlers', () => {
 		// Verify the instance was created successfully
 		expect(transportr).toBeInstanceOf(Transportr);
 		expect(transportr.baseUrl).toBeInstanceOf(URL);
-
-		// The fact that we can create an instance means the browser environment
-		// detection worked and the contentTypeHandlers were properly initialized
-		const contentTypeHandlers = (Transportr as any).contentTypeHandlers;
-		expect(Array.isArray(contentTypeHandlers)).toBe(true);
-		expect(contentTypeHandlers.length).toBeGreaterThanOrEqual(6); // 3 basic + 2 DOM + 3 browser = 8 total
 	});
 
-	it('should have all expected content type handlers in browser environment', async () => {
+	it('should have registered content type handlers in browser environment', async () => {
 		const { Transportr } = await import('../src/transportr.js');
-
-		const contentTypeHandlers = (Transportr as any).contentTypeHandlers;
-
-		// Verify we have the expected number of handlers (3 basic + 2 DOM + 3 browser = 8)
-		expect(contentTypeHandlers).toHaveLength(8);
-
-		// Verify each handler is a valid [string, function] pair
-		contentTypeHandlers.forEach(([type, handler]: [string, Function]) => {
-			expect(typeof type).toBe('string');
-			expect(typeof handler).toBe('function');
-			expect(type.length).toBeGreaterThan(0);
-		});
+		// Behavioral: verify a custom handler can be registered and invoked
+		const handler = vi.fn(async () => 'test');
+		Transportr.registerContentTypeHandler('application/x-test-browser', handler);
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response('test', { status: 200, headers: { 'content-type': 'application/x-test-browser' } })
+		);
+		const transportr = new Transportr('http://localhost');
+		const result = await transportr.get('/test');
+		expect(result).toBe('test');
+		Transportr.unregisterContentTypeHandler('application/x-test-browser');
+		vi.restoreAllMocks();
 	});
 });

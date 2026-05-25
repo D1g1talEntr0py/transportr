@@ -1,11 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Transportr } from '../src/transportr.js';
-import config from './scripts/config.js';
 
-const apiBaseUrl = `https://${config.apiKey}.mockapi.io/artists`;
+const apiBaseUrl = 'https://example.mockapi.io/artists';
+
+function mockJsonFetch(): ReturnType<typeof vi.spyOn> {
+	return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+		const url = new URL(String(input));
+		const id = url.pathname.split('/').filter(Boolean).at(-1) ?? '1';
+		const payload = { id, firstName: 'Test', lastName: 'User' };
+
+		return new Response(JSON.stringify(payload), {
+			status: 200,
+			headers: { 'content-type': 'application/json' }
+		});
+	});
+}
 
 describe('Request Options Performance Optimization', () => {
 	it('should merge request options without deep cloning on every request', async () => {
+		const fetchSpy = mockJsonFetch();
 		const transportr = new Transportr(apiBaseUrl, {
 			headers: { 'X-Custom-Header': 'instance-value' },
 			cache: 'no-cache',
@@ -22,9 +35,12 @@ describe('Request Options Performance Optimization', () => {
 		// The optimization should avoid calling objectMerge in processRequestOptions
 		// It should only be called once in the constructor via createOptions
 		expect(mergeSpy).not.toHaveBeenCalled();
+		fetchSpy.mockRestore();
+		mergeSpy.mockRestore();
 	});
 
 	it('should correctly override instance options with user options', async () => {
+		const fetchSpy = mockJsonFetch();
 		const transportr = new Transportr(apiBaseUrl, {
 			headers: { 'X-Instance-Header': 'instance' },
 			cache: 'no-cache'
@@ -45,7 +61,7 @@ describe('Request Options Performance Optimization', () => {
 			await new Promise(resolve => setTimeout(resolve, 50));
 
 			expect(successHandler).toHaveBeenCalled();
-			const configuredOptions = successHandler.mock.calls[0][0];
+			const configuredOptions = successHandler.mock.calls[0]![0];
 
 			// User options should override instance options
 			expect(configuredOptions.cache).toBe('force-cache');
@@ -55,10 +71,12 @@ describe('Request Options Performance Optimization', () => {
 			expect(configuredOptions.headers.get('X-User-Header')).toBe('user');
 		} finally {
 			Transportr.unregister(registration);
+			fetchSpy.mockRestore();
 		}
 	});
 
 	it('should correctly merge headers from instance, user, and method options', async () => {
+		const fetchSpy = mockJsonFetch();
 		const transportr = new Transportr(apiBaseUrl, {
 			headers: { 'X-Instance': 'instance-value' }
 		});
@@ -78,7 +96,7 @@ describe('Request Options Performance Optimization', () => {
 			await new Promise(resolve => setTimeout(resolve, 50));
 
 			expect(successHandler).toHaveBeenCalled();
-			const configuredOptions = successHandler.mock.calls[0][0];
+			const configuredOptions = successHandler.mock.calls[0]![0];
 
 			// All headers should be present
 			expect(configuredOptions.headers.get('X-Instance')).toBe('instance-value');
@@ -86,10 +104,12 @@ describe('Request Options Performance Optimization', () => {
 			expect(configuredOptions.headers.get('Accept')).toBeTruthy();
 		} finally {
 			Transportr.unregister(registration);
+			fetchSpy.mockRestore();
 		}
 	}, 10000);
 
 	it('should maintain correct option precedence: method > user > instance > defaults', async () => {
+		const fetchSpy = mockJsonFetch();
 		const transportr = new Transportr(apiBaseUrl, {
 			cache: 'no-cache',
 			credentials: 'include'
@@ -110,7 +130,7 @@ describe('Request Options Performance Optimization', () => {
 			await new Promise(resolve => setTimeout(resolve, 50));
 
 			expect(successHandler).toHaveBeenCalled();
-			const configuredOptions = successHandler.mock.calls[0][0];
+			const configuredOptions = successHandler.mock.calls[0]![0];
 
 			// User cache should override instance cache
 			expect(configuredOptions.cache).toBe('force-cache');
@@ -120,10 +140,12 @@ describe('Request Options Performance Optimization', () => {
 			expect(configuredOptions.method).toBe('GET');
 		} finally {
 			Transportr.unregister(registration);
+			fetchSpy.mockRestore();
 		}
 	});
 
 	it('should handle sequential requests efficiently without accumulating overhead', async () => {
+		const fetchSpy = mockJsonFetch();
 		const transportr = new Transportr(apiBaseUrl);
 
 		const startTime = performance.now();
@@ -139,9 +161,11 @@ describe('Request Options Performance Optimization', () => {
 		// This is a basic check - in a real scenario, we'd compare before/after optimization
 		// The test mainly ensures the functionality still works correctly
 		expect(totalTime).toBeGreaterThan(0);
+		fetchSpy.mockRestore();
 	}, 30000);
 
 	it('should properly handle searchParams merging without deep cloning', async () => {
+		const fetchSpy = mockJsonFetch();
 		const transportr = new Transportr(apiBaseUrl, {
 			searchParams: { instanceParam: 'instance' }
 		});
@@ -160,13 +184,14 @@ describe('Request Options Performance Optimization', () => {
 			await new Promise(resolve => setTimeout(resolve, 50));
 
 			expect(successHandler).toHaveBeenCalled();
-			const configuredOptions = successHandler.mock.calls[0][0];
+			const configuredOptions = successHandler.mock.calls[0]![0];
 
 			// Both params should be present
 			expect(configuredOptions.searchParams.get('instanceParam')).toBe('instance');
 			expect(configuredOptions.searchParams.get('userParam')).toBe('user');
 		} finally {
 			Transportr.unregister(registration);
+			fetchSpy.mockRestore();
 		}
 	});
 });

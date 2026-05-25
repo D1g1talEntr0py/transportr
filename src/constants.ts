@@ -2,29 +2,27 @@ import { MediaType } from '@d1g1tal/media-type';
 import { ResponseStatus } from './response-status';
 import type { AbortEvent, TimeoutEvent, RequestMethod } from '@types';
 
-const charset = { charset: 'utf-8' };
 const endsWithSlashRegEx: RegExp = /\/$/;
 /** Default XSRF cookie name */
 const XSRF_COOKIE_NAME = 'XSRF-TOKEN';
 /** Default XSRF header name */
 const XSRF_HEADER_NAME = 'X-XSRF-TOKEN';
 
-type MediaTypeKey = 'PNG' | 'TEXT' | 'JSON' | 'HTML' | 'JAVA_SCRIPT' | 'CSS' | 'XML' | 'BIN' | 'EVENT_STREAM' | 'NDJSON';
-
-const mediaTypes: { [key in MediaTypeKey]: MediaType } = {
-	PNG: new MediaType('image/png'),
-	TEXT: new MediaType('text/plain', charset),
-	JSON: new MediaType('application/json', charset),
-	HTML: new MediaType('text/html', charset),
-	JAVA_SCRIPT: new MediaType('text/javascript', charset),
-	CSS: new MediaType('text/css', charset),
-	XML: new MediaType('application/xml', charset),
-	BIN: new MediaType('application/octet-stream'),
-	EVENT_STREAM: new MediaType('text/event-stream', charset),
-	NDJSON: new MediaType('application/x-ndjson', charset)
+const mediaTypes = {
+	PNG: 'image/png',
+	TEXT: 'text/plain',
+	JSON: 'application/json',
+	HTML: 'text/html',
+	JAVA_SCRIPT: 'text/javascript',
+	CSS: 'text/css',
+	XML: 'application/xml',
+	BIN: 'application/octet-stream',
+	EVENT_STREAM: 'text/event-stream',
+	NDJSON: 'application/x-ndjson'
 } as const;
 
-const defaultMediaType: string = mediaTypes.JSON.toString();
+const defaultCharset = { charset: 'utf-8' } as const;
+const defaultMediaType: MediaType = new MediaType(mediaTypes.JSON, defaultCharset);
 const defaultOrigin: string = globalThis.location?.origin ?? 'http://localhost';
 
 /** Constant object for caching policies */
