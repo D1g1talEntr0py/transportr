@@ -194,18 +194,19 @@ const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) =
 };
 
 /**
- * Handles an HTML fragment response without sanitization.
+ * Handles an HTML fragment response, allowing script tags to pass through DOMPurify.
  * Only available in environments with DOM support.
  *
- * **Security Warning:** DOMPurify is bypassed entirely. Scripts, inline event handlers,
- * and all other content are preserved as-is. Only use with fully trusted same-origin content.
+ * **Security Warning:** Script tags and their attributes are preserved. Inline event handlers
+ * (`on*` attributes) and `javascript:` URLs are still removed by DOMPurify. Only use with
+ * fully trusted same-origin content.
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a DocumentFragment
  */
 const handleHtmlFragmentWithScripts: ResponseHandler<DocumentFragment> = async (response) => {
 	await ensureDom();
 
-	return document.createRange().createContextualFragment(await response.text());
+	return document.createRange().createContextualFragment(purify!.sanitize(await response.text(), { ADD_TAGS: ['script'] }));
 };
 
 /**

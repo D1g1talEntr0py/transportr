@@ -75,7 +75,7 @@ type RequestOptions = Prettify<{
 	unwrap?: boolean;
 	/** When true, script tags in HTML fragment responses are preserved by DOMPurify instead of stripped. Defaults to false. Only applies to getHtmlFragment(). */
 	allowScripts?: boolean;
-} & Omit<RequestInit, 'headers'> & MethodBody>;
+	} & Omit<RequestInit, 'headers' | 'body' | 'method'> & MethodBody>;
 
 /** Configuration for retry behavior on failed requests. */
 type RetryOptions = {
