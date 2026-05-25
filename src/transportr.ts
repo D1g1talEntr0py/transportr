@@ -1441,7 +1441,7 @@ export class Transportr {
 				const body = isObject<Record<string, unknown>>(instanceBody) && isObject<Record<string, unknown>>(userBody) ? objectMerge(instanceBody, userBody) : (userBody !== undefined ? userBody : instanceBody);
 				const contentType = headers.get('content-type');
 				const isJson = contentType !== null && contentType.includes('json');
-				requestOptions.body = (isJson && isObject(body) ? serialize(body) : body) as RequestOptions['body'];
+				requestOptions.body = (isJson && isObject(body) ? serialize(body) : body);
 			}
 		} else {
 			if (requestOptions.body instanceof URLSearchParams) {
