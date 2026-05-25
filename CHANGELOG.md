@@ -1,3 +1,31 @@
+## [4.0.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.5...v4.0.0) (2026-05-25)
+
+### ⚠ BREAKING CHANGES
+
+* Internal class properties prefixed with underscore have been migrated to native ES private properties using `#`. These fields are no longer accessible from tests or external users.
+
+### Bug Fixes
+
+* **ci:** fix linting error (b8ade0341f9b9b5af378ff7eeb19dc9225f31a0c)
+* **security:** sanitize html fragments when scripts are permitted (4986005a941fff7ccb244f2119aeed4546bacec9)
+
+### Code Refactoring
+
+* migrate to native ES private properties and rewrite test suite (de5e8ce63844f723864e79b826be04c625ee6456)
+
+### Build System
+
+* **deps:** upgrade dependencies and bump minimum Node.js version (dd3697f7829378868df26e6289a4f9d5c6ab066d)
+* Updates Node.js engine requirement to v22+ (9e03a885992762a0e9dc8ecfcdb9dea6bcb6c0df)
+Bumps the minimum required Node.js version to 22.0.0 in package engines and updates the project documentation to reflect this new requirement. This ensures compatibility with modern Node.js features and lifecycle.
+
+
+### Continuous Integration
+
+* configure PNPM release age and update Node matrix (0bdea4bbe5bafcad6664cb12028ead1bda8c2a4c)
+* Updates GitHub Actions and test matrix (c7970c8dc777e7b7a63261c95208a7f9ec0cb316)
+Upgrades several GitHub Actions dependencies to their respective v6 versions across all workflows. Also adjusts the CI matrix to test against Node.js 22 and 24, removing Node.js 20 in alignment with the updated engine requirements.
+
 ## [3.3.5](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.4...v3.3.5) (2026-05-09)
 
 ### Performance Improvements
