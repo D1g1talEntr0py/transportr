@@ -118,6 +118,47 @@ describe('Response Handlers', () => {
 		expect(script?.getAttribute('type')).toBe('text/javascript');
 	});
 
+	it('should preserve script tags when allowScripts is enabled in instance defaults', async () => {
+		const trustedHtml = '<p>Hello</p><script src="/bundle.js"></script>';
+		mockFetch.mockResolvedValue(new Response(trustedHtml, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const client = new Transportr('https://example.com', { allowScripts: true });
+		const fragment = await client.getHtmlFragment('/test') as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		expect(fragment.querySelector('script')).not.toBeNull();
+		expect(fragment.querySelector('script')?.getAttribute('src')).toBe('/bundle.js');
+	});
+
+	it('should allow per-request allowScripts to override instance defaults', async () => {
+		const trustedHtml = '<p>Hello</p><script src="/bundle.js"></script>';
+		mockFetch.mockResolvedValue(new Response(trustedHtml, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const client = new Transportr('https://example.com', { allowScripts: true });
+		const fragment = await client.getHtmlFragment('/test', { allowScripts: false }) as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		expect(fragment.querySelector('script')).toBeNull();
+	});
+
+	it('should preserve script tags when allowScripts is enabled via configure()', async () => {
+		const trustedHtml = '<p>Hello</p><script src="/configured.js"></script>';
+		mockFetch.mockResolvedValue(new Response(trustedHtml, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const client = new Transportr('https://example.com').configure({ allowScripts: true });
+		const fragment = await client.getHtmlFragment('/test') as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		expect(fragment.querySelector('script')).not.toBeNull();
+		expect(fragment.querySelector('script')?.getAttribute('src')).toBe('/configured.js');
+	});
+
 	it('should handle blob responses', async () => {
 		const expectedBlob = new Blob(['test data'], { type: 'application/octet-stream' });
 		const mockResponse = {

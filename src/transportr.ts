@@ -701,7 +701,8 @@ export class Transportr {
 	 * @returns A promise that resolves to a DocumentFragment, an Element (if selector matched), or void.
 	 */
 	async getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined | Result<DocumentFragment | Element | null | undefined>> {
-		const allowScripts = (isObject(path) ? path : options)?.allowScripts === true;
+		const requestAllowScripts = (isObject(path) ? path : options)?.allowScripts;
+		const allowScripts = (requestAllowScripts ?? this.#options.allowScripts) === true;
 		const fragment = await this.#get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, allowScripts ? handleHtmlFragmentWithScripts : handleHtmlFragment);
 		if (Array.isArray(fragment)) return fragment;
 		return selector && fragment ? fragment.querySelector(selector) : fragment;
