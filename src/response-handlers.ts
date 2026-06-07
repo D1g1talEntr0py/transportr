@@ -194,26 +194,22 @@ const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) =
  * Handles an HTML fragment response, allowing script tags to pass through DOMPurify.
  * Only available in environments with DOM support.
  *
- * **Security Warning:** Script tags and their attributes are preserved. Inline event handlers
- * (`on*` attributes) and `javascript:` URLs are still removed by DOMPurify. Only use with
- * fully trusted same-origin content.
+ * **Security Warning:** Script tags and their attributes are preserved. Uses `FORCE_BODY`
+ * to ensure top-level script elements are not silently dropped by the HTML parser.
+ * Inline event handlers (`on*` attributes) and `javascript:` URLs are still removed
+ * by DOMPurify. Only use with fully trusted same-origin content.
  * @param response The response object from the fetch request.
  * @returns A Promise that resolves to a DocumentFragment
  */
 const handleHtmlFragmentWithScripts: ResponseHandler<DocumentFragment> = async (response) => {
 	await ensureDom();
 
-	const wrapped = document.createRange().createContextualFragment(purify!.sanitize(`<div>${await response.text()}</div>`, { ADD_TAGS: ['script'] }));
-	const container = wrapped.firstElementChild;
-	const fragment = document.createDocumentFragment();
-
-	if (container) {
-		while (container.firstChild) {
-			fragment.append(container.firstChild);
-		}
-	}
-
-	return fragment;
+	return purify!.sanitize(await response.text(), {
+		ADD_TAGS: ['script'],
+		ADD_ATTR: ['src', 'type', 'async', 'defer', 'crossorigin', 'integrity', 'nomodule'],
+		FORCE_BODY: true,
+		RETURN_DOM_FRAGMENT: true,
+	});
 };
 
 /**
