@@ -1,3 +1,9 @@
+## [4.0.2](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.1...v4.0.2) (2026-06-07)
+
+### Bug Fixes
+
+* the REAL fix for the previous regression with allowing scripts (2318e91894c4b1096101e5061518fd867fd5f6e8)
+
 ## [4.0.1](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.0...v4.0.1) (2026-06-07)
 
 ### Bug Fixes
