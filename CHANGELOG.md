@@ -1,3 +1,15 @@
+## [4.0.3](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.2...v4.0.3) (2026-06-07)
+
+### Bug Fixes
+
+* use FORCE_BODY and RETURN_DOM_FRAGMENT to correctly preserve top-level script elements in sanitized fragments (8bdf29b43eaf1a961e9096d25528633a617e17f2)
+The div-wrapper approach in the previous fix worked in jsdom (vitest's test
+environment) but silently dropped script-only or leading-script fragments in
+real browser environments. DOMPurify's FORCE_BODY option is the documented
+solution for anchoring script/style elements to the body context so they
+survive sanitization. RETURN_DOM_FRAGMENT returns the DocumentFragment
+directly, eliminating the need for a second createContextualFragment parse.
+
 ## [4.0.2](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.1...v4.0.2) (2026-06-07)
 
 ### Bug Fixes
