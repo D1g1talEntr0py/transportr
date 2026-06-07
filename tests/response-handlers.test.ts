@@ -118,6 +118,35 @@ describe('Response Handlers', () => {
 		expect(script?.getAttribute('type')).toBe('text/javascript');
 	});
 
+	it('should preserve script-only HTML fragments when allowScripts is true', async () => {
+		const trustedHtml = '<script>window.__transportr = true;</script>';
+		mockFetch.mockResolvedValue(new Response(trustedHtml, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		const script = fragment.querySelector('script');
+		expect(script).not.toBeNull();
+		expect(script?.textContent).toContain('window.__transportr = true;');
+	});
+
+	it('should preserve leading script tags in HTML fragments when allowScripts is true', async () => {
+		const trustedHtml = '<script src="/bootstrap.js"></script><p>Hello</p>';
+		mockFetch.mockResolvedValue(new Response(trustedHtml, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
+
+		expect(fragment).toBeInstanceOf(DocumentFragment);
+		const script = fragment.querySelector('script');
+		expect(script).not.toBeNull();
+		expect(script?.getAttribute('src')).toBe('/bootstrap.js');
+		expect(fragment.querySelector('p')?.textContent).toBe('Hello');
+	});
+
 	it('should preserve script tags when allowScripts is enabled in instance defaults', async () => {
 		const trustedHtml = '<p>Hello</p><script src="/bundle.js"></script>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {

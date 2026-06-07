@@ -203,7 +203,17 @@ const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) =
 const handleHtmlFragmentWithScripts: ResponseHandler<DocumentFragment> = async (response) => {
 	await ensureDom();
 
-	return document.createRange().createContextualFragment(purify!.sanitize(await response.text(), { ADD_TAGS: ['script'] }));
+	const wrapped = document.createRange().createContextualFragment(purify!.sanitize(`<div>${await response.text()}</div>`, { ADD_TAGS: ['script'] }));
+	const container = wrapped.firstElementChild;
+	const fragment = document.createDocumentFragment();
+
+	if (container) {
+		while (container.firstChild) {
+			fragment.append(container.firstChild);
+		}
+	}
+
+	return fragment;
 };
 
 /**
