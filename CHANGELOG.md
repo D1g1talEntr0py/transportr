@@ -1,3 +1,9 @@
+## [4.0.1](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.0...v4.0.1) (2026-06-07)
+
+### Bug Fixes
+
+* fixed regression in allowing scripts in a per-request basis (6a4519933d8304b158a891fe4bbf497904ca2110)
+
 ## [4.0.0](https://github.com/D1g1talEntr0py/transportr/compare/v3.3.5...v4.0.0) (2026-05-25)
 
 ### ⚠ BREAKING CHANGES
