@@ -1,3 +1,7 @@
+## [5.0.0](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.3...v5.0.0) (2026-07-03)
+* **sanitize:** redesign HTML and XML response sanitization with presets (b96a3e9adec0e24e6249e4840f24673e171f1cf0)
+* **deps:** upgrade dependencies and configure vitest browser testing (373d7f4cce31165737bac5d2c742f4a76b835792)
+
 ## [4.0.3](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.2...v4.0.3) (2026-06-07)
 
 ### Bug Fixes
