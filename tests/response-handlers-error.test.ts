@@ -1,18 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// This file tests the ensureDom error path in response-handlers.ts.
+// This file tests the domReady error path in response-handlers.ts.
 // It must run in a Node.js environment where `document` is not globally available,
 // and where jsdom is mocked to fail so we can test the catch() branch.
 
 vi.mock('jsdom', () => { throw new Error('Cannot find module "jsdom"') });
 
-describe('response-handlers ensureDom error path', () => {
+describe('response-handlers domReady error path', () => {
 	beforeEach(() => {
 		vi.resetModules();
 	});
 
 	it('should throw a helpful error when jsdom is unavailable in Node.js', async () => {
-		// Temporarily remove document to simulate bare Node.js env
+		// Temporarily remove DOM globals to simulate a bare Node.js environment.
 		const savedDocument = globalThis.document;
 		const savedDOMParser = globalThis.DOMParser;
 		const savedDocumentFragment = globalThis.DocumentFragment;

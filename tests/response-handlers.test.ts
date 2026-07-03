@@ -101,30 +101,30 @@ describe('Response Handlers', () => {
 		expect(fragment.querySelector('script')).toBeNull();
 	});
 
-	it('should preserve script tags but still strip inline event handlers when allowScripts is true', async () => {
+	it('should preserve all content including scripts and event handlers when sanitizePreset is bypass', async () => {
 		const trustedHtml = '<p onclick="handleClick()">Hello</p><script src="/app.js" type="text/javascript"></script>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
-		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
+		const fragment = await transportr.getHtmlFragment('/test', { sanitizePreset: 'bypass' }) as DocumentFragment;
 
 		expect(fragment).toBeInstanceOf(DocumentFragment);
-		// DOMPurify still strips on* event handler attributes even when script tags are allowed
-		expect(fragment.querySelector('p')?.getAttribute('onclick')).toBeNull();
+		// bypass skips DOMPurify entirely — all content including event handlers is preserved
+		expect(fragment.querySelector('p')?.getAttribute('onclick')).toBe('handleClick()');
 		const script = fragment.querySelector('script');
 		expect(script).not.toBeNull();
 		expect(script?.getAttribute('src')).toBe('/app.js');
 		expect(script?.getAttribute('type')).toBe('text/javascript');
 	});
 
-	it('should preserve script-only HTML fragments when allowScripts is true', async () => {
+	it('should preserve script-only HTML fragments when sanitizePreset is bypass', async () => {
 		const trustedHtml = '<script>window.__transportr = true;</script>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
-		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
+		const fragment = await transportr.getHtmlFragment('/test', { sanitizePreset: 'bypass' }) as DocumentFragment;
 
 		expect(fragment).toBeInstanceOf(DocumentFragment);
 		const script = fragment.querySelector('script');
@@ -132,13 +132,49 @@ describe('Response Handlers', () => {
 		expect(script?.textContent).toContain('window.__transportr = true;');
 	});
 
-	it('should preserve leading script tags in HTML fragments when allowScripts is true', async () => {
+	it('should preserve template scripts while still sanitizing unsafe attributes via sanitization policy', async () => {
+		const html = '<p onclick="run()">Hello</p><script id="tmpl" type="text/x-jquery-tmpl"><div>{{each items}}<span>${$value}</span>{{/each}}</div></script><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', {
+			sanitization: {
+				preserveTemplateScripts: true
+			}
+		}) as DocumentFragment;
+
+		expect(fragment.querySelector('p')?.getAttribute('onclick')).toBeNull();
+		expect(fragment.querySelectorAll('script')).toHaveLength(1);
+		expect(fragment.querySelector('#tmpl')?.getAttribute('type')).toBe('text/x-jquery-tmpl');
+		expect(fragment.querySelector('#tmpl')?.textContent).toContain('each items');
+	});
+
+	it('should preserve custom inert template script types via sanitization policy', async () => {
+		const html = '<p onclick="run()">Hello</p><script id="custom" type="text/x-my-template"><div>{{ value }}</div></script><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', {
+			sanitization: {
+				templateScriptTypes: [ 'text/x-my-template' ]
+			}
+		}) as DocumentFragment;
+
+		expect(fragment.querySelector('p')?.getAttribute('onclick')).toBeNull();
+		expect(fragment.querySelectorAll('script')).toHaveLength(1);
+		expect(fragment.querySelector('#custom')?.getAttribute('type')).toBe('text/x-my-template');
+		expect(fragment.querySelector('#custom')?.textContent).toContain('{{ value }}');
+	});
+
+	it('should preserve leading script tags in HTML fragments when sanitizePreset is bypass', async () => {
 		const trustedHtml = '<script src="/bootstrap.js"></script><p>Hello</p>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
-		const fragment = await transportr.getHtmlFragment('/test', { allowScripts: true }) as DocumentFragment;
+		const fragment = await transportr.getHtmlFragment('/test', { sanitizePreset: 'bypass' }) as DocumentFragment;
 
 		expect(fragment).toBeInstanceOf(DocumentFragment);
 		const script = fragment.querySelector('script');
@@ -147,13 +183,13 @@ describe('Response Handlers', () => {
 		expect(fragment.querySelector('p')?.textContent).toBe('Hello');
 	});
 
-	it('should preserve script tags when allowScripts is enabled in instance defaults', async () => {
+	it('should preserve script tags when sanitizePreset is bypass in instance defaults', async () => {
 		const trustedHtml = '<p>Hello</p><script src="/bundle.js"></script>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
-		const client = new Transportr('https://example.com', { allowScripts: true });
+		const client = new Transportr('https://example.com', { sanitizePreset: 'bypass' });
 		const fragment = await client.getHtmlFragment('/test') as DocumentFragment;
 
 		expect(fragment).toBeInstanceOf(DocumentFragment);
@@ -161,31 +197,103 @@ describe('Response Handlers', () => {
 		expect(fragment.querySelector('script')?.getAttribute('src')).toBe('/bundle.js');
 	});
 
-	it('should allow per-request allowScripts to override instance defaults', async () => {
+	it('should allow per-request sanitizePreset to override instance defaults', async () => {
 		const trustedHtml = '<p>Hello</p><script src="/bundle.js"></script>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
-		const client = new Transportr('https://example.com', { allowScripts: true });
-		const fragment = await client.getHtmlFragment('/test', { allowScripts: false }) as DocumentFragment;
+		const client = new Transportr('https://example.com', { sanitizePreset: 'bypass' });
+		const fragment = await client.getHtmlFragment('/test', { sanitizePreset: 'strict' }) as DocumentFragment;
 
 		expect(fragment).toBeInstanceOf(DocumentFragment);
 		expect(fragment.querySelector('script')).toBeNull();
 	});
 
-	it('should preserve script tags when allowScripts is enabled via configure()', async () => {
+	it('should preserve script tags when sanitizePreset is bypass via configure()', async () => {
 		const trustedHtml = '<p>Hello</p><script src="/configured.js"></script>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
-		const client = new Transportr('https://example.com').configure({ allowScripts: true });
+		const client = new Transportr('https://example.com').configure({ sanitizePreset: 'bypass' });
 		const fragment = await client.getHtmlFragment('/test') as DocumentFragment;
 
 		expect(fragment).toBeInstanceOf(DocumentFragment);
 		expect(fragment.querySelector('script')).not.toBeNull();
 		expect(fragment.querySelector('script')?.getAttribute('src')).toBe('/configured.js');
+	});
+
+	it('should support sanitizePreset bypass for fragments', async () => {
+		const trustedHtml = '<p onclick="run()">Hello</p><script src="/preset.js"></script>';
+		mockFetch.mockResolvedValue(new Response(trustedHtml, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { sanitizePreset: 'bypass' }) as DocumentFragment;
+
+		expect(fragment.querySelector('p')?.getAttribute('onclick')).toBe('run()');
+		expect(fragment.querySelector('script')?.getAttribute('src')).toBe('/preset.js');
+	});
+
+	it('should keep sanitizePreset strict as default sanitization behavior for fragments', async () => {
+		const html = '<p>Hello</p><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { sanitizePreset: 'strict' }) as DocumentFragment;
+
+		expect(fragment.querySelector('p')?.textContent).toBe('Hello');
+		expect(fragment.querySelector('script')).toBeNull();
+	});
+
+	it('should prefer per-request sanitizePreset over instance sanitizePreset', async () => {
+		const html = '<p>Hello</p><script src="/bundle.js"></script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const client = new Transportr('https://example.com', { sanitizePreset: 'bypass' });
+		const fragment = await client.getHtmlFragment('/test', { sanitizePreset: 'strict' }) as DocumentFragment;
+
+		expect(fragment.querySelector('script')).toBeNull();
+	});
+
+	it('should accept sanitizePreset balanced for fragments', async () => {
+		const html = '<p data-id="123">Hello</p><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { sanitizePreset: 'balanced' }) as DocumentFragment;
+
+		expect(fragment.querySelector('p')?.getAttribute('data-id')).toBe('123');
+		expect(fragment.querySelector('script')).toBeNull();
+	});
+
+	it('should accept sanitizePreset relaxed for fragments', async () => {
+		const html = '<p data-id="123">Hello</p><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/test', { sanitizePreset: 'relaxed' }) as DocumentFragment;
+
+		expect(fragment.querySelector('p')?.getAttribute('data-id')).toBe('123');
+		expect(fragment.querySelector('script')).toBeNull();
+	});
+
+	it('should support sanitizePreset bypass for full HTML documents', async () => {
+		const html = '<h1>Hello</h1><script>window.__raw = true;</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/test', { sanitizePreset: 'bypass' }) as Document;
+
+		expect(doc.querySelector('h1')?.textContent).toBe('Hello');
+		expect(doc.querySelector('script')).not.toBeNull();
 	});
 
 	it('should handle blob responses', async () => {

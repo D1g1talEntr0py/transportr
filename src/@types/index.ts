@@ -44,6 +44,22 @@ type TypedHeaders = {
 };
 
 type EventRegistration = Subscription;
+type SanitizationPreset = 'strict' | 'balanced' | 'relaxed' | 'bypass';
+type SanitizationPolicy = {
+	preset?: SanitizationPreset;
+	preserveTemplateScripts?: boolean;
+	templateScriptTypes?: string[];
+	/**
+	 * Allows real, executable `<script>` elements (any `type`, including a remote `src`) to survive
+	 * sanitization by adding `script` to DOMPurify's allowed tags — while all other markup (inline
+	 * event handlers, `javascript:` URLs, `<iframe>`, etc.) is still sanitized normally.
+	 *
+	 * **Security Warning:** DOMPurify does not analyze or validate the JavaScript inside an allowed
+	 * `<script>` element — any code present executes as-is when injected into the DOM. Only enable
+	 * this for trusted content. Defaults to false.
+	 */
+	allowScripts?: boolean;
+};
 
 type MethodBody = {
 	method?: RequestBodyMethod;
@@ -73,8 +89,19 @@ type RequestOptions = Prettify<{
 	onUploadProgress?: (progress: DownloadProgress) => void;
 	/** When false, methods return Result tuples instead of throwing. Defaults to true (throw on error). */
 	unwrap?: boolean;
-	/** When true, script tags in HTML fragment responses are preserved by DOMPurify instead of stripped. Defaults to false. Only applies to getHtmlFragment(). */
-	allowScripts?: boolean;
+	/**
+	 * User-friendly sanitization preset for HTML/XML/fragment responses.
+	 * - strict: default DOMPurify behavior
+	 * - balanced: standard DOMPurify with conservative compatibility options
+	 * - relaxed: more permissive DOMPurify options for legacy-compatible markup
+	 * - bypass: skip DOMPurify entirely (trusted content only)
+	 */
+	sanitizePreset?: SanitizationPreset;
+	/**
+	 * Advanced sanitization policy for HTML/XML/fragment responses.
+	 * Use this to preserve inert template scripts while keeping sanitization enabled.
+	 */
+	sanitization?: SanitizationPolicy;
 	} & Omit<RequestInit, 'headers' | 'body' | 'method'> & MethodBody>;
 
 /** Configuration for retry behavior on failed requests. */
@@ -175,6 +202,8 @@ export type {
 	ResponseHandler,
 	ResponseStatus,
 	SearchParameters,
+	SanitizationPreset,
+	SanitizationPolicy,
 	TypedArray,
 	XsrfOptions
 };

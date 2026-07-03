@@ -98,6 +98,45 @@ The type system enforces what you get back. You can't accidentally call `.queryS
 
 This is the correct place to sanitize: as close to the network boundary as possible, before the content ever reaches a parser or your application code.
 
+Use `sanitizePreset` to pick a common behavior without learning DOMPurify internals:
+
+```typescript
+// Default behavior (safe): strict DOMPurify sanitization
+await api.getHtml('/page', { sanitizePreset: 'strict' });
+
+// Balanced preset for common compatibility cases
+await api.getHtmlFragment('/partial', { sanitizePreset: 'balanced' });
+
+// Relaxed preset for more permissive legacy-compatible markup
+await api.getHtmlFragment('/partial', { sanitizePreset: 'relaxed' });
+
+// Trusted content only: bypass sanitization entirely
+await api.getHtmlFragment('/legacy-template', { sanitizePreset: 'bypass' });
+```
+
+When you need to preserve inert template scripts without disabling sanitization for everything else, use `sanitization` instead of `bypass`:
+
+```typescript
+// Preserve common inert template script types such as text/x-jquery-tmpl
+await api.getHtmlFragment('/legacy-template', {
+	sanitization: {
+		preserveTemplateScripts: true
+	}
+});
+
+// Preserve an application-specific inert script type as well
+await api.getHtmlFragment('/legacy-template', {
+	sanitization: {
+		preserveTemplateScripts: true,
+		templateScriptTypes: [ 'text/x-my-template' ]
+	}
+});
+```
+
+Use `sanitizePreset: 'bypass'` only when the entire response is trusted and you intentionally want to keep executable scripts, inline handlers, and `javascript:` URLs.
+
+`allowScripts` has been removed. Prefer `sanitization.preserveTemplateScripts` for inert templates and reserve `sanitizePreset: 'bypass'` for fully trusted content.
+
 #### 3. HTML Selector Extraction
 
 Fetch a page and get back exactly the element you want, not the whole document:
@@ -478,6 +517,12 @@ type RequestOptions = {
 	xsrf?: boolean | XsrfOptions;
 	hooks?: HooksOptions;
 	unwrap?: boolean;              // false → return Result<T> tuple instead of throwing
+	sanitizePreset?: 'strict' | 'balanced' | 'relaxed' | 'bypass';
+	sanitization?: {
+		preset?: 'strict' | 'balanced' | 'relaxed' | 'bypass';
+		preserveTemplateScripts?: boolean;
+		templateScriptTypes?: string[];
+	};
 	onDownloadProgress?: (progress: DownloadProgress) => void;
 	onUploadProgress?: (progress: DownloadProgress) => void;
 	// ...all standard RequestInit properties (cache, credentials, mode, etc.)

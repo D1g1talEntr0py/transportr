@@ -3,10 +3,10 @@ import { Subscribr } from '@d1g1tal/subscribr';
 import { HttpError } from './http-error';
 import { ResponseStatus } from './response-status';
 import { SignalController } from './signal-controller.js';
-import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, handleHtmlFragment, handleHtmlFragmentWithScripts, handleEventStream, handleNdjsonStream } from './response-handlers';
 import { isRequestBodyMethod, isRawBody, getCookieValue, isString, isArrayBuffer, isObject, objectMerge, serialize } from './utils';
+import { handleText, handleScript, handleCss, handleJson, handleBlob, handleImage, handleBuffer, handleReadableStream, handleXml, handleHtml, getXmlHandlerForPreset, getHtmlHandlerForPreset, getHtmlFragmentHandlerForPreset, handleEventStream, handleNdjsonStream } from './response-handlers';
 import { RequestCachingPolicy, RequestEvent, SignalErrors, XSRF_COOKIE_NAME, XSRF_HEADER_NAME, abortEvent, aborted, defaultMediaType, defaultOrigin, internalServerError, mediaTypes, retryBackoffFactor, retryDelay, retryMethods, retryStatusCodes, timedOut } from './constants';
-import type {	RequestBody, RequestBodyMethod, RequestOptions, ResponseBody, RequestEventHandler, SearchParameters, EventRegistration, ResponseHandler, RequestHeaders, TypedResponse, Json, Entries, HookOptions, HttpErrorOptions, NormalizedRetryOptions, PublishOptions, RetryOptions, RequestTiming, XsrfOptions, ServerSentEvent, RequestEventDataMap, TypedRequestEventHandler, Result, BeforeRequestHook, AfterResponseHook, BeforeErrorHook } from '@types';
+import type {	RequestBody, RequestBodyMethod, RequestOptions, ResponseBody, RequestEventHandler, SearchParameters, EventRegistration, ResponseHandler, RequestHeaders, TypedResponse, Json, Entries, HookOptions, HttpErrorOptions, NormalizedRetryOptions, PublishOptions, RetryOptions, RequestTiming, XsrfOptions, ServerSentEvent, RequestEventDataMap, TypedRequestEventHandler, Result, BeforeRequestHook, AfterResponseHook, BeforeErrorHook, SanitizationPolicy } from '@types';
 
 /** A handler-set for the three lifecycle phases. Used to skip empty hook loops without allocating a transient array per phase. */
 type HookCount = { beforeRequest: number, afterResponse: number, beforeError: number };
@@ -18,6 +18,21 @@ type RequestConfiguration = {
 	requestOptions: RequestOptions,
 	global: boolean
 };
+
+/**
+ * Resolves an effective sanitization policy.
+ *
+ * Precedence:
+ * request sanitization > request sanitizePreset > instance sanitization > instance sanitizePreset > strict.
+ * @param requestOptions Request-level options for the current call.
+ * @param instanceOptions Instance-level default request options.
+ * @returns The resolved sanitization policy.
+ */
+const resolveSanitizationPolicy = (requestOptions: RequestOptions | undefined, instanceOptions: RequestOptions): SanitizationPolicy => ({
+	preset: requestOptions?.sanitization?.preset ?? requestOptions?.sanitizePreset ?? instanceOptions.sanitization?.preset ?? instanceOptions.sanitizePreset ?? 'strict',
+	preserveTemplateScripts: requestOptions?.sanitization?.preserveTemplateScripts ?? instanceOptions.sanitization?.preserveTemplateScripts,
+	templateScriptTypes: requestOptions?.sanitization?.templateScriptTypes ?? instanceOptions.sanitization?.templateScriptTypes
+});
 
 /**
  * A wrapper around the fetch API that makes it easier to make HTTP requests.
@@ -659,7 +674,9 @@ export class Transportr {
 	 * @returns The result of the function call to #get.
 	 */
 	async getXml(path?: string | RequestOptions, options?: RequestOptions): Promise<Document | undefined | Result<Document | undefined>> {
-		return this.#get(path, options, { headers: { accept: `${mediaTypes.XML}` } }, handleXml);
+		const requestOptions = isObject(path) && !isString(path) ? path : options;
+
+		return this.#get(path, options, { headers: { accept: `${mediaTypes.XML}` } }, getXmlHandlerForPreset(resolveSanitizationPolicy(requestOptions, this.#options)));
 	}
 
 	/** Returns a Result tuple instead of throwing. */
@@ -679,7 +696,8 @@ export class Transportr {
 	 * @returns A promise that resolves to a Document, an Element (if selector matched), or void.
 	 */
 	async getHtml(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<Document | Element | null | undefined | Result<Document | Element | null | undefined>> {
-		const doc = await this.#get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, handleHtml);
+		const requestOptions = isObject(path) && !isString(path) ? path : options;
+		const doc = await this.#get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, getHtmlHandlerForPreset(resolveSanitizationPolicy(requestOptions, this.#options)));
 		if (Array.isArray(doc)) return doc;
 		return selector && doc ? doc.querySelector(selector) : doc;
 	}
@@ -701,12 +719,14 @@ export class Transportr {
 	 * @returns A promise that resolves to a DocumentFragment, an Element (if selector matched), or void.
 	 */
 	async getHtmlFragment(path?: string | RequestOptions, options?: RequestOptions, selector?: string): Promise<DocumentFragment | Element | null | undefined | Result<DocumentFragment | Element | null | undefined>> {
-		const requestAllowScripts = (isObject(path) ? path : options)?.allowScripts;
-		const allowScripts = (requestAllowScripts ?? this.#options.allowScripts) === true;
-		const fragment = await this.#get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, allowScripts ? handleHtmlFragmentWithScripts : handleHtmlFragment);
-		if (Array.isArray(fragment)) return fragment;
+		const requestOptions = isObject(path) && !isString(path) ? path : options;
+		const fragment = await this.#get(path, options, { headers: { accept: `${mediaTypes.HTML}` } }, getHtmlFragmentHandlerForPreset(resolveSanitizationPolicy(requestOptions, this.#options)));
+
+		if (Array.isArray(fragment)) { return fragment }
+
 		return selector && fragment ? fragment.querySelector(selector) : fragment;
 	}
+
 	/** Returns a Result tuple instead of throwing. */
 	getScript(path: string | undefined, options: RequestOptions & { unwrap: false }): Promise<Result<void>>;
 	/** Returns a Result tuple instead of throwing. */
