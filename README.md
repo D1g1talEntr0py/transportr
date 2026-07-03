@@ -2,8 +2,8 @@
 
 [![npm version](https://img.shields.io/npm/v/@d1g1tal/transportr?color=blue)](https://www.npmjs.com/package/@d1g1tal/transportr)
 [![npm downloads](https://img.shields.io/npm/dm/@d1g1tal/transportr)](https://www.npmjs.com/package/@d1g1tal/transportr)
-[![CI](https://github.com/D1g1talEntr0py/transportr/actions/workflows/ci.yml/badge.svg)](https://github.com/D1g1talEntr0py/transportr/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/D1g1talEntr0py/transportr/graph/badge.svg)](https://codecov.io/gh/D1g1talEntr0py/transportr)
+[![CI](https://img.shields.io/github/actions/workflow/status/D1g1talEntr0py/transportr/ci.yml?branch=main&label=CI)](https://github.com/D1g1talEntr0py/transportr/actions/workflows/ci.yml)
+[![codecov](https://img.shields.io/codecov/c/github/D1g1talEntr0py/transportr?label=coverage)](https://codecov.io/gh/D1g1talEntr0py/transportr)
 [![License: MIT](https://img.shields.io/github/license/D1g1talEntr0py/transportr)](https://github.com/D1g1talEntr0py/transportr/blob/main/LICENSE)
 [![Node.js](https://img.shields.io/node/v/@d1g1tal/transportr)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-4.5-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
