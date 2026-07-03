@@ -1,159 +1,63 @@
-# Copilot Instructions for transportr
+# Transportr — Copilot Instructions
+TypeScript 6 Fetch API wrapper: type-safe HTTP, abort/timeout, event-driven lifecycle, content-type response handling, retry, dedup, hooks, XSRF. `@d1g1tal/transportr` v4.
 
-A TypeScript Fetch API wrapper providing type-safe HTTP requests with advanced abort/timeout handling, event-driven architecture, automatic content-type based response processing, retry logic, request deduplication, lifecycle hooks, and XSRF protection.
+Stack: TS 6.x (strict|isolatedDeclarations|verbatimModuleSyntax) | Vitest (unit|integration) | pnpm | tsbuild → dist/*.{js,d.ts} (bundles: @d1g1tal/media-type|subscribr|dompurify, target ESNext) | Public types: src/@types/index.ts
 
-## Architecture & Data Flow
+Scripts: `lint` (tabs|single quotes|JSDoc) | `build`/`build:watch` | `build:release` (minified) | `test` | `test:coverage` → tests/coverage/ | `type-check`
 
-**Core Request Pipeline** (`src/transportr.ts`):
-1. `execute()` → merges user/instance/default options via `processRequestOptions()`
-2. `processRequestOptions()` → creates `SignalController`, normalizes headers/searchParams via `mergeHeaders`/`mergeSearchParams`, stringifies JSON bodies when `content-type` includes `json`
-3. `_request()` → performs `fetch`, selects response handler from `contentTypeHandlers` array based on `content-type` header, emits lifecycle events (`success/error/complete/all-complete`)
-4. Response handlers (`handleJson`, `handleHtml`, etc. in `src/response-handlers.ts`) → transform raw `Response` to typed return values
+## Pipeline (src/transportr.ts)
+1. `execute()` → `processRequestOptions()`: shallow-merge flat props, deep-merge hdrs/searchParams, create SignalController, stringify JSON bodies (content-type: application/json)
+2. `_request()` → fetch, select handler via `MediaType.matches()`, emit events
+3. Handlers (src/response-handlers.ts) → typed return
 
-**Signal & Abort Management** (`src/signal-controller.ts`):
-- Each request gets a `SignalController` that wraps `AbortController.any([userSignal, timeoutSignal, internalSignal])`
-- Controllers tracked in static `Transportr.signalControllers` Set; `Transportr.abortAll()` cancels all in-flight requests
-- Timeout detection: `handleEvent()` checks `reason instanceof DOMException` and `reason.name === 'TimeoutError'`, then dispatches custom `timeoutEvent`
-- Cleanup via `signalController.destroy()` in `finally` blocks to prevent memory leaks
+Body rule (src/constants.ts): POST|PUT|PATCH|DELETE send body; GET|HEAD|OPTIONS drop → merge into query
 
-**Event System** (via `@d1g1tal/subscribr`):
-- Global events: `Transportr.register(event, handler)` (static) → all instances
-- Instance events: `transportr.register(event, handler)` → single instance
-- Lifecycle: `configured` → `success|error|aborted|timeout` → `retry` (zero or more) → `complete` → `all-complete`
+## Signal & Abort (src/signal-controller.ts)
+`SignalController` wraps `AbortController.any([userSignal, timeoutSignal, internalSignal])` | Static `signalControllers` Set → `abortAll()` cancels all | Timeout: `reason instanceof DOMException && name === 'TimeoutError'` → `timeoutEvent` | `destroy()` in finally
 
-**Lifecycle Hooks** (`HookOptions`):
-- Three hook types: `beforeRequest`, `afterResponse`, `beforeError`
-- Execution order: global hooks → instance hooks → per-request hooks
-- Register globally: `Transportr.addHooks(hooks)` / `Transportr.clearHooks()`
-- Register per-instance: constructor `options.hooks` or `addHooks()` method
-- Register per-request: pass `hooks` in the request options
+## Events (@d1g1tal/subscribr)
+Global: `Transportr.register(e, h)` / `unregister(r)` (all instances) | Instance: `transportr.register(e, h)` / `unregister(r)` (single) | Lifecycle: `configured` → `success|error|aborted|timeout` → `retry`* → `complete` → `all-complete` | Constants: `RequestEvent.{CONFIGURED, SUCCESS, ERROR, ABORTED, TIMEOUT, RETRY, COMPLETE, ALL_COMPLETE}`
 
-**Retry & Deduplication**:
-- Retry: configured via `RetryOptions` (`count`, `statusCodes`, `methods`, `delay`, `backoffFactor`); only idempotent methods by default
-- Deduplication: `GET`/`HEAD` only; in-flight requests share a single `Promise<Response>` keyed by URL+method in the static `inflightRequests` Map; each consumer gets a cloned response
-- XSRF: reads cookie by name, injects as request header; configured via `XsrfOptions`
+## Hooks (HookOptions)
+Types: `beforeRequest`, `afterResponse`, `beforeError` | Order: global → instance → per-request | Register: `Transportr.addHooks(h)` | `clearHooks()` | `instance.addHooks(h)` | per-req: `hooks` in opts
 
-**Error Handling**:
-- Non-ok responses wrapped in `HttpError` with `ResponseStatus` (code/text)
-- Aborts/timeouts generate synthetic statuses: `499 Aborted`, `504 Request Timeout`
-- Access via `error.statusCode`, `error.statusText`, `error.entity` (captured response body)
+## Retry, Dedup, XSRF
+Retry (RetryOptions): `count`|`statusCodes`|`methods`|`delay`|`backoffFactor` | Defaults: codes `[408,413,429,500,502,503,504]`, methods `['GET','PUT','HEAD','DELETE','OPTIONS']`, delay 300ms, backoff ×2
+Dedup: GET|HEAD only, static `inflightRequests` Map (URL+method), cloned Response per consumer
+XSRF (XsrfOptions): cookie → header | Defaults: `'XSRF-TOKEN'` (cookie), `'X-XSRF-TOKEN'` (header)
 
-## Critical Conventions
+## Errors
+Non-ok → `HttpError` + `ResponseStatus` | Access: `.statusCode`, `.statusText`, `.entity` (body) | Abort: `499`, Timeout: `504` (synthetic)
 
-**Method Body Handling** (`src/constants.ts:requestBodyMethods`):
-- `POST/PUT/PATCH/DELETE` send body; `GET/HEAD/OPTIONS` drop body and merge data into query params
-- Body auto-stringified to JSON when `content-type` includes `json` AND body is plain object (not array/BodyInit)
-- Type-safe serialization via `serialize<T>()` with branded `JsonString<T>` type
+## Handlers & Content Types
+`contentTypeHandlers`: `[mediaType, handler]` pairs, lookup via `MediaType.matches()` | `mediaTypeCache`: pre-populated, no re-parse
+Convenience: `getJson()`, `getHtml()`, `getHtmlFragment()`, `getXml()`, `getScript()`, `getStylesheet()`, `getBlob()`, `getImage()`, `getBuffer()`, `getStream()`
+DOM handlers (Html|Xml|HtmlFragment): `DOMPurify.sanitize()` before parse | Script|CSS: `createObjectURL()` + revoke after inject | Node.js: `jsdom` (peer ≥25) lazy-imported
 
-**Response Handler Registration**:
-- Extend via `Transportr.contentTypeHandlers` entries: `['application/json', handleJson]`
-- Lookup uses `MediaType.matches()` against response `content-type` (checks type/subtype)
-- Add convenience methods by pairing `Accept` header + handler: see `getJson()`, `getHtml()`, `getHtmlFragment()`, `getXml()`, `getScript()`, `getStylesheet()`, `getBlob()`, `getImage()`, `getBuffer()`, `getStream()` patterns
+## Constants (src/constants.ts)
+`mediaTypes`: pre-built instances | `requestBodyMethods`: `['POST','PUT','PATCH','DELETE']` | Synthetic: `aborted`, `timedOut`, `internalServerError` (ResponseStatus)
 
-**DOM & Environment Handling**:
-- Auto-imports `jsdom` when `document`/`DOMParser` unavailable (Node.js)
-- Sanitize HTML/XML with `DOMPurify` in `handleHtml`/`handleXml`/`handleHtmlFragment` (in `src/response-handlers.ts`) before parsing
-- Script/CSS handlers (`handleScript`, `handleCss`) use `URL.createObjectURL()` + revoke after inject
+## Merging
+`mergeHeaders(target, ...sources)`: instance → opts → method-specific | `mergeSearchParams()`: same, accepts `URLSearchParams | string | Record<string, string|number|boolean>` | Fresh instances per request
 
-**TypeScript & Build**:
-- TypeScript 5.x — strict mode + `isolatedDeclarations` + `verbatimModuleSyntax` enforced
-- Types in `src/@types/index.ts` for public API
-- Build: `pnpm build` uses custom `tsbuild`; entry points derived from `exports` in `package.json`
-- Output: `dist/*.{js,d.ts}` with `noExternal` bundling for `@d1g1tal/media-type`, `@d1g1tal/subscribr`, `dompurify` (configured in `tsconfig.json` `tsbuild.noExternal`)
-- Target: ESNext with `moduleResolution: Bundler`
+## Dependencies
+`@d1g1tal/media-type` v6 (`parse()`, `matches()`) | `@d1g1tal/subscribr` v4 (pub/sub) | `dompurify` v3 (sanitize) | `jsdom` ≥25 peer (Node DOM)
 
-## Development Workflow
+## Types
+`JsonString<T>`: branded JSON | `JsonValue<T>`: serialization validation | `Prettify<T>`: flatten unions | `LiteralUnion<T>`: literal + string fallback | `TypedHeaders`: header names + auth schemes | `TypedResponse<T>`: Response + typed `json()` | `ResponseHandler<T>`: `(Response) => Promise<T>` | `RequestBodyMethod`: POST|PUT|PATCH|DELETE | `RequestOptions`: discriminated by method
 
-**Package Manager**: pnpm (workspace configured via `pnpm-workspace.yaml`)
+## Linting
+Tabs | unix newlines | single quotes | JSDoc on exports (param names checked, destructured exempt) | `method-signature-style: property` | unused vars prefix `_` | `typescript-eslint` type-checked
 
-**Scripts**:
-- `pnpm lint` → ESLint (flat config) checks tabs, single quotes, JSDoc completeness (`eslint-plugin-jsdoc`)
-- `pnpm build` / `pnpm build:watch` → TypeScript compilation via `tsbuild`
-- `pnpm build:release` → minified production build
-- `pnpm test` → Vitest (dual-project setup)
-- `pnpm test:coverage` → generates reports in `tests/coverage` (text/json/html/clover/lcov)
-- `pnpm type-check` → TypeScript type checking only (no emit)
+## Testing
+Vitest projects (vitest.config.ts): `unit` (jsdom, all except integration) | `integration` (node, real HTTP to mockapi.io: global-event-handler, abort-all, all-complete-event, network-integration, environment-specific, signal-controller-cleanup, request-options-optimization, mediatype-caching, hooks)
+Both: load tests/scripts/setup.ts → mock `createObjectURL`/`revokeObjectURL`, polyfill AbortController|Signal
+Patterns: mock `globalThis.location.origin` for constructor tests | import `.js` extensions | mockapi.io key in tests/scripts/config.ts | rate-limited, batch changes only
 
-**Vitest Projects** (`vitest.config.ts`):
-- `integration` (node env): real HTTP calls to `mockapi.io` — `global-event-handler`, `abort-all`, `all-complete-event`, `network-integration`, `environment-specific`, `signal-controller-cleanup`, `request-options-optimization`, `mediatype-caching`, `hooks`
-- `unit` (jsdom env): all other tests; DOM available for HTML/XML handlers
-- Both load `tests/scripts/setup.ts` → mocks `URL.createObjectURL`/`revokeObjectURL` with `vi.fn()`, ensures `AbortController`/`AbortSignal` globals
+## Tasks
 
-**Linting Rules** (`eslint.config.js`):
-- Tab indentation (`indent: ['error', 'tab']`), unix line endings, single quotes mandatory
-- JSDoc required on all exports (`jsdoc/require-jsdoc`); checks param names but ignores destructured params
-- TypeScript: `method-signature-style: 'property'`, unused vars must start with `_`
-- Uses `typescript-eslint` with type-checked rules
+Add handler: (1) src/response-handlers.ts `const handleFoo: ResponseHandler<Foo> = async (r) => {...}` (2) DOM: `DOMPurify.sanitize(await r.text())` (3) `Transportr.contentTypeHandlers.push(['app/foo', handleFoo])` (4) convenience: `async getFoo(p, o) { return this._get(p, o, { headers: { [Accept]: mediaTypes.FOO } }, handleFoo) }`
 
-## External Dependencies
+Add hook: Global `Transportr.addHooks({beforeRequest: r => {...}})` | Instance `instance.addHooks({afterResponse: r => {...}})` | Per-req `transportr.get(p, {hooks: {beforeError: e => {...}}})`
 
-- `@d1g1tal/media-type` v6 → `MediaType.parse()`, `.matches()` (type/subtype matching)
-- `@d1g1tal/subscribr` v4 → event pub/sub (`Subscribr` class)
-- `dompurify` v3 → sanitizes HTML/XML before parsing
-- `jsdom` (peer dep `>=25.0.0`) → DOM environment for Node.js; lazily imported on first DOM handler call
-
-**Key Files & Patterns**
-
-**Static Constants** (`src/constants.ts`):
-- `mediaTypes` object → pre-built `MediaType` instances for common types (JSON, HTML, XML, CSS, etc.)
-- `requestBodyMethods` → `['POST', 'PUT', 'PATCH', 'DELETE']`
-- `aborted`/`timedOut`/`internalServerError` → synthetic `ResponseStatus` objects
-- `RequestEvent` → event name constants (`CONFIGURED`, `SUCCESS`, `ERROR`, `ABORTED`, `TIMEOUT`, `RETRY`, `COMPLETE`, `ALL_COMPLETE`)
-- Retry defaults: status codes `[408, 413, 429, 500, 502, 503, 504]`, methods `['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS']`, delay 300ms, backoff factor 2
-- XSRF defaults: cookie `'XSRF-TOKEN'`, header `'X-XSRF-TOKEN'`
-
-**Caching**:
-- `Transportr.mediaTypeCache` → Caches parsed `MediaType` instances to avoid re-parsing the same content-type strings
-- Initialized with predefined `mediaTypes` values for instant lookup
-
-**Headers/Params Merging**:
-- `mergeHeaders(target, ...sources)` → chains: instance defaults → user options → method-specific
-- `mergeSearchParams(target, ...sources)` → same pattern; handles `URLSearchParams | string | Record<string, string | number | boolean>`
-
-**Request Options Processing**:
-- Shallow merge for flat properties (performance optimization)
-- Deep merge only for headers and searchParams
-- Creates fresh `Headers`/`URLSearchParams` instances per request
-
-**Testing Patterns**:
-- Mock `globalThis.location.origin` for constructor tests (see `transportr.test.ts`)
-- Use `vi.fn()` for `URL.createObjectURL`/`revokeObjectURL` spies (setup in `tests/scripts/setup.ts`)
-- Import `.js` extensions in tests for ESM compatibility (e.g., `from '../src/transportr.js'`)
-- Integration tests use real `mockapi.io` key from `tests/scripts/config.ts` (`apiKey: '6515f38809e3260018c94ac4'`)
-
-## Common Tasks
-
-**Add new response handler**:
-1. Create handler function in `src/response-handlers.ts`: `const handleFoo: ResponseHandler<Foo> = async (response) => ...`
-2. Sanitize if DOM: wrap with `DOMPurify.sanitize(await response.text())`
-3. Add to `contentTypeHandlers`: `['application/foo', handleFoo]`
-4. Add convenience method: `async getFoo(path, opts) { return this._get(path, opts, { headers: { [HttpRequestHeader.ACCEPT]: mediaTypes.FOO.toString() } }, handleFoo) }`
-
-**Add request lifecycle hook**:
-- Global: `Transportr.register('success', (event, data) => { ... })`
-- Instance: `transportr.register('error', (event, data) => { ... })`
-- Cleanup: `Transportr.unregister(registration)` or `transportr.unregister(registration)`
-
-**Handle timeout/abort**:
-- Pass `timeout` in options: `transportr.get('/path', { timeout: 5000 })`
-- Listen for event: `transportr.register('timeout', (event, data) => { ... })`
-- Abort all: `Transportr.abortAll()` (clears static `signalControllers` Set)
-
-## Type System Highlights
-
-**Branded Types**:
-- `JsonString<T>` → ensures serialized JSON maintains type information
-- `JsonValue<T>` → type-safe JSON serialization validation
-
-**Utility Types**:
-- `Prettify<T>` → flattens intersection types for better IDE display
-- `LiteralUnion<T>` → allows literal types with string fallback
-- `TypedHeaders` → strongly-typed header names with Authorization scheme validation
-
-**Response Types**:
-- `TypedResponse<T>` → extends Response with typed `json()` method
-- `ResponseHandler<T>` → `(response: Response) => Promise<T>`
-
-**Request Types**:
-- `RequestBodyMethod` → `'POST' | 'PUT' | 'PATCH' | 'DELETE'`
-- `RequestOptions` → discriminated union based on method type (body allowed/disallowed)
+Timeout|abort: `get(p, {timeout: 5000})` | `register('timeout', (e, d) => {...})` | `abortAll()` (clears signalControllers)

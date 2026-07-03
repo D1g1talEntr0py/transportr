@@ -21,7 +21,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@11.5.2",
+  "packageManager": "pnpm@11.9.0",
   "type": "module",
   "types": "./dist/transportr.d.ts",
   "exports": {
@@ -64,15 +64,21 @@
     "build:release": "tsbuild --minify --force",
     "build:watch": "tsbuild --watch",
     "type-check": "tsbuild --noEmit",
-    "lint": "eslint ./src",
-    "test": "vitest run",
+    "lint": "eslint --flag unstable_native_nodejs_ts_config ./src",
+    "benchmark": "node ./tests/benchmarks/request-pipeline.ts",
+    "test": "vitest run --project unit --project integration",
+    "test:browser:setup": "playwright install chromium",
+    "pretest:browser": "pnpm run test:browser:setup",
+    "test:browser": "vitest run --project browser --reporter=minimal",
+    "pretest:browser:verbose": "pnpm run test:browser:setup",
+    "test:browser:verbose": "vitest run --project browser",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --project unit --project integration --coverage"
   },
   "dependencies": {
     "@d1g1tal/media-type": "^7.0.0",
     "@d1g1tal/subscribr": "^4.2.1",
-    "dompurify": "^3.4.8"
+    "dompurify": "^3.4.11"
   },
   "peerDependencies": {
     "jsdom": ">=25.0.0"
@@ -83,25 +89,28 @@
     }
   },
   "devDependencies": {
-    "@d1g1tal/tsbuild": "^1.9.0",
+    "@d1g1tal/tsbuild": "^2.1.0",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
     "@types/jsdom": "^28.0.3",
-    "@types/node": "^25.9.2",
-    "@typescript-eslint/eslint-plugin": "^8.60.1",
-    "@typescript-eslint/parser": "^8.60.1",
-    "@vitest/coverage-v8": "^4.1.8",
-    "@vitest/ui": "^4.1.8",
+    "@types/node": "^26.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
+    "@typescript-eslint/parser": "^8.62.1",
+    "@vitest/browser": "^4.1.9",
+    "@vitest/browser-playwright": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/ui": "^4.1.9",
     "@xmldom/xmldom": "^0.9.10",
-    "eslint": "^10.4.1",
+    "eslint": "^10.6.0",
     "eslint-plugin-compat": "^7.0.2",
-    "eslint-plugin-jsdoc": "^63.0.2",
-    "globals": "^17.6.0",
+    "eslint-plugin-jsdoc": "^63.0.10",
+    "globals": "^17.7.0",
     "jsdom": "^29.1.1",
     "mitata": "^1.0.34",
+    "playwright": "^1.61.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.1",
-    "vitest": "^4.1.8"
+    "typescript-eslint": "^8.62.1",
+    "vitest": "^4.1.9"
   },
   "browserslist": [
     ">0.3% and not dead",

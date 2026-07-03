@@ -5,6 +5,12 @@ import tsEslint from 'typescript-eslint';
 import tsParser from '@typescript-eslint/parser';
 import typeScriptEslint from '@typescript-eslint/eslint-plugin';
 
+declare global {
+	interface ImportMeta {
+		dirname: string;
+	}
+}
+
 export default defineConfig({ ignores: [ 'node_modules/**', 'tests/**', 'dist/**', '*.config.[tj]s', 'src/@types/**' ] }, {
 	extends: [
 		eslint.configs.recommended,
@@ -13,11 +19,11 @@ export default defineConfig({ ignores: [ 'node_modules/**', 'tests/**', 'dist/**
 		...tsEslint.configs.recommendedTypeChecked
 	],
 	// @ts-expect-error - plugin needs update...
-	plugins: { typeScriptEslint, jsdoc },
+	plugins: { '@typescript-eslint': typeScriptEslint, jsdoc },
 	languageOptions: {
+		parser: tsParser,
 		parserOptions: {
 			project:true,
-			parser: tsParser,
 			parserOptions: {
 				ecmaFeatures: {	impliedStrict: true	}
 			},
