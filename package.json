@@ -73,7 +73,8 @@
     "pretest:browser:verbose": "pnpm run test:browser:setup",
     "test:browser:verbose": "vitest run --project browser",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --project unit --project integration --coverage"
+    "test:coverage": "vitest run --project unit --project integration --coverage",
+    "test:coverage:unit": "vitest run --project unit --coverage"
   },
   "dependencies": {
     "@d1g1tal/media-type": "^7.0.0",
