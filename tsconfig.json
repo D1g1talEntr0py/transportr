@@ -8,7 +8,6 @@
 		"allowUnreachableCode": false,
 		"noImplicitOverride": true,
 		"noImplicitReturns": true,
-		"stableTypeOrdering": true,
 		"noUncheckedIndexedAccess": true,
 		"rootDir": "./src",
 		"lib": [ "esnext", "dom" ],
