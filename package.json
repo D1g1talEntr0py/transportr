@@ -21,7 +21,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.17.0",
   "type": "module",
   "types": "./dist/transportr.d.ts",
   "exports": {
@@ -79,7 +79,7 @@
   "dependencies": {
     "@d1g1tal/media-type": "^7.0.0",
     "@d1g1tal/subscribr": "^4.2.1",
-    "dompurify": "^3.4.11"
+    "dompurify": "^3.4.12"
   },
   "peerDependencies": {
     "jsdom": ">=25.0.0"
@@ -91,27 +91,28 @@
   },
   "devDependencies": {
     "@d1g1tal/tsbuild": "^2.1.0",
-    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^10.0.1",
     "@types/jsdom": "^28.0.3",
-    "@types/node": "^26.1.0",
-    "@typescript-eslint/eslint-plugin": "^8.62.1",
-    "@typescript-eslint/parser": "^8.62.1",
-    "@vitest/browser": "^4.1.9",
-    "@vitest/browser-playwright": "^4.1.9",
-    "@vitest/coverage-v8": "^4.1.9",
-    "@vitest/ui": "^4.1.9",
+    "@types/node": "^26.1.1",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@vitest/browser": "^4.1.10",
+    "@vitest/browser-playwright": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/ui": "^4.1.10",
     "@xmldom/xmldom": "^0.9.10",
-    "eslint": "^10.6.0",
+    "eslint": "^10.8.0",
     "eslint-plugin-compat": "^7.0.2",
-    "eslint-plugin-jsdoc": "^63.0.10",
-    "globals": "^17.7.0",
-    "jsdom": "^29.1.1",
+    "eslint-plugin-jsdoc": "^63.3.1",
+    "globals": "^17.8.0",
+    "jsdom": "^30.0.0",
     "mitata": "^1.0.34",
-    "playwright": "^1.61.1",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.62.1",
-    "vitest": "^4.1.9"
+    "playwright": "^1.62.0",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
   },
   "browserslist": [
     ">0.3% and not dead",
