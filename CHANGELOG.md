@@ -1,3 +1,36 @@
+## [5.0.1](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.0...v5.0.1) (2026-07-28)
+* **deps:** upgrade dependencies to address critical security vulnerabilities (615569cda3d5198fc899d930621a992302e3b886)
+Addresses the following security issues:
+- DOMPurify: CUSTOM_ELEMENT_HANDLING bypasses afterSanitizeElements for allowed custom elements
+- @vitest/browser: Browser Mode provider commands bypass the file-access permission gate
+- brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups
+- PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure
+
+Upgrades:
+- pnpm: 11.9.0 → 11.17.0
+- dompurify: 3.4.11 → 3.4.12
+- @eslint/eslintrc: 3.3.5 → 3.3.6
+- @types/node: 26.1.0 → 26.1.1
+- @typescript-eslint/eslint-plugin: 8.62.1 → 8.65.0
+- @typescript-eslint/parser: 8.62.1 → 8.65.0
+- @vitest/browser: 4.1.9 → 4.1.10
+- @vitest/browser-playwright: 4.1.9 → 4.1.10
+- @vitest/coverage-v8: 4.1.9 → 4.1.10
+- @vitest/ui: 4.1.9 → 4.1.10
+- eslint: 10.6.0 → 10.8.0
+- eslint-plugin-jsdoc: 63.0.10 → 63.3.1
+- globals: 17.7.0 → 17.8.0
+- jsdom: 29.1.1 → 30.0.0
+- playwright: 1.61.1 → 1.62.0
+- typescript: 6.0.3 → @typescript/typescript6@6.0.2
+- typescript-eslint: 8.62.1 → 8.65.0
+- vitest: 4.1.9 → 4.1.10
+- Add @typescript/native: npm:typescript@7.0.2
+
+* **config:** remove deprecated stableTypeOrdering from tsconfig (2a350807b15023374de580847014a485ac76ec57)
+* **docs:** update badges in README to use shields.io (2b4f368abfe9cff994343368f0af30ed69de2680)
+* fix coverage test (75cf11dc4f7e4a56aaca36f5ca0c64ff69b7b913)
+
 ## [5.0.0](https://github.com/D1g1talEntr0py/transportr/compare/v4.0.3...v5.0.0) (2026-07-03)
 * **sanitize:** redesign HTML and XML response sanitization with presets (b96a3e9adec0e24e6249e4840f24673e171f1cf0)
 * **deps:** upgrade dependencies and configure vitest browser testing (373d7f4cce31165737bac5d2c742f4a76b835792)
