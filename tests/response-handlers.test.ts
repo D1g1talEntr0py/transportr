@@ -296,6 +296,77 @@ describe('Response Handlers', () => {
 		expect(doc.querySelector('script')).not.toBeNull();
 	});
 
+	it('should strip template script tags from full HTML documents by default', async () => {
+		const html = '<div>Welcome</div><script id="tmpl" type="text/x-jquery-tmpl"><span>${name}</span></script><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/template-default') as Document;
+
+		expect(doc.querySelector('div')?.textContent).toBe('Welcome');
+		expect(doc.querySelector('#tmpl')).toBeNull();
+		expect(doc.querySelector('script')).toBeNull();
+	});
+
+	it('should preserve only inert template scripts for getHtml when preserveTemplateScripts is enabled', async () => {
+		const html = '<div onclick="run()">Welcome</div><script id="tmpl" type="text/x-jquery-tmpl"><span>${name}</span></script><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/template-opt-in', {
+			sanitization: {
+				preserveTemplateScripts: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('div')?.getAttribute('onclick')).toBeNull();
+		expect(doc.querySelector('#tmpl')?.getAttribute('type')).toBe('text/x-jquery-tmpl');
+		expect(doc.querySelector('#tmpl')?.textContent).toContain('${name}');
+		expect(doc.querySelectorAll('script')).toHaveLength(1);
+	});
+
+	it('should preserve script tags for full HTML documents when sanitization.allowScripts is enabled', async () => {
+		const html = '<p onclick="run()">Hello</p><script src="/trusted.js"></script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/test', {
+			sanitization: {
+				allowScripts: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('script')?.getAttribute('src')).toBe('/trusted.js');
+		// Other unsafe markup should still be sanitized when allowScripts is used.
+		expect(doc.querySelector('p')?.getAttribute('onclick')).toBeNull();
+	});
+
+	it('should continue stripping scripts by default after an allowScripts request', async () => {
+		mockFetch.mockResolvedValueOnce(new Response(
+			'<p>Trusted</p><script src="/trusted.js"></script>',
+			{ headers: { 'Content-Type': ContentType.HTML } }
+		));
+
+		const trustedDoc = await transportr.getHtml('/trusted', {
+			sanitization: {
+				allowScripts: true
+			}
+		}) as Document;
+		expect(trustedDoc.querySelector('script')).not.toBeNull();
+
+		mockFetch.mockResolvedValueOnce(new Response(
+			'<p>Hello</p><script>alert("XSS")</script>',
+			{ headers: { 'Content-Type': ContentType.HTML } }
+		));
+
+		const strictDoc = await transportr.getHtml('/untrusted') as Document;
+		expect(strictDoc.querySelector('p')?.textContent).toBe('Hello');
+		expect(strictDoc.querySelector('script')).toBeNull();
+	});
+
 	it('should handle blob responses', async () => {
 		const expectedBlob = new Blob(['test data'], { type: 'application/octet-stream' });
 		const mockResponse = {

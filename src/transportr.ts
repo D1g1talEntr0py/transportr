@@ -31,7 +31,8 @@ type RequestConfiguration = {
 const resolveSanitizationPolicy = (requestOptions: RequestOptions | undefined, instanceOptions: RequestOptions): SanitizationPolicy => ({
 	preset: requestOptions?.sanitization?.preset ?? requestOptions?.sanitizePreset ?? instanceOptions.sanitization?.preset ?? instanceOptions.sanitizePreset ?? 'strict',
 	preserveTemplateScripts: requestOptions?.sanitization?.preserveTemplateScripts ?? instanceOptions.sanitization?.preserveTemplateScripts,
-	templateScriptTypes: requestOptions?.sanitization?.templateScriptTypes ?? instanceOptions.sanitization?.templateScriptTypes
+	templateScriptTypes: requestOptions?.sanitization?.templateScriptTypes ?? instanceOptions.sanitization?.templateScriptTypes,
+	allowScripts: requestOptions?.sanitization?.allowScripts ?? instanceOptions.sanitization?.allowScripts
 });
 
 /**

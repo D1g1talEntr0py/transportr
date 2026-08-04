@@ -192,9 +192,7 @@ const env = new EnvironmentManager();
  * @returns A Promise that resolves to a parsed Document.
  */
 const parseSanitizedDocument = async (response: Response, mimeType: DOMParserSupportedType): Promise<Document> => {
-	await env.domReady();
-
-	return new DOMParser().parseFromString((await env.getSanitizer()).sanitize(await response.text()), mimeType);
+	return parseDocumentWithPreset(response, mimeType, 'strict');
 };
 
 /**
@@ -233,13 +231,17 @@ const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPrese
 	const sanitizerOptions = getSanitizerOptionsForPreset(resolvedPolicy);
 
 	if (resolvedPolicy.allowScripts) {
-		const sanitized = (await env.getSanitizer()).sanitize(markup, sanitizerOptions);
+		const sanitizer = await env.getSanitizer();
+		sanitizer.clearConfig();
+		const sanitized = sanitizer.sanitize(markup, sanitizerOptions);
 
 		return typeof sanitized === 'string' ? sanitized : String(sanitized);
 	}
 
 	const { markup: extractedMarkup, placeholders } = extractTemplateScriptsFromMarkup(markup, buildTemplateScriptTypeSet(resolvedPolicy));
-	const sanitized = (await env.getSanitizer()).sanitize(extractedMarkup, sanitizerOptions);
+	const sanitizer = await env.getSanitizer();
+	sanitizer.clearConfig();
+	const sanitized = sanitizer.sanitize(extractedMarkup, sanitizerOptions);
 	const sanitizedMarkup = typeof sanitized === 'string' ? sanitized : String(sanitized);
 
 	return restoreTemplateScriptsInMarkup(sanitizedMarkup, placeholders);
@@ -418,9 +420,7 @@ const handleHtml: ResponseHandler<Document> = async (response) => parseSanitized
  * @returns A Promise that resolves to a DocumentFragment
  */
 const handleHtmlFragment: ResponseHandler<DocumentFragment> = async (response) => {
-	await env.domReady();
-
-	return document.createRange().createContextualFragment((await env.getSanitizer()).sanitize(await response.text()));
+	return parseFragmentWithPreset(response, 'strict');
 };
 
 /**

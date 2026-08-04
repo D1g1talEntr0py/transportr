@@ -21,7 +21,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@11.17.0",
+  "packageManager": "pnpm@11.20.0",
   "type": "module",
   "types": "./dist/transportr.d.ts",
   "exports": {
@@ -78,8 +78,8 @@
   },
   "dependencies": {
     "@d1g1tal/media-type": "^7.0.0",
-    "@d1g1tal/subscribr": "^4.2.1",
-    "dompurify": "^3.4.12"
+    "@d1g1tal/subscribr": "^4.2.2",
+    "dompurify": "^3.4.13"
   },
   "peerDependencies": {
     "jsdom": ">=25.0.0"
@@ -90,11 +90,11 @@
     }
   },
   "devDependencies": {
-    "@d1g1tal/tsbuild": "^2.1.0",
+    "@d1g1tal/tsbuild": "^2.2.4",
     "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^10.0.1",
     "@types/jsdom": "^28.0.3",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
     "@typescript/native": "npm:typescript@^7.0.2",
@@ -105,11 +105,11 @@
     "@xmldom/xmldom": "^0.9.10",
     "eslint": "^10.8.0",
     "eslint-plugin-compat": "^7.0.2",
-    "eslint-plugin-jsdoc": "^63.3.1",
-    "globals": "^17.8.0",
-    "jsdom": "^30.0.0",
+    "eslint-plugin-jsdoc": "^63.3.3",
+    "globals": "^17.9.0",
+    "jsdom": "^30.0.1",
     "mitata": "^1.0.34",
-    "playwright": "^1.62.0",
+    "playwright": "^1.62.1",
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
