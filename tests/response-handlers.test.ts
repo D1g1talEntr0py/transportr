@@ -346,6 +346,40 @@ describe('Response Handlers', () => {
 		expect(doc.querySelector('iframe')).toBeNull();
 	});
 
+	it('should preserve template script tags for full HTML documents when sanitization.allowScripts is enabled', async () => {
+		const html = '<div>Welcome</div><script id="tmpl" type="text/x-jquery-tmpl"><span>${name}</span></script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/template', {
+			sanitization: {
+				allowScripts: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('div')?.textContent).toBe('Welcome');
+		expect(doc.querySelector('#tmpl')?.getAttribute('type')).toBe('text/x-jquery-tmpl');
+		expect(doc.querySelector('#tmpl')?.textContent).toContain('${name}');
+	});
+
+	it('should preserve template script tags for HTML fragments when sanitization.allowScripts is enabled', async () => {
+		const html = '<div>Welcome</div><script id="tmpl" type="text/x-jquery-tmpl"><span>${name}</span></script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/template', {
+			sanitization: {
+				allowScripts: true
+			}
+		}) as DocumentFragment;
+
+		expect(fragment.querySelector('div')?.textContent).toBe('Welcome');
+		expect(fragment.querySelector('#tmpl')?.getAttribute('type')).toBe('text/x-jquery-tmpl');
+		expect(fragment.querySelector('#tmpl')?.textContent).toContain('${name}');
+	});
+
 	it('should continue stripping scripts by default after an allowScripts request', async () => {
 		mockFetch.mockResolvedValueOnce(new Response(
 			'<p>Trusted</p><script src="/trusted.js"></script>',

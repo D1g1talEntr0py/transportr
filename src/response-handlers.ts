@@ -39,22 +39,20 @@ const buildTemplateScriptTypeSet = (policy: Required<SanitizationPolicy>) => {
 	return new Set(types.map(normalizeScriptType).filter(Boolean));
 };
 
-const extractTemplateScriptsFromMarkup = (markup: string, allowedTemplateTypes: Set<string>): { markup: string, placeholders: Map<string, PreservedScript> } => {
-	if (allowedTemplateTypes.size === 0) { return { markup, placeholders: new Map() } }
-
+const extractScriptsFromMarkup = (markup: string, shouldPreserve: (script: HTMLScriptElement) => boolean, placeholderPrefix: string): { markup: string, placeholders: Map<string, PreservedScript> } => {
 	const fragment = document.createRange().createContextualFragment(markup);
-	const scripts = Array.from(fragment.querySelectorAll('script[type]'));
+	const scripts = Array.from(fragment.querySelectorAll('script'));
+
 	if (scripts.length === 0) { return { markup, placeholders: new Map() } }
 
-	// Per-call random token so placeholders can't be guessed and pre-embedded by attacker-controlled content.
-	const nonce = Math.random().toString(36).slice(2);
 	const preservedScripts = new Map<string, PreservedScript>();
 	for (let i = 0, length = scripts.length; i < length; i++) {
 		const script = scripts[i]!;
 
-		if (!allowedTemplateTypes.has(normalizeScriptType(script.getAttribute('type') ?? ''))) { continue }
+		if (!shouldPreserve(script)) { continue }
 
-		const placeholder = `__TRANSPORTR_TEMPLATE_SCRIPT_${nonce}_${i}_${preservedScripts.size}__`;
+		// Per-call random token so placeholders can't be guessed and pre-embedded by attacker-controlled content.
+		const placeholder = `__TRANSPORTR_${placeholderPrefix}_${Math.random().toString(36).slice(2)}_${i}_${preservedScripts.size}__`;
 		preservedScripts.set(placeholder, {
 			attributes: Array.from(script.attributes, ({ name, value }) => [ name, value ]),
 			content: script.textContent ?? ''
@@ -68,6 +66,12 @@ const extractTemplateScriptsFromMarkup = (markup: string, allowedTemplateTypes: 
 	container.append(fragment);
 
 	return { markup: container.innerHTML, placeholders: preservedScripts };
+};
+
+const extractTemplateScriptsFromMarkup = (markup: string, allowedTemplateTypes: Set<string>): { markup: string, placeholders: Map<string, PreservedScript> } => {
+	if (allowedTemplateTypes.size === 0) { return { markup, placeholders: new Map() } }
+
+	return extractScriptsFromMarkup(markup, (script) => allowedTemplateTypes.has(normalizeScriptType(script.getAttribute('type') ?? '')), 'TEMPLATE_SCRIPT');
 };
 
 const restoreTemplateScriptsInMarkup = (markup: string, placeholders: Map<string, PreservedScript>): string => {
@@ -262,7 +266,8 @@ const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPrese
 	const sanitizer = await env.getSanitizer();
 	sanitizer.clearConfig();
 	if (resolvedPolicy.allowScripts) {
-		return sanitizeWithAllowedJavaScriptAttributes(sanitizer, markup, sanitizerOptions);
+		const { markup: extractedMarkup, placeholders } = extractScriptsFromMarkup(markup, () => true, 'SCRIPT');
+		return restoreTemplateScriptsInMarkup(sanitizeWithAllowedJavaScriptAttributes(sanitizer, extractedMarkup, sanitizerOptions), placeholders);
 	}
 
 	const { markup: extractedMarkup, placeholders } = extractTemplateScriptsFromMarkup(markup, buildTemplateScriptTypeSet(resolvedPolicy));
