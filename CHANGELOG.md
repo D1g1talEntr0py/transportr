@@ -1,3 +1,6 @@
+## [5.0.3](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.2...v5.0.3) (2026-08-04)
+* enhance sanitization policy documentation and improve script handling in tests (67d5a6a0a2bf8dd6abdab1931f9a08a68e9c9eda)
+
 ## [5.0.2](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.1...v5.0.2) (2026-08-04)
 * response handling and sanitization policies were not getting cleared (9f184f131e138cc9f3cc1217e4cd837d1803ec67)
 - Simplified document parsing by using `parseDocumentWithPreset` and `parseFragmentWithPreset` in `parseSanitizedDocument` and `handleHtmlFragment`.
