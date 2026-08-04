@@ -1,3 +1,6 @@
+## [5.1.0](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.4...v5.1.0) (2026-08-04)
+* add granular control for sanitization with allowStyles option to preserve styles and stylesheets (e8cf1fee62ef88bcd1cac19349dd79c0a729dbe6)
+
 ## [5.0.4](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.3...v5.0.4) (2026-08-04)
 * preserve template script tags in HTML documents and fragments when allowScripts is enabled (6ee4ec39955f981b03ee410d18fcc9acf6a240ce)
 
