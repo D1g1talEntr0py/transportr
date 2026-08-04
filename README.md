@@ -98,6 +98,8 @@ The type system enforces what you get back. You can't accidentally call `.queryS
 
 This is the correct place to sanitize: as close to the network boundary as possible, before the content ever reaches a parser or your application code.
 
+`getHtml()`/`getXml()` sanitize and parse the full document, preserving `<head>` content (`<title>`, `<meta>`, `<link>`, `<style>`, etc.) alongside `<body>`. `getHtmlFragment()` sanitizes and parses only the given markup as a `DocumentFragment` — any document-wrapper elements (`<html>`, `<head>`, `<body>`) in the response are ignored.
+
 Use `sanitizePreset` to pick a common behavior without learning DOMPurify internals:
 
 ```typescript

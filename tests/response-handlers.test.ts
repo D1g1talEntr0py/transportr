@@ -358,6 +358,21 @@ describe('Response Handlers', () => {
 		expect(doc.querySelector('iframe')).toBeNull();
 	});
 
+	it('should preserve markup-like inline script content when sanitization.allowScripts is enabled', async () => {
+		const html = '<script>const t = "<div>x</div>"; if (1 < 2) { console.log(t); }</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/markup-like-script', {
+			sanitization: {
+				allowScripts: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('script')?.textContent).toBe('const t = "<div>x</div>"; if (1 < 2) { console.log(t); }');
+	});
+
 	it('should preserve template script tags for full HTML documents when sanitization.allowScripts is enabled', async () => {
 		const html = '<div>Welcome</div><script id="tmpl" type="text/x-jquery-tmpl"><span>${name}</span></script>';
 		mockFetch.mockResolvedValue(new Response(html, {
@@ -499,6 +514,30 @@ describe('Response Handlers', () => {
 		expect(fragment.querySelector('link')?.getAttribute('href')).toBe('/app.css');
 		expect(fragment.querySelector('style')?.textContent).toContain('.hero');
 		expect(fragment.querySelector('script')).toBeNull();
+	});
+
+	it('should preserve <head> content when fetching a full HTML document', async () => {
+		const html = '<!DOCTYPE html><html><head><title>T</title></head><body><div>Hi</div></body></html>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/full-page') as Document;
+
+		expect(doc.querySelector('title')?.textContent).toBe('T');
+		expect(doc.querySelector('div')?.textContent).toBe('Hi');
+	});
+
+	it('should ignore document-wrapper-only content when fetching an HTML fragment', async () => {
+		const html = '<!DOCTYPE html><html><head><title>T</title></head><body><div>Hi</div></body></html>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/full-page') as DocumentFragment;
+
+		expect(fragment.querySelector('title')).toBeNull();
+		expect(fragment.querySelector('div')?.textContent).toBe('Hi');
 	});
 
 	it('should handle blob responses', async () => {

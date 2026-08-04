@@ -230,7 +230,10 @@ const getSanitizerOptionsForPreset = (policy: Required<SanitizationPolicy>): San
 	return {
 		...baseOptions,
 		...(addTags.length > 0 ? { ADD_TAGS: addTags } : {}),
-		...((policy.allowScripts || policy.allowStyles) ? { ALLOW_UNKNOWN_PROTOCOLS: true } : {})
+		...((policy.allowScripts || policy.allowStyles) ? { ALLOW_UNKNOWN_PROTOCOLS: true } : {}),
+		// DOMPurify's mXSS namespace-confusion guard misreads markup-like script text content
+		// (e.g. template placeholders) as an attack; allowScripts already trusts that content.
+		...(policy.allowScripts ? { SAFE_FOR_XML: false } : {})
 	};
 };
 
@@ -294,20 +297,21 @@ const sanitizeWithAllowedAttributes = (sanitizer: DOMPurify, markup: string, san
  * When `allowScripts` is set, script tags and JavaScript-bearing attributes are preserved,
  * while the rest of DOMPurify sanitization remains active.
  * @param markup The source markup.
-	* @param policy The sanitization policy.
+ * @param policy The sanitization policy.
+ * @param wholeDocument Whether markup is a full HTML/XML document (keeps `<head>` content) rather than a fragment.
  * @returns Sanitized (or raw) markup as a string.
  */
-const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPreset | SanitizationPolicy): Promise<string> => {
+const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPreset | SanitizationPolicy, wholeDocument: boolean): Promise<string> => {
 	const resolvedPolicy = normalizeSanitizationPolicy(policy);
 	if (resolvedPolicy.preset === 'bypass') { return markup }
 
-	const sanitizerOptions = getSanitizerOptionsForPreset(resolvedPolicy);
+	// DOMPurify drops everything outside <body> unless told this is a whole document.
+	const sanitizerOptions = { ...getSanitizerOptionsForPreset(resolvedPolicy), ...(wholeDocument ? { WHOLE_DOCUMENT: true } : {}) };
 	const sanitizer = await env.getSanitizer();
 	sanitizer.clearConfig();
-	if (resolvedPolicy.allowScripts) {
-		const { markup: extractedMarkup, placeholders } = extractScriptsFromMarkup(markup, () => true, 'SCRIPT');
-		return restoreTemplateScriptsInMarkup(sanitizeWithAllowedAttributes(sanitizer, extractedMarkup, sanitizerOptions, true, resolvedPolicy.allowStyles), placeholders);
-	}
+
+	// ADD_TAGS already allows every <script> natively, so there's nothing left to extract/restore here.
+	if (resolvedPolicy.allowScripts) { return sanitizeWithAllowedAttributes(sanitizer, markup, sanitizerOptions, true, resolvedPolicy.allowStyles) }
 
 	const { markup: extractedMarkup, placeholders } = extractTemplateScriptsFromMarkup(markup, buildTemplateScriptTypeSet(resolvedPolicy));
 	const sanitized = resolvedPolicy.allowStyles ?
@@ -328,7 +332,7 @@ const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPrese
 const parseDocumentWithPreset = async (response: Response, mimeType: DOMParserSupportedType, policy: SanitizationPreset | SanitizationPolicy): Promise<Document> => {
 	await env.domReady();
 
-	const markup = await sanitizeMarkupForPreset(await response.text(), policy);
+	const markup = await sanitizeMarkupForPreset(await response.text(), policy, true);
 
 	return new DOMParser().parseFromString(markup, mimeType);
 };
@@ -342,7 +346,7 @@ const parseDocumentWithPreset = async (response: Response, mimeType: DOMParserSu
 const parseFragmentWithPreset = async (response: Response, policy: SanitizationPreset | SanitizationPolicy): Promise<DocumentFragment> => {
 	await env.domReady();
 
-	const markup = await sanitizeMarkupForPreset(await response.text(), policy);
+	const markup = await sanitizeMarkupForPreset(await response.text(), policy, false);
 
 	return document.createRange().createContextualFragment(markup);
 };
