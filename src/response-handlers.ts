@@ -251,8 +251,9 @@ const sanitizeWithAllowedAttributes = (sanitizer: DOMPurify, markup: string, san
 		const element = node as Element;
 		if (!allowStyles || element.tagName !== 'LINK') { return }
 
-		const rel = (element.getAttribute('rel') ?? '').trim().toLowerCase();
-		if (rel !== 'stylesheet') { element.remove() }
+		// rel is a space-separated token list (e.g. "stylesheet preload"), not a single value.
+		const relTokens = (element.getAttribute('rel') ?? '').trim().toLowerCase().split(/\s+/);
+		if (!relTokens.includes('stylesheet')) { element.remove() }
 	};
 
 	const hook = (_node: Node, data: { attrName?: string; attrValue?: string; forceKeepAttr?: boolean; forceKeep?: boolean }) => {
@@ -298,15 +299,15 @@ const sanitizeWithAllowedAttributes = (sanitizer: DOMPurify, markup: string, san
  * while the rest of DOMPurify sanitization remains active.
  * @param markup The source markup.
  * @param policy The sanitization policy.
- * @param wholeDocument Whether markup is a full HTML/XML document (keeps `<head>` content) rather than a fragment.
  * @returns Sanitized (or raw) markup as a string.
  */
-const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPreset | SanitizationPolicy, wholeDocument: boolean): Promise<string> => {
+const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPreset | SanitizationPolicy): Promise<string> => {
 	const resolvedPolicy = normalizeSanitizationPolicy(policy);
 	if (resolvedPolicy.preset === 'bypass') { return markup }
 
-	// DOMPurify drops everything outside <body> unless told this is a whole document.
-	const sanitizerOptions = { ...getSanitizerOptionsForPreset(resolvedPolicy), ...(wholeDocument ? { WHOLE_DOCUMENT: true } : {}) };
+	// DOMPurify drops everything outside <body> unless told otherwise — needed even for fragments, since
+	// the source markup may be a full page (e.g. a stylesheet <link> living in <head>).
+	const sanitizerOptions = { ...getSanitizerOptionsForPreset(resolvedPolicy), WHOLE_DOCUMENT: true };
 	const sanitizer = await env.getSanitizer();
 	sanitizer.clearConfig();
 
@@ -332,7 +333,7 @@ const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPrese
 const parseDocumentWithPreset = async (response: Response, mimeType: DOMParserSupportedType, policy: SanitizationPreset | SanitizationPolicy): Promise<Document> => {
 	await env.domReady();
 
-	const markup = await sanitizeMarkupForPreset(await response.text(), policy, true);
+	const markup = await sanitizeMarkupForPreset(await response.text(), policy);
 
 	return new DOMParser().parseFromString(markup, mimeType);
 };
@@ -346,7 +347,7 @@ const parseDocumentWithPreset = async (response: Response, mimeType: DOMParserSu
 const parseFragmentWithPreset = async (response: Response, policy: SanitizationPreset | SanitizationPolicy): Promise<DocumentFragment> => {
 	await env.domReady();
 
-	const markup = await sanitizeMarkupForPreset(await response.text(), policy, false);
+	const markup = await sanitizeMarkupForPreset(await response.text(), policy);
 
 	return document.createRange().createContextualFragment(markup);
 };

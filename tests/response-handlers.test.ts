@@ -516,6 +516,24 @@ describe('Response Handlers', () => {
 		expect(fragment.querySelector('script')).toBeNull();
 	});
 
+	it('should preserve stylesheet links whose rel attribute has multiple tokens when allowStyles is enabled', async () => {
+		const html = '<link rel="stylesheet preload" href="/a.css"><link rel="preload stylesheet" href="/b.css"><link rel="preload" href="/c.css" as="style">';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/multi-token-rel', {
+			sanitization: {
+				allowStyles: true
+			}
+		}) as DocumentFragment;
+
+		const links = fragment.querySelectorAll('link');
+		expect(links).toHaveLength(2);
+		expect(links[0]?.getAttribute('href')).toBe('/a.css');
+		expect(links[1]?.getAttribute('href')).toBe('/b.css');
+	});
+
 	it('should preserve <head> content when fetching a full HTML document', async () => {
 		const html = '<!DOCTYPE html><html><head><title>T</title></head><body><div>Hi</div></body></html>';
 		mockFetch.mockResolvedValue(new Response(html, {
@@ -528,16 +546,43 @@ describe('Response Handlers', () => {
 		expect(doc.querySelector('div')?.textContent).toBe('Hi');
 	});
 
-	it('should ignore document-wrapper-only content when fetching an HTML fragment', async () => {
-		const html = '<!DOCTYPE html><html><head><title>T</title></head><body><div>Hi</div></body></html>';
+	it('should preserve stylesheet links when a full HTML page is fetched as a fragment', async () => {
+		const html = '<!DOCTYPE html><html><head><link rel="stylesheet" href="/app.css"><style>.hero{display:block}</style></head><body><div>Hi</div></body></html>';
 		mockFetch.mockResolvedValue(new Response(html, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
 
-		const fragment = await transportr.getHtmlFragment('/full-page') as DocumentFragment;
+		const fragment = await transportr.getHtmlFragment('/full-page', {
+			sanitization: { allowStyles: true }
+		}) as DocumentFragment;
 
-		expect(fragment.querySelector('title')).toBeNull();
+		expect(fragment.querySelector('link')?.getAttribute('href')).toBe('/app.css');
+		expect(fragment.querySelector('style')?.textContent).toContain('.hero');
 		expect(fragment.querySelector('div')?.textContent).toBe('Hi');
+	});
+
+	it('should strip non-style <head>-only content (meta, base) while keeping title when fetching a full page as a fragment', async () => {
+		const html = '<!DOCTYPE html><html><head><title>T</title><meta charset="utf-8"><base href="/base/"><link rel="stylesheet" href="/app.css"></head><body><div>Hi</div></body></html>';
+
+		mockFetch.mockResolvedValueOnce(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+		const strictFragment = await transportr.getHtmlFragment('/full-page') as DocumentFragment;
+		expect(strictFragment.querySelector('title')?.textContent).toBe('T');
+		expect(strictFragment.querySelector('meta')).toBeNull();
+		expect(strictFragment.querySelector('base')).toBeNull();
+		expect(strictFragment.querySelector('link')).toBeNull();
+
+		mockFetch.mockResolvedValueOnce(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+		const stylesFragment = await transportr.getHtmlFragment('/full-page', {
+			sanitization: { allowStyles: true }
+		}) as DocumentFragment;
+		expect(stylesFragment.querySelector('title')?.textContent).toBe('T');
+		expect(stylesFragment.querySelector('meta')).toBeNull();
+		expect(stylesFragment.querySelector('base')).toBeNull();
+		expect(stylesFragment.querySelector('link')?.getAttribute('href')).toBe('/app.css');
 	});
 
 	it('should handle blob responses', async () => {
