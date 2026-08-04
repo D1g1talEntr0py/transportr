@@ -1,3 +1,6 @@
+## [5.2.1](https://github.com/D1g1talEntr0py/transportr/compare/v5.2.0...v5.2.1) (2026-08-04)
+* multiple rel tokens, scripts and styles in fragments are now preserved (6af2c548008ae3abaabb98e096d6a33302e94d7d)
+
 ## [5.2.0](https://github.com/D1g1talEntr0py/transportr/compare/v5.1.0...v5.2.0) (2026-08-04)
 * enhance sanitization to preserve <head> content and inline script markup (94df309fb92f9be8ab0c559f43892f4d92cc44ce)
 
