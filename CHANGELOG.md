@@ -1,3 +1,6 @@
+## [5.2.0](https://github.com/D1g1talEntr0py/transportr/compare/v5.1.0...v5.2.0) (2026-08-04)
+* enhance sanitization to preserve <head> content and inline script markup (94df309fb92f9be8ab0c559f43892f4d92cc44ce)
+
 ## [5.1.0](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.4...v5.1.0) (2026-08-04)
 * add granular control for sanitization with allowStyles option to preserve styles and stylesheets (e8cf1fee62ef88bcd1cac19349dd79c0a729dbe6)
 
