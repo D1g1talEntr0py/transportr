@@ -26,9 +26,11 @@ const defaultTemplateScriptTypes = [
 type PreservedScript = { attributes: Array<[name: string, value: string]>; content: string };
 
 const normalizeSanitizationPolicy = (policy: SanitizationPreset | SanitizationPolicy) => {
+	const allowStyles = typeof policy === 'string' ? false : policy.allowStyles === true;
+
 	return typeof policy === 'string' ?
-		{ preset: policy, preserveTemplateScripts: false, templateScriptTypes: [], allowScripts: false } :
-		{ preset: policy.preset ?? 'strict', preserveTemplateScripts: policy.preserveTemplateScripts === true, templateScriptTypes: policy.templateScriptTypes ?? [], allowScripts: policy.allowScripts === true };
+		{ preset: policy, preserveTemplateScripts: false, templateScriptTypes: [], allowScripts: false, allowStyles } :
+		{ preset: policy.preset ?? 'strict', preserveTemplateScripts: policy.preserveTemplateScripts === true, templateScriptTypes: policy.templateScriptTypes ?? [], allowScripts: policy.allowScripts === true, allowStyles };
 };
 
 const normalizeScriptType = (type: string): string => type.trim().toLowerCase();
@@ -135,7 +137,6 @@ const restoreTemplateScriptsInMarkup = (markup: string, placeholders: Map<string
 	return container.innerHTML;
 };
 
-
 /**
  * Manages lazy initialization of DOM and sanitization environments.
  * Unifies initialization state and provides typed access to resources.
@@ -216,30 +217,68 @@ const getSanitizerOptionsForPreset = (policy: Required<SanitizationPolicy>): San
 		default: assertNever(policy.preset);
 	}
 
-	return policy.allowScripts ? { ...baseOptions, ADD_TAGS: [ 'script' ], ALLOW_UNKNOWN_PROTOCOLS: true } : baseOptions;
+	const addTags: string[] = [];
+
+	if (policy.allowScripts) { addTags.push('script') }
+	if (policy.allowStyles) {
+		addTags.push('link');
+		addTags.push('style');
+	}
+
+	if (addTags.length === 0) { return baseOptions }
+
+	return {
+		...baseOptions,
+		...(addTags.length > 0 ? { ADD_TAGS: addTags } : {}),
+		...((policy.allowScripts || policy.allowStyles) ? { ALLOW_UNKNOWN_PROTOCOLS: true } : {})
+	};
 };
 
 /**
- * Runs DOMPurify while preserving all inline event-handler attributes.
+ * Runs DOMPurify while preserving configured JavaScript-bearing and style-bearing attributes.
  * @param sanitizer The DOMPurify instance.
  * @param markup The markup to sanitize.
  * @param sanitizerOptions The DOMPurify configuration for this sanitization pass.
- * @returns Sanitized markup with inline event-handler attributes preserved.
+ * @param allowScripts Whether JavaScript-bearing attributes should be preserved.
+	* @param allowStyles Whether style-bearing attributes should be preserved.
+	* @returns Sanitized markup with requested attributes preserved.
  */
-const sanitizeWithAllowedJavaScriptAttributes = (sanitizer: DOMPurify, markup: string, sanitizerOptions: SanitizerOptions | undefined): string => {
+const sanitizeWithAllowedAttributes = (sanitizer: DOMPurify, markup: string, sanitizerOptions: SanitizerOptions | undefined, allowScripts: boolean, allowStyles: boolean): string => {
+	const elementHook = (node: Node) => {
+		const element = node as Element;
+		if (!allowStyles || element.tagName !== 'LINK') { return }
+
+		const rel = (element.getAttribute('rel') ?? '').trim().toLowerCase();
+		if (rel !== 'stylesheet') { element.remove() }
+	};
+
 	const hook = (_node: Node, data: { attrName?: string; attrValue?: string; forceKeepAttr?: boolean; forceKeep?: boolean }) => {
-		if (data.attrName?.startsWith('on')) {
+		if (allowStyles && data.attrName === 'style') {
 			data.forceKeepAttr = true;
 			data.forceKeep = true;
 			return;
 		}
 
-		if (data.attrValue?.trim().toLowerCase().startsWith('javascript:')) {
+		const node = _node as Element;
+		if (allowStyles && node.tagName === 'LINK' && (data.attrName === 'href' || data.attrName === 'rel')) {
+			data.forceKeepAttr = true;
+			data.forceKeep = true;
+			return;
+		}
+
+		if (allowScripts && data.attrName?.startsWith('on')) {
+			data.forceKeepAttr = true;
+			data.forceKeep = true;
+			return;
+		}
+
+		if (allowScripts && data.attrValue?.trim().toLowerCase().startsWith('javascript:')) {
 			data.forceKeepAttr = true;
 			data.forceKeep = true;
 		}
 	};
 
+	sanitizer.addHook('uponSanitizeElement', elementHook);
 	sanitizer.addHook('uponSanitizeAttribute', hook);
 	try {
 		const sanitized = sanitizer.sanitize(markup, sanitizerOptions);
@@ -267,11 +306,13 @@ const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPrese
 	sanitizer.clearConfig();
 	if (resolvedPolicy.allowScripts) {
 		const { markup: extractedMarkup, placeholders } = extractScriptsFromMarkup(markup, () => true, 'SCRIPT');
-		return restoreTemplateScriptsInMarkup(sanitizeWithAllowedJavaScriptAttributes(sanitizer, extractedMarkup, sanitizerOptions), placeholders);
+		return restoreTemplateScriptsInMarkup(sanitizeWithAllowedAttributes(sanitizer, extractedMarkup, sanitizerOptions, true, resolvedPolicy.allowStyles), placeholders);
 	}
 
 	const { markup: extractedMarkup, placeholders } = extractTemplateScriptsFromMarkup(markup, buildTemplateScriptTypeSet(resolvedPolicy));
-	const sanitized = sanitizer.sanitize(extractedMarkup, sanitizerOptions);
+	const sanitized = resolvedPolicy.allowStyles ?
+		sanitizeWithAllowedAttributes(sanitizer, extractedMarkup, sanitizerOptions, false, true) :
+		sanitizer.sanitize(extractedMarkup, sanitizerOptions);
 	const sanitizedMarkup = typeof sanitized === 'string' ? sanitized : String(sanitized);
 
 	return restoreTemplateScriptsInMarkup(sanitizedMarkup, placeholders);
@@ -484,7 +525,7 @@ const handleHtmlFragmentBypass: ResponseHandler<DocumentFragment> = async (respo
  */
 const getHtmlHandlerForPreset = (policy: SanitizationPreset | SanitizationPolicy): ResponseHandler<Document> => {
 	const resolvedPolicy = normalizeSanitizationPolicy(policy);
-	if (resolvedPolicy.preset === 'strict' && !resolvedPolicy.allowScripts && buildTemplateScriptTypeSet(resolvedPolicy).size === 0) { return handleHtml }
+	if (resolvedPolicy.preset === 'strict' && !resolvedPolicy.allowScripts && !resolvedPolicy.allowStyles && buildTemplateScriptTypeSet(resolvedPolicy).size === 0) { return handleHtml }
 
 	return async (response) => parseDocumentWithPreset(response, 'text/html', resolvedPolicy);
 };
@@ -496,7 +537,7 @@ const getHtmlHandlerForPreset = (policy: SanitizationPreset | SanitizationPolicy
  */
 const getXmlHandlerForPreset = (policy: SanitizationPreset | SanitizationPolicy): ResponseHandler<Document> => {
 	const resolvedPolicy = normalizeSanitizationPolicy(policy);
-	if (resolvedPolicy.preset === 'strict' && !resolvedPolicy.allowScripts && buildTemplateScriptTypeSet(resolvedPolicy).size === 0) { return handleXml }
+	if (resolvedPolicy.preset === 'strict' && !resolvedPolicy.allowScripts && !resolvedPolicy.allowStyles && buildTemplateScriptTypeSet(resolvedPolicy).size === 0) { return handleXml }
 
 	return async (response) => parseDocumentWithPreset(response, 'application/xml', resolvedPolicy);
 };
@@ -508,7 +549,7 @@ const getXmlHandlerForPreset = (policy: SanitizationPreset | SanitizationPolicy)
  */
 const getHtmlFragmentHandlerForPreset = (policy: SanitizationPreset | SanitizationPolicy): ResponseHandler<DocumentFragment> => {
 	const resolvedPolicy = normalizeSanitizationPolicy(policy);
-	if (resolvedPolicy.preset === 'strict' && !resolvedPolicy.allowScripts && buildTemplateScriptTypeSet(resolvedPolicy).size === 0) { return handleHtmlFragment }
+	if (resolvedPolicy.preset === 'strict' && !resolvedPolicy.allowScripts && !resolvedPolicy.allowStyles && buildTemplateScriptTypeSet(resolvedPolicy).size === 0) { return handleHtmlFragment }
 	if (resolvedPolicy.preset === 'bypass') { return handleHtmlFragmentBypass }
 
 	return async (response) => parseFragmentWithPreset(response, resolvedPolicy);

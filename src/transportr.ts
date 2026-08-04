@@ -28,12 +28,19 @@ type RequestConfiguration = {
  * @param instanceOptions Instance-level default request options.
  * @returns The resolved sanitization policy.
  */
-const resolveSanitizationPolicy = (requestOptions: RequestOptions | undefined, instanceOptions: RequestOptions): SanitizationPolicy => ({
-	preset: requestOptions?.sanitization?.preset ?? requestOptions?.sanitizePreset ?? instanceOptions.sanitization?.preset ?? instanceOptions.sanitizePreset ?? 'strict',
-	preserveTemplateScripts: requestOptions?.sanitization?.preserveTemplateScripts ?? instanceOptions.sanitization?.preserveTemplateScripts,
-	templateScriptTypes: requestOptions?.sanitization?.templateScriptTypes ?? instanceOptions.sanitization?.templateScriptTypes,
-	allowScripts: requestOptions?.sanitization?.allowScripts ?? instanceOptions.sanitization?.allowScripts
-});
+const resolveSanitizationPolicy = (requestOptions: RequestOptions | undefined, instanceOptions: RequestOptions): SanitizationPolicy => {
+	const requestSanitization = requestOptions?.sanitization;
+	const instanceSanitization = instanceOptions.sanitization;
+	const allowStyles: boolean | undefined = requestSanitization?.allowStyles ?? instanceSanitization?.allowStyles;
+
+	return {
+		preset: requestOptions?.sanitization?.preset ?? requestOptions?.sanitizePreset ?? instanceSanitization?.preset ?? instanceOptions.sanitizePreset ?? 'strict',
+		preserveTemplateScripts: requestSanitization?.preserveTemplateScripts ?? instanceSanitization?.preserveTemplateScripts,
+		templateScriptTypes: requestSanitization?.templateScriptTypes ?? instanceSanitization?.templateScriptTypes,
+		allowScripts: requestSanitization?.allowScripts ?? instanceSanitization?.allowScripts,
+		allowStyles
+	};
+};
 
 /**
  * A wrapper around the fetch API that makes it easier to make HTTP requests.

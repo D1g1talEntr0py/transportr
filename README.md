@@ -135,7 +135,39 @@ await api.getHtmlFragment('/legacy-template', {
 
 Use `sanitizePreset: 'bypass'` only when the entire response is trusted and you intentionally want to keep executable scripts, inline handlers, and `javascript:` URLs.
 
-`allowScripts` has been removed. Prefer `sanitization.preserveTemplateScripts` for inert templates and reserve `sanitizePreset: 'bypass'` for fully trusted content.
+When you need finer control, `sanitization` also supports granular allowances:
+
+```typescript
+await api.getHtml('/page', {
+	sanitization: {
+		allowScripts: true,
+		allowStyles: true
+	}
+});
+```
+
+`allowScripts` preserves JavaScript constructs while still letting DOMPurify sanitize everything else. That includes:
+
+- `<script>` tags, including template script tags
+- inline event handlers such as `onclick`
+- `javascript:` URLs
+
+`allowStyles` separately preserves stylesheet markup:
+
+- `<link rel="stylesheet">` tags only
+- `<style>` tags
+- inline `style="..."` attributes
+
+Important: `allowStyles` preserves raw CSS. It does not sanitize CSS inside `<style>` tags or CSS declarations inside inline `style` attributes.
+
+Use `allowScripts` when you want to preserve JavaScript constructs but still keep DOMPurify active for unrelated markup.
+
+Use `sanitizePreset: 'bypass'` only when you want to skip sanitization entirely.
+
+In short:
+
+- `allowScripts`: preserve JavaScript, still sanitize unrelated markup
+- `sanitizePreset: 'bypass'`: preserve everything, sanitize nothing
 
 #### 3. HTML Selector Extraction
 
@@ -522,6 +554,8 @@ type RequestOptions = {
 		preset?: 'strict' | 'balanced' | 'relaxed' | 'bypass';
 		preserveTemplateScripts?: boolean;
 		templateScriptTypes?: string[];
+		allowScripts?: boolean;
+		allowStyles?: boolean;
 	};
 	onDownloadProgress?: (progress: DownloadProgress) => void;
 	onUploadProgress?: (progress: DownloadProgress) => void;

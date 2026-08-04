@@ -50,6 +50,14 @@ type SanitizationPolicy = {
 	preserveTemplateScripts?: boolean;
 	templateScriptTypes?: string[];
 	/**
+	 * Preserves stylesheet markup such as <link rel="stylesheet"> tags, <style> tags, and inline
+	 * style attributes.
+	 *
+	 * **Security Warning:** This preserves raw CSS. It does not sanitize CSS inside `<style>` tags
+	 * or CSS declarations inside inline `style` attributes.
+	 */
+	allowStyles?: boolean;
+	/**
 	 * Preserves JavaScript constructs while keeping non-JS sanitization active. This includes
 	 * executable `<script>` elements, inline event-handler attributes (for example `onclick`),
 	 * and `javascript:` URL attributes.

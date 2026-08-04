@@ -101,6 +101,18 @@ describe('Response Handlers', () => {
 		expect(fragment.querySelector('script')).toBeNull();
 	});
 
+	it('should strip stylesheet links by default', async () => {
+		const htmlWithStyles = '<div>Welcome</div><link rel="stylesheet" href="/app.css"><style>.hero{display:block}</style>';
+		mockFetch.mockResolvedValue(new Response(htmlWithStyles, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/styles-default') as Document;
+
+		expect(doc.querySelector('div')?.textContent).toBe('Welcome');
+		expect(doc.querySelector('link')).toBeNull();
+	});
+
 	it('should preserve all content including scripts and event handlers when sanitizePreset is bypass', async () => {
 		const trustedHtml = '<p onclick="handleClick()">Hello</p><script src="/app.js" type="text/javascript"></script>';
 		mockFetch.mockResolvedValue(new Response(trustedHtml, {
@@ -401,6 +413,92 @@ describe('Response Handlers', () => {
 		const strictDoc = await transportr.getHtml('/untrusted') as Document;
 		expect(strictDoc.querySelector('p')?.textContent).toBe('Hello');
 		expect(strictDoc.querySelector('script')).toBeNull();
+	});
+
+	it('should preserve link tags when allowStyles is enabled', async () => {
+		const html = '<div>Welcome</div><link rel="stylesheet" href="/app.css"><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/link-tags', {
+			sanitization: {
+				allowStyles: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('div')?.textContent).toBe('Welcome');
+		expect(doc.querySelector('link')?.getAttribute('href')).toBe('/app.css');
+		expect(doc.querySelector('script')).toBeNull();
+	});
+
+	it('should strip non-stylesheet link tags when allowStyles is enabled', async () => {
+		const html = '<div>Welcome</div><link rel="preload" href="/app.css" as="style"><link rel="stylesheet" href="/theme.css">';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/style-links', {
+			sanitization: {
+				allowStyles: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('div')?.textContent).toBe('Welcome');
+		expect(doc.querySelector('link[rel="preload"]')).toBeNull();
+		expect(doc.querySelector('link[rel="stylesheet"]')?.getAttribute('href')).toBe('/theme.css');
+	});
+
+	it('should preserve style tags when allowStyles is enabled', async () => {
+		const html = '<div>Welcome</div><style>.hero{display:block}</style><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/style-tags', {
+			sanitization: {
+				allowStyles: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('div')?.textContent).toBe('Welcome');
+		expect(doc.querySelector('style')?.textContent).toContain('.hero');
+		expect(doc.querySelector('script')).toBeNull();
+	});
+
+	it('should preserve inline style attributes when allowStyles is enabled', async () => {
+		const html = '<div style="color:red;display:block" onclick="run()">Welcome</div><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const doc = await transportr.getHtml('/style-attrs', {
+			sanitization: {
+				allowStyles: true
+			}
+		}) as Document;
+
+		expect(doc.querySelector('div')?.getAttribute('style')).toContain('color:red');
+		expect(doc.querySelector('div')?.getAttribute('onclick')).toBeNull();
+		expect(doc.querySelector('script')).toBeNull();
+	});
+
+	it('should preserve stylesheet links, style tags, and style attributes for HTML fragments when allowStyles is enabled', async () => {
+		const html = '<div style="color:red">Welcome</div><link rel="stylesheet" href="/app.css"><style>.hero{display:block}</style><script>alert("XSS")</script>';
+		mockFetch.mockResolvedValue(new Response(html, {
+			headers: { 'Content-Type': ContentType.HTML }
+		}));
+
+		const fragment = await transportr.getHtmlFragment('/style-fragment', {
+			sanitization: {
+				allowStyles: true
+			}
+		}) as DocumentFragment;
+
+		expect(fragment.querySelector('div')?.getAttribute('style')).toContain('color:red');
+		expect(fragment.querySelector('link')?.getAttribute('href')).toBe('/app.css');
+		expect(fragment.querySelector('style')?.textContent).toContain('.hero');
+		expect(fragment.querySelector('script')).toBeNull();
 	});
 
 	it('should handle blob responses', async () => {
