@@ -1,3 +1,6 @@
+## [5.0.4](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.3...v5.0.4) (2026-08-04)
+* preserve template script tags in HTML documents and fragments when allowScripts is enabled (6ee4ec39955f981b03ee410d18fcc9acf6a240ce)
+
 ## [5.0.3](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.2...v5.0.3) (2026-08-04)
 * enhance sanitization policy documentation and improve script handling in tests (67d5a6a0a2bf8dd6abdab1931f9a08a68e9c9eda)
 
