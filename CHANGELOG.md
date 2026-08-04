@@ -1,3 +1,13 @@
+## [5.0.2](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.1...v5.0.2) (2026-08-04)
+* response handling and sanitization policies were not getting cleared (9f184f131e138cc9f3cc1217e4cd837d1803ec67)
+- Simplified document parsing by using `parseDocumentWithPreset` and `parseFragmentWithPreset` in `parseSanitizedDocument` and `handleHtmlFragment`.
+- Removed unnecessary calls to `env.domReady()` in response handlers.
+- Enhanced sanitization policy resolution to include `allowScripts` option.
+- Added tests to ensure template script tags are stripped by default and preserved when `preserveTemplateScripts` is enabled.
+- Verified that script tags are preserved when `allowScripts` is set, while still sanitizing other unsafe markup.
+
+* **deps:** updated github actions (10159baf4d0047e7be8b9fdea812bf1a375613fe)
+
 ## [5.0.1](https://github.com/D1g1talEntr0py/transportr/compare/v5.0.0...v5.0.1) (2026-07-28)
 * **deps:** upgrade dependencies to address critical security vulnerabilities (615569cda3d5198fc899d930621a992302e3b886)
 Addresses the following security issues:
