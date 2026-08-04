@@ -131,6 +131,7 @@ const restoreTemplateScriptsInMarkup = (markup: string, placeholders: Map<string
 	return container.innerHTML;
 };
 
+
 /**
  * Manages lazy initialization of DOM and sanitization environments.
  * Unifies initialization state and provides typed access to resources.
@@ -198,8 +199,7 @@ const parseSanitizedDocument = async (response: Response, mimeType: DOMParserSup
 /**
  * Returns DOMPurify options for the resolved policy. When `allowScripts` is set, `script` is
  * added to DOMPurify's own allowed-tags list (`ADD_TAGS`) so real, executable `<script>` elements
- * of any `type` — including a remote `src` — survive natively, while every other unsafe construct
- * (inline event handlers, `javascript:` URLs, `<iframe>`, etc.) is still sanitized normally.
+ * of any `type` — including a remote `src` — survive natively.
  * @param policy The resolved sanitization policy.
  * @returns DOMPurify options, or undefined to use DOMPurify defaults.
  */
@@ -212,14 +212,44 @@ const getSanitizerOptionsForPreset = (policy: Required<SanitizationPolicy>): San
 		default: assertNever(policy.preset);
 	}
 
-	return policy.allowScripts ? { ...baseOptions, ADD_TAGS: [ 'script' ] } : baseOptions;
+	return policy.allowScripts ? { ...baseOptions, ADD_TAGS: [ 'script' ], ALLOW_UNKNOWN_PROTOCOLS: true } : baseOptions;
+};
+
+/**
+ * Runs DOMPurify while preserving all inline event-handler attributes.
+ * @param sanitizer The DOMPurify instance.
+ * @param markup The markup to sanitize.
+ * @param sanitizerOptions The DOMPurify configuration for this sanitization pass.
+ * @returns Sanitized markup with inline event-handler attributes preserved.
+ */
+const sanitizeWithAllowedJavaScriptAttributes = (sanitizer: DOMPurify, markup: string, sanitizerOptions: SanitizerOptions | undefined): string => {
+	const hook = (_node: Node, data: { attrName?: string; attrValue?: string; forceKeepAttr?: boolean; forceKeep?: boolean }) => {
+		if (data.attrName?.startsWith('on')) {
+			data.forceKeepAttr = true;
+			data.forceKeep = true;
+			return;
+		}
+
+		if (data.attrValue?.trim().toLowerCase().startsWith('javascript:')) {
+			data.forceKeepAttr = true;
+			data.forceKeep = true;
+		}
+	};
+
+	sanitizer.addHook('uponSanitizeAttribute', hook);
+	try {
+		const sanitized = sanitizer.sanitize(markup, sanitizerOptions);
+
+		return typeof sanitized === 'string' ? sanitized : String(sanitized);
+	} finally {
+		sanitizer.removeAllHooks();
+	}
 };
 
 /**
  * Sanitizes markup for a preset, or returns raw markup when bypassing sanitization.
- * When `allowScripts` is set, DOMPurify's native `ADD_TAGS` handles script preservation directly,
- * so the template-script placeholder extraction (only needed to rescue inert templates from
- * DOMPurify's default script-stripping) is skipped entirely.
+ * When `allowScripts` is set, script tags and JavaScript-bearing attributes are preserved,
+ * while the rest of DOMPurify sanitization remains active.
  * @param markup The source markup.
 	* @param policy The sanitization policy.
  * @returns Sanitized (or raw) markup as a string.
@@ -229,18 +259,13 @@ const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPrese
 	if (resolvedPolicy.preset === 'bypass') { return markup }
 
 	const sanitizerOptions = getSanitizerOptionsForPreset(resolvedPolicy);
-
+	const sanitizer = await env.getSanitizer();
+	sanitizer.clearConfig();
 	if (resolvedPolicy.allowScripts) {
-		const sanitizer = await env.getSanitizer();
-		sanitizer.clearConfig();
-		const sanitized = sanitizer.sanitize(markup, sanitizerOptions);
-
-		return typeof sanitized === 'string' ? sanitized : String(sanitized);
+		return sanitizeWithAllowedJavaScriptAttributes(sanitizer, markup, sanitizerOptions);
 	}
 
 	const { markup: extractedMarkup, placeholders } = extractTemplateScriptsFromMarkup(markup, buildTemplateScriptTypeSet(resolvedPolicy));
-	const sanitizer = await env.getSanitizer();
-	sanitizer.clearConfig();
 	const sanitized = sanitizer.sanitize(extractedMarkup, sanitizerOptions);
 	const sanitizedMarkup = typeof sanitized === 'string' ? sanitized : String(sanitized);
 

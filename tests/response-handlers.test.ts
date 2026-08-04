@@ -328,7 +328,7 @@ describe('Response Handlers', () => {
 	});
 
 	it('should preserve script tags for full HTML documents when sanitization.allowScripts is enabled', async () => {
-		const html = '<p onclick="run()">Hello</p><script src="/trusted.js"></script>';
+		const html = '<p onclick="run()">Hello</p><a id="link" href="javascript:run()">Run</a><script src="/trusted.js"></script><iframe src="https://evil.example"></iframe>';
 		mockFetch.mockResolvedValue(new Response(html, {
 			headers: { 'Content-Type': ContentType.HTML }
 		}));
@@ -340,8 +340,10 @@ describe('Response Handlers', () => {
 		}) as Document;
 
 		expect(doc.querySelector('script')?.getAttribute('src')).toBe('/trusted.js');
-		// Other unsafe markup should still be sanitized when allowScripts is used.
-		expect(doc.querySelector('p')?.getAttribute('onclick')).toBeNull();
+		expect(doc.querySelector('p')?.getAttribute('onclick')).toBe('run()');
+		expect(doc.querySelector('#link')?.getAttribute('href')).toBe('javascript:run()');
+		// Non-JS unsafe markup should still be sanitized away.
+		expect(doc.querySelector('iframe')).toBeNull();
 	});
 
 	it('should continue stripping scripts by default after an allowScripts request', async () => {

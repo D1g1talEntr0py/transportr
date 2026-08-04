@@ -50,13 +50,12 @@ type SanitizationPolicy = {
 	preserveTemplateScripts?: boolean;
 	templateScriptTypes?: string[];
 	/**
-	 * Allows real, executable `<script>` elements (any `type`, including a remote `src`) to survive
-	 * sanitization by adding `script` to DOMPurify's allowed tags — while all other markup (inline
-	 * event handlers, `javascript:` URLs, `<iframe>`, etc.) is still sanitized normally.
+	 * Preserves JavaScript constructs while keeping non-JS sanitization active. This includes
+	 * executable `<script>` elements, inline event-handler attributes (for example `onclick`),
+	 * and `javascript:` URL attributes.
 	 *
-	 * **Security Warning:** DOMPurify does not analyze or validate the JavaScript inside an allowed
-	 * `<script>` element — any code present executes as-is when injected into the DOM. Only enable
-	 * this for trusted content. Defaults to false.
+	 * **Security Warning:** Any preserved JavaScript executes as-is when injected into the DOM.
+	 * Enable this only for trusted content. Defaults to false.
 	 */
 	allowScripts?: boolean;
 };
