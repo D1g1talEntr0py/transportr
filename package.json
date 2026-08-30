@@ -21,7 +21,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "packageManager": "pnpm@11.20.0",
+  "packageManager": "pnpm@12.0.0",
   "type": "module",
   "types": "./dist/transportr.d.ts",
   "exports": {
@@ -73,16 +73,17 @@
     "pretest:browser:verbose": "pnpm run test:browser:setup",
     "test:browser:verbose": "vitest run --project browser",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --project unit --project integration --coverage",
+    "pretest:coverage": "pnpm run test:browser:setup",
+    "test:coverage": "vitest run --project unit --project integration --project browser --coverage",
     "test:coverage:unit": "vitest run --project unit --coverage"
   },
   "dependencies": {
-    "@d1g1tal/media-type": "^7.0.0",
-    "@d1g1tal/subscribr": "^4.2.2",
-    "dompurify": "^3.4.13"
+    "@d1g1tal/media-type": "^7.0.1",
+    "@d1g1tal/subscribr": "^4.2.4",
+    "dompurify": "^3.4.14"
   },
   "peerDependencies": {
-    "jsdom": ">=25.0.0"
+    "jsdom": ">=30.0.0"
   },
   "peerDependenciesMeta": {
     "jsdom": {
@@ -90,35 +91,30 @@
     }
   },
   "devDependencies": {
-    "@d1g1tal/tsbuild": "^2.2.4",
-    "@eslint/eslintrc": "^3.3.6",
+    "@d1g1tal/tsbuild": "^2.3.2",
     "@eslint/js": "^10.0.1",
-    "@types/jsdom": "^28.0.3",
-    "@types/node": "^26.1.2",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.4.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitest/browser": "^4.1.10",
-    "@vitest/browser-playwright": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
-    "@vitest/ui": "^4.1.10",
-    "@xmldom/xmldom": "^0.9.10",
-    "eslint": "^10.8.0",
+    "@vitest/browser": "^4.1.11",
+    "@vitest/browser-playwright": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/ui": "^4.1.11",
+    "@xmldom/xmldom": "^0.9.12",
+    "eslint": "^10.9.1",
     "eslint-plugin-compat": "^7.0.2",
-    "eslint-plugin-jsdoc": "^63.3.3",
-    "globals": "^17.9.0",
+    "eslint-plugin-jsdoc": "^64.2.1",
+    "globals": "^17.11.0",
     "jsdom": "^30.0.1",
     "mitata": "^1.0.34",
     "playwright": "^1.62.1",
     "typescript": "npm:@typescript/typescript6@6.0.2",
-    "typescript-eslint": "^8.65.0",
-    "vitest": "^4.1.10"
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
   },
   "browserslist": [
-    ">0.3% and not dead",
-    "defaults and fully supports es6-module",
-    "not iOS <= 16.1",
-    "node >= 22.0.0"
+    "defaults and fully supports es6",
+    "maintained node versions"
   ],
   "keywords": [
     "Fetch",

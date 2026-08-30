@@ -1,4 +1,5 @@
 {
+	"$schema": "https://json.schemastore.org/tsbuild.json",
 	"compilerOptions": {
 		"sourceMap": true,
 		"declaration": true,
@@ -12,7 +13,7 @@
 		"rootDir": "./src",
 		"lib": [ "esnext", "dom" ],
 		"module": "preserve",
-		"paths": { "@src/*": ["./src/*"], "@types": ["./src/@types"] }
+		"paths": { "@src/*": [ "./src/*" ], "@types": [ "./src/@types" ] }
 	},
 	"include": [ "./src" ],
 	"tsbuild": {

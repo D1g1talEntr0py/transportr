@@ -1,8 +1,5 @@
 name: Release
 
-env:
-  PNPM_CONFIG_MINIMUM_RELEASE_AGE: ${{ vars.PNPM_CONFIG_MINIMUM_RELEASE_AGE || '0' }}
-
 on:
   push:
     branches: [main]
@@ -29,6 +26,6 @@ jobs:
           cache: pnpm
       - run: sudo npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
-      - run: npx -y -p semantic-release -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec -p conventional-changelog-conventionalcommits semantic-release
+      - run: npx -y -p semantic-release -p @semantic-release/changelog -p @semantic-release/git -p @semantic-release/exec semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

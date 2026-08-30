@@ -5,6 +5,10 @@ import { playwright } from '@vitest/browser-playwright';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// jsdom is imported lazily by the Node DOM fallback in src/response-handlers.ts. Left to Vite it is
+// discovered mid-run, which re-optimizes the shared dep cache and reloads tests in the other projects.
+const optimizeDeps = { exclude: [ 'jsdom' ] };
+
 export default defineConfig({
 	resolve: {
 		alias: {
@@ -12,12 +16,14 @@ export default defineConfig({
 			'@types': resolve(__dirname, './src/@types')
 		}
 	},
+	optimizeDeps,
 	test: {
 		globals: true,
 		// Use project-based configuration for different environments
 		projects: [
 			defineProject({
 				// Integration tests use node environment for better compatibility with fetch/AbortSignal
+				optimizeDeps,
 				test: {
 					name: 'integration',
 					environment: 'node',
@@ -27,6 +33,7 @@ export default defineConfig({
 			}),
 			defineProject({
 				// Unit tests use jsdom environment for any DOM-related functionality
+				optimizeDeps,
 				test: {
 					name: 'unit',
 					environment: 'jsdom',
@@ -39,6 +46,7 @@ export default defineConfig({
 				// Browser tests run in real Chromium via Playwright.
 				// These validate behaviour that jsdom cannot reproduce faithfully,
 				// specifically DOMPurify interacting with a real HTML parser.
+				optimizeDeps,
 				test: {
 					name: 'browser',
 					browser: {
