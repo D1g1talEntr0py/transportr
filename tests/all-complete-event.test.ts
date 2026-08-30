@@ -1,9 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Transportr } from '../src/transportr.js';
+import { startTestServer, type TestServer } from './scripts/server.js';
 
 describe('All Complete Event', () => {
+	let server: TestServer;
+
+	beforeAll(async () => { server = await startTestServer() });
+	afterAll(async () => { await server.close() });
+	afterEach(() => { server.reset() });
+
 	it('should fire the all-complete event when all requests are complete', async () => {
-		const transportr = new Transportr('https://67894e02b72f3b1b31f75ff4.mockapi.io/api/v1/');
+		const transportr = new Transportr(server.url);
 
 		const configuredEventListener = vi.fn();
 		const configuredRegistration = Transportr.register(Transportr.RequestEvent.CONFIGURED, configuredEventListener);
@@ -27,43 +34,24 @@ describe('All Complete Event', () => {
 		const allCompleteRegistration = Transportr.register(Transportr.RequestEvent.ALL_COMPLETE, allCompleteEventListener);
 
 		try {
-			const results = await Promise.allSettled([
-				transportr.get('/users'),
-				transportr.get('/users'),
-				transportr.get('/users')
+			const results = await Promise.all([
+				transportr.get('/json'),
+				transportr.get('/json'),
+				transportr.get('/json')
 			]);
 
-			// Check that all requests completed (whether successful or failed)
-			expect(results.length).toBe(3);
+			expect(results).toHaveLength(3);
+			expect(results.every((result) => (result as { id: string }).id === '1')).toBe(true);
 
-			// Give time for events to be processed
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await vi.waitFor(() => expect(allCompleteEventListener).toHaveBeenCalledTimes(1));
 
-			// Check events after processing results
-			console.log('Event listener call counts:', {
-				configured: configuredEventListener.mock.calls.length,
-				success: successEventListener.mock.calls.length,
-				error: errorEventListener.mock.calls.length,
-				abort: abortEventListener.mock.calls.length,
-				timeout: timeoutEventListener.mock.calls.length,
-				complete: completeEventListener.mock.calls.length,
-				allComplete: allCompleteEventListener.mock.calls.length
-			});
-
-			// Basic expectations: all requests should be configured and completed
 			expect(configuredEventListener).toHaveBeenCalledTimes(3);
 			expect(completeEventListener).toHaveBeenCalledTimes(3);
-			expect(allCompleteEventListener).toHaveBeenCalledTimes(1);
-
-			// Either success or error events should be triggered (API may be down)
-			const totalSuccessOrError = successEventListener.mock.calls.length + errorEventListener.mock.calls.length;
-			expect(totalSuccessOrError).toBeGreaterThanOrEqual(3);
-
-			// No abort or timeout events should occur
+			expect(successEventListener).toHaveBeenCalledTimes(3);
+			expect(errorEventListener).toHaveBeenCalledTimes(0);
 			expect(abortEventListener).toHaveBeenCalledTimes(0);
 			expect(timeoutEventListener).toHaveBeenCalledTimes(0);
 		} finally {
-			// Clean up event listeners
 			Transportr.unregister(configuredRegistration);
 			Transportr.unregister(successRegistration);
 			Transportr.unregister(errorRegistration);
@@ -71,6 +59,22 @@ describe('All Complete Event', () => {
 			Transportr.unregister(timeoutRegistration);
 			Transportr.unregister(completeRegistration);
 			Transportr.unregister(allCompleteRegistration);
+		}
+	});
+
+	it('should fire all-complete once per batch, not once per request', async () => {
+		const transportr = new Transportr(server.url);
+		const allCompleteEventListener = vi.fn();
+		const registration = Transportr.register(Transportr.RequestEvent.ALL_COMPLETE, allCompleteEventListener);
+
+		try {
+			await transportr.get('/json');
+			await vi.waitFor(() => expect(allCompleteEventListener).toHaveBeenCalledTimes(1));
+
+			await transportr.get('/json');
+			await vi.waitFor(() => expect(allCompleteEventListener).toHaveBeenCalledTimes(2));
+		} finally {
+			Transportr.unregister(registration);
 		}
 	});
 });

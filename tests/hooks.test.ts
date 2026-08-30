@@ -1,12 +1,22 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Transportr } from '../src/transportr.js';
 import { HttpError } from '../src/http-error.js';
-import config from './scripts/config.js';
-
-const apiBaseUrl = `https://${config.apiKey}.mockapi.io/artists`;
+import { ResponseStatus } from '../src/response-status.js';
+import { startTestServer, type TestServer } from './scripts/server.js';
 
 describe('Hooks', () => {
+	let server: TestServer;
+	let apiBaseUrl: string;
+
+	beforeAll(async () => {
+		server = await startTestServer();
+		apiBaseUrl = server.url;
+	});
+
+	afterAll(async () => { await server.close() });
+
 	afterEach(() => {
+		server.reset();
 		Transportr.clearHooks();
 	});
 
@@ -16,7 +26,7 @@ describe('Hooks', () => {
 			Transportr.addHooks({ beforeRequest: [hook] });
 
 			const transportr = new Transportr(apiBaseUrl);
-			await transportr.getJson('/1');
+			await transportr.getJson('/json');
 
 			expect(hook).toHaveBeenCalledTimes(1);
 			expect(hook).toHaveBeenCalledWith(
@@ -30,7 +40,7 @@ describe('Hooks', () => {
 			const transportr = new Transportr(apiBaseUrl);
 			transportr.addHooks({ beforeRequest: [hook] });
 
-			await transportr.getJson('/1');
+			await transportr.getJson('/json');
 
 			expect(hook).toHaveBeenCalledTimes(1);
 		});
@@ -43,7 +53,7 @@ describe('Hooks', () => {
 			const transportr = new Transportr(apiBaseUrl);
 			transportr.addHooks({ beforeRequest: [() => { order.push('instance') }] });
 
-			await transportr.getJson('/1', {
+			await transportr.getJson('/json', {
 				hooks: { beforeRequest: [() => { order.push('per-request') }] }
 			});
 
@@ -61,7 +71,7 @@ describe('Hooks', () => {
 			});
 
 			// If the hook runs without error, it successfully modified the options
-			const data = await transportr.getJson('/1');
+			const data = await transportr.getJson('/json');
 			expect(data).toHaveProperty('id');
 		});
 	});
@@ -72,7 +82,7 @@ describe('Hooks', () => {
 			Transportr.addHooks({ afterResponse: [hook] });
 
 			const transportr = new Transportr(apiBaseUrl);
-			await transportr.getJson('/1');
+			await transportr.getJson('/json');
 
 			expect(hook).toHaveBeenCalledTimes(1);
 			expect(hook).toHaveBeenCalledWith(
@@ -86,7 +96,7 @@ describe('Hooks', () => {
 			const transportr = new Transportr(apiBaseUrl);
 			transportr.addHooks({ afterResponse: [hook] });
 
-			await transportr.getJson('/1');
+			await transportr.getJson('/json');
 
 			expect(hook).toHaveBeenCalledTimes(1);
 		});
@@ -99,11 +109,27 @@ describe('Hooks', () => {
 			const transportr = new Transportr(apiBaseUrl);
 			transportr.addHooks({ afterResponse: [() => { order.push('instance') }] });
 
-			await transportr.getJson('/1', {
+			await transportr.getJson('/json', {
 				hooks: { afterResponse: [() => { order.push('per-request') }] }
 			});
 
 			expect(order).toEqual(['global', 'instance', 'per-request']);
+		});
+
+		it('should keep the original response when a hook returns nothing', async () => {
+			const transportr = new Transportr(apiBaseUrl);
+			transportr.addHooks({ afterResponse: [() => undefined] });
+
+			await expect(transportr.getJson('/json')).resolves.toEqual({ id: '1', firstName: 'Miles', lastName: 'Davis' });
+		});
+
+		it('should use the replacement response when a hook returns one', async () => {
+			const transportr = new Transportr(apiBaseUrl);
+			transportr.addHooks({
+				afterResponse: [() => new Response(JSON.stringify({ replaced: true }), { headers: { 'content-type': 'application/json' } })]
+			});
+
+			await expect(transportr.getJson('/json')).resolves.toEqual({ replaced: true });
 		});
 	});
 
@@ -115,7 +141,7 @@ describe('Hooks', () => {
 			const transportr = new Transportr(apiBaseUrl);
 
 			try {
-				await transportr.getJson('/nonexistent-endpoint-99999');
+				await transportr.getJson('/status/404');
 			} catch {
 				// expected
 			}
@@ -137,7 +163,7 @@ describe('Hooks', () => {
 			});
 
 			try {
-				await transportr.getJson('/nonexistent-endpoint-99999');
+				await transportr.getJson('/status/404');
 				expect.unreachable('Should have thrown');
 			} catch (error) {
 				expect(error).toBeInstanceOf(HttpError);
@@ -151,12 +177,59 @@ describe('Hooks', () => {
 			transportr.addHooks({ beforeError: [hook] });
 
 			try {
-				await transportr.getJson('/nonexistent-endpoint-99999');
+				await transportr.getJson('/status/404');
 			} catch {
 				// expected
 			}
 
 			expect(hook).toHaveBeenCalledTimes(1);
+		});
+
+		it('should keep the original error when a hook returns something that is not an HttpError', async () => {
+			const transportr = new Transportr(apiBaseUrl);
+			transportr.addHooks({ beforeError: [() => undefined, () => new Error('not an HttpError') as unknown as HttpError] });
+
+			const error = await transportr.getJson('/status/404').catch((cause: unknown) => cause);
+
+			expect(error).toBeInstanceOf(HttpError);
+			expect((error as HttpError).statusCode).toBe(404);
+		});
+
+		it('should run per-request beforeError hooks', async () => {
+			const hook = vi.fn();
+			const transportr = new Transportr(apiBaseUrl);
+
+			await transportr.getJson('/status/404', { hooks: { beforeError: [hook] } }).catch(() => undefined);
+
+			expect(hook).toHaveBeenCalledTimes(1);
+			expect(hook).toHaveBeenCalledWith(expect.any(HttpError));
+		});
+
+		it('should let a per-request beforeError hook replace the error', async () => {
+			const transportr = new Transportr(apiBaseUrl);
+
+			const error = await transportr.getJson('/status/404', {
+				hooks: { beforeError: [(cause) => new HttpError(new ResponseStatus(cause.statusCode, 'Replaced'), { message: 'per-request replacement' })] }
+			}).catch((cause: unknown) => cause);
+
+			expect(error).toBeInstanceOf(HttpError);
+			expect((error as HttpError).statusText).toBe('Replaced');
+			expect((error as HttpError).message).toBe('per-request replacement');
+		});
+
+		it('should run beforeError hooks in order: global → instance → per-request', async () => {
+			const order: string[] = [];
+
+			Transportr.addHooks({ beforeError: [() => { order.push('global') }] });
+
+			const transportr = new Transportr(apiBaseUrl);
+			transportr.addHooks({ beforeError: [() => { order.push('instance') }] });
+
+			await transportr.getJson('/status/404', {
+				hooks: { beforeError: [() => { order.push('per-request') }] }
+			}).catch(() => undefined);
+
+			expect(order).toEqual([ 'global', 'instance', 'per-request' ]);
 		});
 	});
 
@@ -167,7 +240,7 @@ describe('Hooks', () => {
 			Transportr.clearHooks();
 
 			const transportr = new Transportr(apiBaseUrl);
-			await transportr.getJson('/1');
+			await transportr.getJson('/json');
 
 			expect(hook).toHaveBeenCalledTimes(0);
 		});
@@ -178,7 +251,7 @@ describe('Hooks', () => {
 			transportr.addHooks({ beforeRequest: [hook] });
 			transportr.clearHooks();
 
-			await transportr.getJson('/1');
+			await transportr.getJson('/json');
 
 			expect(hook).toHaveBeenCalledTimes(0);
 		});

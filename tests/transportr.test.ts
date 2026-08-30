@@ -4,11 +4,9 @@ import { Transportr } from '../src/transportr.js';
 import { HttpError } from '../src/http-error.js';
 import { ResponseStatus } from '../src/response-status.js';
 import type { RequestOptions } from '../src/@types/index.js';
-import config from './scripts/config.js';
 
 describe('Transportr', () => {
-	const { apiKey } = config;
-	const baseUrl = `https://${apiKey}.mockapi.io/artists`;
+	const baseUrl = 'https://api.example.test/artists';
 
 	afterEach(() => {
 		vi.restoreAllMocks();
@@ -21,12 +19,12 @@ describe('Transportr', () => {
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
 			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
-			expect(transportr.baseUrl).toHaveProperty('origin', `https://${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', `${apiKey}.mockapi.io`);
-			expect(transportr.baseUrl).toHaveProperty('hostname', `${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('host', 'api.example.test');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/artists');
 		});
@@ -37,12 +35,12 @@ describe('Transportr', () => {
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
 			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
-			expect(transportr.baseUrl).toHaveProperty('origin', `https://${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', `${apiKey}.mockapi.io`);
-			expect(transportr.baseUrl).toHaveProperty('hostname', `${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('host', 'api.example.test');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/artists');
 		});
@@ -53,12 +51,12 @@ describe('Transportr', () => {
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
 			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
-			expect(transportr.baseUrl).toHaveProperty('origin', `https://${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', `${apiKey}.mockapi.io`);
-			expect(transportr.baseUrl).toHaveProperty('hostname', `${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('host', 'api.example.test');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/artists');
 			expect(transportr.baseUrl).toHaveProperty('search', '');
@@ -72,12 +70,12 @@ describe('Transportr', () => {
 			expect(transportr).toBeInstanceOf(Transportr);
 			expect(transportr.baseUrl).toBeInstanceOf(URL);
 			expect(transportr.baseUrl).toHaveProperty('href', baseUrl);
-			expect(transportr.baseUrl).toHaveProperty('origin', `https://${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('origin', 'https://api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('protocol', 'https:');
 			expect(transportr.baseUrl).toHaveProperty('username', '');
 			expect(transportr.baseUrl).toHaveProperty('password', '');
-			expect(transportr.baseUrl).toHaveProperty('host', `${apiKey}.mockapi.io`);
-			expect(transportr.baseUrl).toHaveProperty('hostname', `${apiKey}.mockapi.io`);
+			expect(transportr.baseUrl).toHaveProperty('host', 'api.example.test');
+			expect(transportr.baseUrl).toHaveProperty('hostname', 'api.example.test');
 			expect(transportr.baseUrl).toHaveProperty('port', '');
 			expect(transportr.baseUrl).toHaveProperty('pathname', '/artists');
 			expect(transportr.baseUrl).toHaveProperty('search', '');

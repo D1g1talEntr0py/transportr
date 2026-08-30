@@ -1,42 +1,50 @@
-import { describe, expect, it, vi } from 'vitest';
-import { Transportr } from '../src/transportr';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { Transportr } from '../src/transportr.js';
+import { startTestServer, type TestServer } from './scripts/server.js';
 
 describe('Abort All', () => {
+	let server: TestServer;
+
+	beforeAll(async () => { server = await startTestServer() });
+	afterAll(async () => { await server.close() });
+
+	afterEach(() => {
+		server.reset();
+		Transportr.abortAll();
+	});
+
 	it('should cancel all requests when abortAll is called', async () => {
-		const transportr = new Transportr('https://httpbin.org/');
+		const transportr = new Transportr(server.url);
 
 		const abortEventListener = vi.fn();
 		const allCompleteEventListener = vi.fn();
+		const configuredEventListener = vi.fn();
 
 		// Register listeners and save registrations for cleanup
 		const abortRegistration = Transportr.register(Transportr.RequestEvent.ABORTED, abortEventListener);
 		const allCompleteRegistration = Transportr.register(Transportr.RequestEvent.ALL_COMPLETE, allCompleteEventListener);
+		const configuredRegistration = Transportr.register(Transportr.RequestEvent.CONFIGURED, configuredEventListener);
 
 		try {
 			// Start multiple slow requests
 			const requests = [
-				transportr.get('/delay/2'),
-				transportr.get('/delay/2'),
-				transportr.get('/delay/2')
+				transportr.get('/delay/2000'),
+				transportr.get('/delay/2000'),
+				transportr.get('/delay/2000')
 			];
 
-			// Give time for requests to start
-			await new Promise(resolve => setTimeout(resolve, 100));
+			// Every request has registered its signal controller once it has been configured.
+			await vi.waitFor(() => expect(configuredEventListener).toHaveBeenCalledTimes(3));
 
-			// Abort all requests
 			Transportr.abortAll();
 
-			// Wait for all requests to settle
 			const results = await Promise.allSettled(requests);
 
 			// All requests should be rejected due to abort
-			expect(results.every(result => result.status === 'rejected')).toBe(true);
-
-			// Give time for events to be processed
-			await new Promise(resolve => setTimeout(resolve, 100));
+			expect(results.every((result) => result.status === 'rejected')).toBe(true);
 
 			// The abort events should have been triggered
-			expect(abortEventListener).toHaveBeenCalledTimes(3);
+			await vi.waitFor(() => expect(abortEventListener).toHaveBeenCalledTimes(3));
 
 			// No ALL_COMPLETE event should fire since requests were aborted
 			expect(allCompleteEventListener).not.toHaveBeenCalled();
@@ -44,6 +52,7 @@ describe('Abort All', () => {
 			// Clean up event listeners
 			Transportr.unregister(abortRegistration);
 			Transportr.unregister(allCompleteRegistration);
+			Transportr.unregister(configuredRegistration);
 		}
 	});
 });

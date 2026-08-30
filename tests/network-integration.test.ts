@@ -1,18 +1,20 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Transportr } from '../src/transportr';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { Transportr } from '../src/transportr.js';
+import { startTestServer, type TestServer } from './scripts/server.js';
 
 describe('Network Tests', () => {
+	let server: TestServer;
+
+	beforeAll(async () => { server = await startTestServer() });
+	afterAll(async () => { await server.close() });
+
 	afterEach(() => {
+		server.reset();
 		vi.restoreAllMocks();
 	});
 
 	it('should successfully make HTTP requests to real API', async () => {
-		const artist = { id: '1', firstName: 'Miles', lastName: 'Davis' };
-		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			new Response(JSON.stringify(artist), { headers: { 'content-type': 'application/json' } })
-		);
-
-		const transportr = new Transportr('https://example.mockapi.io/artists');
+		const transportr = new Transportr(server.url);
 
 		const configuredEventListener = vi.fn();
 		const configuredRegistration = Transportr.register(Transportr.RequestEvent.CONFIGURED, configuredEventListener);
@@ -24,20 +26,15 @@ describe('Network Tests', () => {
 		const errorRegistration = Transportr.register(Transportr.RequestEvent.ERROR, errorEventListener);
 
 		try {
-			const data = await transportr.getJson('/1');
+			const data = await transportr.getJson('/json');
 
-			expect(typeof(data)).toBe('object');
-			expect(data).toHaveProperty('id');
-			expect(data).toHaveProperty('firstName');
-			expect(data).toHaveProperty('lastName');
+			expect(data).toEqual({ id: '1', firstName: 'Miles', lastName: 'Davis' });
 
-			// Give time for events to be processed
-			await new Promise(resolve => setTimeout(resolve, 50));
+			await vi.waitFor(() => expect(successEventListener).toHaveBeenCalledTimes(1));
 
-			// Verify events were fired
 			expect(configuredEventListener).toHaveBeenCalledTimes(1);
-			expect(successEventListener).toHaveBeenCalledTimes(1);
 			expect(errorEventListener).toHaveBeenCalledTimes(0);
+			expect(server.requests).toMatchObject([ { method: 'GET', pathname: '/json' } ]);
 		} finally {
 			Transportr.unregister(configuredRegistration);
 			Transportr.unregister(successRegistration);
@@ -46,12 +43,7 @@ describe('Network Tests', () => {
 	});
 
 	it('should test POST request functionality', async () => {
-		const createdArtist = { id: '42', firstName: 'Test', lastName: 'User', gender: 'Male', recordLabel: 'Test Records' };
-		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-			new Response(JSON.stringify(createdArtist), { headers: { 'content-type': 'application/json' } })
-		);
-
-		const transportr = new Transportr('https://example.mockapi.io/artists');
+		const transportr = new Transportr(`${server.url}/echo`);
 
 		const postData = {
 			firstName: 'Test',
@@ -60,41 +52,26 @@ describe('Network Tests', () => {
 			recordLabel: 'Test Records'
 		};
 
-		const result = await transportr.post(postData);
+		const result = await transportr.post(postData) as { method: string, body: string, headers: Record<string, string> };
 
-		expect(typeof(result)).toBe('object');
-		expect(result).toHaveProperty('id');
-		expect(result).toHaveProperty('firstName');
-		expect(result).toHaveProperty('lastName');
+		expect(result.method).toBe('POST');
+		expect(JSON.parse(result.body)).toEqual(postData);
+		expect(result.headers['content-type']).toContain('application/json');
 	});
 
 	it('should test global event handler registration', async () => {
-		const artist33 = { id: '33', recordLabel: 'Blue Note' };
-		const artist14 = { id: '14', gender: 'Female' };
-
-		const fetchSpy = vi.spyOn(globalThis, 'fetch')
-			.mockResolvedValueOnce(new Response(JSON.stringify(artist33), { headers: { 'content-type': 'application/json' } }))
-			.mockResolvedValueOnce(new Response(JSON.stringify(artist14), { headers: { 'content-type': 'application/json' } }));
-
 		const globalConfiguredEventHandler = vi.fn();
 		const registration = Transportr.register(Transportr.RequestEvent.CONFIGURED, globalConfiguredEventHandler);
 
 		try {
-			const transportr = new Transportr('https://example.mockapi.io/artists');
+			const transportr = new Transportr(server.url);
 
-			const data = await transportr.getJson('/33');
-			expect(typeof(data)).toBe('object');
-			expect(data).toHaveProperty('recordLabel');
+			expect(await transportr.getJson('/json')).toHaveProperty('firstName', 'Miles');
+			expect(await transportr.getJson('/echo?id=14')).toHaveProperty('query', { id: '14' });
 
-			const data2 = await transportr.getJson('/14');
-			expect(typeof(data2)).toBe('object');
-			expect(data2).toHaveProperty('gender');
+			await vi.waitFor(() => expect(globalConfiguredEventHandler).toHaveBeenCalledTimes(2));
 
-			// Give time for events to be processed
-			await new Promise(resolve => setTimeout(resolve, 50));
-
-			expect(globalConfiguredEventHandler).toHaveBeenCalledTimes(2);
-			expect(fetchSpy).toHaveBeenCalledTimes(2);
+			expect(server.requests.map(({ pathname }) => pathname)).toEqual([ '/json', '/echo' ]);
 		} finally {
 			Transportr.unregister(registration);
 		}

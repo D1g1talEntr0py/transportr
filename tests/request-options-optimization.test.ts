@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Transportr } from '../src/transportr.js';
 
-const apiBaseUrl = 'https://example.mockapi.io/artists';
+const apiBaseUrl = 'https://api.example.test/artists';
 
 function mockJsonFetch(): ReturnType<typeof vi.spyOn> {
 	return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
@@ -17,6 +17,12 @@ function mockJsonFetch(): ReturnType<typeof vi.spyOn> {
 }
 
 describe('Request Options Performance Optimization', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		Transportr.unregisterAll();
+		Transportr.clearHooks();
+	});
+
 	it('should merge request options without deep cloning on every request', async () => {
 		const fetchSpy = mockJsonFetch();
 		const transportr = new Transportr(apiBaseUrl, {

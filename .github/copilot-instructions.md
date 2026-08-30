@@ -50,9 +50,11 @@ DOM handlers (Html|Xml|HtmlFragment): `DOMPurify.sanitize()` before parse | Scri
 Tabs | unix newlines | single quotes | JSDoc on exports (param names checked, destructured exempt) | `method-signature-style: property` | unused vars prefix `_` | `typescript-eslint` type-checked
 
 ## Testing
-Vitest projects (vitest.config.ts): `unit` (jsdom, all except integration) | `integration` (node, real HTTP to mockapi.io: global-event-handler, abort-all, all-complete-event, network-integration, environment-specific, signal-controller-cleanup, request-options-optimization, mediatype-caching, hooks)
-Both: load tests/scripts/setup.ts → mock `createObjectURL`/`revokeObjectURL`, polyfill AbortController|Signal
-Patterns: mock `globalThis.location.origin` for constructor tests | import `.js` extensions | mockapi.io key in tests/scripts/config.ts | rate-limited, batch changes only
+Vitest projects (vitest.config.ts): `unit` (jsdom) | `integration` (node) | `browser` (real Chromium via Playwright, `pnpm test:browser`; needs `pnpm exec playwright install chromium`). `test:coverage` runs all three.
+Both unit|integration: load tests/scripts/setup.ts → mock `createObjectURL`/`revokeObjectURL`, polyfill AbortController|Signal
+Local server: `startTestServer()` in tests/scripts/server.ts — real node:http on an ephemeral port (/json /text /html /xml /binary /echo /upload /delay/:ms /status/:code /flaky /retry-after /stream /no-length /script.js /style.css /image.png). Use it instead of stubbing fetch or hitting third-party endpoints. No test depends on external network.
+Patterns: mock `globalThis.location.origin` for constructor tests | import `.js` extensions | eslint only lints ./src, so type-check tests via `tsc --noEmit -p tests/tsconfig.json`
+Env limits: jsdom/node never load subresources, so getScript|getStylesheet|getImage only settle on success in the `browser` project | Vitest replaces the global Event|CustomEvent|DOMException, which Node's native AbortSignal rejects — the synthetic `timeout` event is unobservable under Vitest but works in real Node
 
 ## Tasks
 
