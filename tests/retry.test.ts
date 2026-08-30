@@ -266,5 +266,43 @@ describe('Retry', () => {
 
 			expect(delayFn).toHaveBeenCalledWith(1);
 		});
+
+		it('should reuse the normalized configuration when the same options object is passed again', async () => {
+			vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ ok: true }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			}));
+
+			const retry = { limit: 2, delay: 10 };
+			const transportr = new Transportr('http://example.com');
+
+			await transportr.getJson('/test', { retry });
+			await transportr.getJson('/test', { retry });
+
+			// The second request hits the object-identity cache; behaviour must be identical.
+			await expect(transportr.getJson('/test', { retry })).resolves.toEqual({ ok: true });
+		});
+
+		it('should apply a cached retry configuration on a later failure', async () => {
+			const retry = { limit: 2, delay: 10 };
+			const transportr = new Transportr('http://example.com');
+
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ ok: true }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			}));
+			await transportr.getJson('/test', { retry });
+
+			vi.restoreAllMocks();
+			const fetchSpy = vi.spyOn(globalThis, 'fetch')
+				.mockResolvedValueOnce(new Response(null, { status: 503, statusText: 'Service Unavailable' }))
+				.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				}));
+
+			await expect(transportr.getJson('/test', { retry })).resolves.toEqual({ ok: true });
+			expect(fetchSpy).toHaveBeenCalledTimes(2);
+		});
 	});
 });

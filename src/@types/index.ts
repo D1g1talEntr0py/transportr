@@ -18,7 +18,8 @@ type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPT
 type RequestBodyMethod = Extract<RequestMethod, 'POST' | 'PUT' | 'PATCH' | 'DELETE'>;
 type RequestNoBodyMethod = Exclude<RequestMethod, RequestBodyMethod>;
 type RequestHeaders = Prettify<TypedHeaders & { [K in Exclude<typeof RequestHeader[keyof typeof RequestHeader], keyof TypedHeaders>]?: string; } & HeadersInit>;
-type SearchParameters = string | string[][] | Record<string, string> | URLSearchParams | undefined;
+type SearchParameterValue = string | number | boolean;
+type SearchParameters = string | string[][] | Record<string, SearchParameterValue> | URLSearchParams | undefined;
 type AuthorizationScheme = 'Basic' | 'Bearer' | 'Digest' | 'HOBA' | 'Mutual' | 'Negotiate' | 'OAuth' | 'SCRAM-SHA-1' | 'SCRAM-SHA-256' | 'vapid';
 type ResponseHandler<T extends ResponseBody = ResponseBody> = (response: Response) => Promise<T>;
 type RequestLifecycleEvent = 'configured' | 'success' | 'error' | 'aborted' | 'timeout' | 'retry' | 'complete' | 'all-complete';
@@ -96,6 +97,8 @@ type RequestOptions = Prettify<{
 	onUploadProgress?: (progress: DownloadProgress) => void;
 	/** When false, methods return Result tuples instead of throwing. Defaults to true (throw on error). */
 	unwrap?: boolean;
+	/** When false, the response body is not read into `HttpError.entity`. Defaults to true. */
+	captureErrorBody?: boolean;
 	/**
 	 * User-friendly sanitization preset for HTML/XML/fragment responses.
 	 * - strict: default DOMPurify behavior
@@ -209,6 +212,7 @@ export type {
 	ResponseHandler,
 	ResponseStatus,
 	SearchParameters,
+	SearchParameterValue,
 	SanitizationPreset,
 	SanitizationPolicy,
 	TypedArray,

@@ -179,4 +179,18 @@ describe('Upload Progress', () => {
 
 		expect(onUploadProgress).not.toHaveBeenCalled();
 	});
+
+	it('should not report progress when the request has no body', async () => {
+		const transportr = new Transportr('https://api.example.com');
+		const onUploadProgress = vi.fn();
+
+		mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), {
+			status: 200,
+			headers: { 'content-type': 'application/json' }
+		}));
+
+		await expect(transportr.post('/ping', undefined, { onUploadProgress })).resolves.toEqual({ ok: true });
+
+		expect(onUploadProgress).not.toHaveBeenCalled();
+	});
 });

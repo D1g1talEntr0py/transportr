@@ -1032,11 +1032,13 @@ export class Transportr {
 						await Transportr.#retryDelay(retryConfig, attempt);
 						continue;
 					}
+
 					// Capture response body for error diagnostics (subject to consumer opt-out via captureErrorBody=false).
 					let entity: ResponseBody | undefined;
-					if ((requestOptions as RequestOptions & { captureErrorBody?: boolean }).captureErrorBody !== false) {
+					if (requestOptions.captureErrorBody !== false) {
 						try { entity = await response.text() } catch { /* body may be unavailable */ }
 					}
+
 					throw await this.#handleError(path, response, { entity, url, method, timing: Transportr.#snapshotTiming(startTime) }, requestOptions);
 				}
 
@@ -1548,22 +1550,13 @@ export class Transportr {
 	/**
 	 * Creates a new URL with the given path and search parameters.
 	 * Uses the pre-normalized base pathname/origin to avoid per-request regex work.
-	 * Polymorphic on the first arg to preserve the legacy direct-URL test API.
-	 * @param source A Transportr instance (preferred) or a base URL.
+	 * @param source The Transportr instance supplying the base URL.
 	 * @param path The path to append to the base URL.
 	 * @param searchParams The search parameters to append to the URL.
 	 * @returns A new URL with the given path and search parameters.
 	 */
-	static #createUrl(source: Transportr | URL, path?: string, searchParams?: SearchParameters): URL {
-		let requestUrl: URL;
-		if (source instanceof URL) {
-			// Legacy/direct-call path \u2014 strip a single trailing slash from pathname.
-			const basePath = source.pathname;
-			const normalizedBase = basePath.charCodeAt(basePath.length - 1) === 47 ? basePath.slice(0, -1) : basePath;
-			requestUrl = path ? new URL(`${normalizedBase}${path}`, source.origin) : new URL(source);
-		} else {
-			requestUrl = path ? new URL(`${source.#basePath}${path}`, source.#origin) : new URL(source.#baseUrl);
-		}
+	static #createUrl(source: Transportr, path?: string, searchParams?: SearchParameters): URL {
+		const requestUrl = path ? new URL(`${source.#basePath}${path}`, source.#origin) : new URL(source.#baseUrl);
 
 		if (searchParams) {
 			Transportr.#mergeSearchParams(requestUrl.searchParams, searchParams);

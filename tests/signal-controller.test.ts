@@ -36,37 +36,22 @@ describe('SignalController', () => {
 		expect(eventListener).toHaveBeenCalledTimes(1);
 	});
 
-	it('should add an event listener for the "timeout" event', async () => {
-		// Check if AbortSignal.timeout is available (not available in some jsdom versions)
-		if (typeof AbortSignal.timeout !== 'function') {
-			console.warn('AbortSignal.timeout is not available in this environment, skipping test');
-			return;
-		}
-
-		const signalController = new SignalController({ timeout: 100 });
-		const eventListener = vi.fn();
+	// The synthetic `timeout` event cannot be observed here: Vitest replaces the global Event,
+	// CustomEvent and DOMException with userland classes that Node's native AbortSignal rejects.
+	// Verified working against the built package in a plain Node process.
+	it('should abort with a TimeoutError reason when the timeout elapses', async () => {
+		const signalController = new SignalController({ timeout: 50 });
 		const abortListener = vi.fn();
 
-		signalController.onTimeout(eventListener);
 		signalController.onAbort(abortListener);
 
-		expect(eventListener).toHaveBeenCalledTimes(0);
 		expect(abortListener).toHaveBeenCalledTimes(0);
 
-		// Wait for the timeout to trigger
-		await new Promise(resolve => setTimeout(resolve, 250));
+		await vi.waitFor(() => expect(abortListener).toHaveBeenCalledTimes(1));
 
-		// In jsdom, AbortSignal.timeout() fires abort but the reason may not be a
-		// DOMException with name 'TimeoutError', so handleEvent cannot detect it.
-		// This is a jsdom limitation — the timeout path is verified in integration tests (node env).
-		if (abortListener.mock.calls.length > 0 && eventListener.mock.calls.length === 0) {
-			console.warn('Timeout event not dispatched properly in jsdom — expected limitation');
-			return;
-		}
-
-		expect(abortListener).toHaveBeenCalledTimes(1);
-		expect(eventListener).toHaveBeenCalledTimes(1);
-	}, 10000);
+		expect(signalController.signal.aborted).toBe(true);
+		expect((signalController.signal.reason as Error).name).toBe('TimeoutError');
+	});
 
 	it('should abort the signal', () => {
 		const signalController = new SignalController();
@@ -119,4 +104,58 @@ describe('SignalController', () => {
 		expect(abortListener).toHaveBeenCalledTimes(1);
 		expect(timeoutListener).toHaveBeenCalledTimes(0);
 	}, 5000);
+
+	describe('external signals', () => {
+		it('should abort when an external signal aborts and no timeout is configured', () => {
+			const externalController = new AbortController();
+			const signalController = new SignalController({ signal: externalController.signal });
+			const abortListener = vi.fn();
+
+			signalController.onAbort(abortListener);
+			externalController.abort();
+
+			expect(abortListener).toHaveBeenCalledTimes(1);
+			expect(signalController.signal.aborted).toBe(true);
+		});
+
+		it('should treat an infinite timeout as no timeout', () => {
+			const externalController = new AbortController();
+			const signalController = new SignalController({ signal: externalController.signal, timeout: Infinity });
+			const timeoutListener = vi.fn();
+
+			signalController.onTimeout(timeoutListener);
+			externalController.abort();
+
+			expect(signalController.signal.aborted).toBe(true);
+			expect(timeoutListener).toHaveBeenCalledTimes(0);
+		});
+
+		it('should not dispatch a timeout event when an external signal aborts before the timeout', async () => {
+			const externalController = new AbortController();
+			const signalController = new SignalController({ signal: externalController.signal, timeout: 5000 });
+			const timeoutListener = vi.fn();
+			const abortListener = vi.fn();
+
+			signalController.onTimeout(timeoutListener);
+			signalController.onAbort(abortListener);
+
+			externalController.abort(new Error('caller changed their mind'));
+
+			await vi.waitFor(() => expect(abortListener).toHaveBeenCalledTimes(1));
+
+			expect(timeoutListener).toHaveBeenCalledTimes(0);
+			expect((signalController.signal.reason as Error).message).toBe('caller changed their mind');
+		});
+
+		it('should still allow destroy to remove listeners on a composite signal', () => {
+			const externalController = new AbortController();
+			const signalController = new SignalController({ signal: externalController.signal });
+			const abortListener = vi.fn();
+
+			signalController.onAbort(abortListener).destroy();
+			externalController.abort();
+
+			expect(abortListener).toHaveBeenCalledTimes(0);
+		});
+	});
 });

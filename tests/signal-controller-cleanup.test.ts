@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { Transportr } from '../src/transportr.js';
-const apiBaseUrl = 'https://example.mockapi.io/artists';
+const apiBaseUrl = 'https://api.example.test/artists';
 
 describe('SignalController Memory Management', () => {
 let transportr: Transportr;
