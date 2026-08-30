@@ -1,3 +1,12 @@
+## [5.2.2](https://github.com/D1g1talEntr0py/transportr/compare/v5.2.1...v5.2.2) (2026-08-30)
+
+
+### Bug Fixes
+
+* **release:** forgot to remove the -s flag that pnpm no longer supports for some reason ([9c9641f](https://github.com/D1g1talEntr0py/transportr/commit/9c9641fd753b193a1d85cdceca1ab8c7f842aff0))
+* **requests:** expose request option edge cases ([4b65b15](https://github.com/D1g1talEntr0py/transportr/commit/4b65b152b3ea26217106889a76155310d810d47e))
+* **response-handlers:** harden response parsing edge cases ([2d2d012](https://github.com/D1g1talEntr0py/transportr/commit/2d2d0124c280545bb5bca8d8263868c7264abcfe))
+
 ## [5.2.1](https://github.com/D1g1talEntr0py/transportr/compare/v5.2.0...v5.2.1) (2026-08-04)
 * multiple rel tokens, scripts and styles in fragments are now preserved (6af2c548008ae3abaabb98e096d6a33302e94d7d)
 
