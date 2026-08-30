@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { Transportr } from '../src/transportr';
-import { ContentType } from '../src/content-type';
+import { Transportr } from '../src/transportr.js';
+import { ContentType } from '../src/content-type.js';
 
 // Helper to read blob content for tests
 const readBlobAsText = (blob: Blob): Promise<string> => {
@@ -50,8 +50,7 @@ describe('Response Handlers', () => {
 	});
 
 	it('should handle and sanitize XML responses', async () => {
-		// JSDOM's DOMParser + DOMPurify might not perfectly handle XML, but it should prevent script injection.
-		const maliciousXml = '<root><user>test</user><script>alert("XSS")</script></root>';
+		const maliciousXml = '<?xml version="1.0" encoding="UTF-8"?><root><user role="admin">test</user><script>alert("XSS")</script><link href="javascript:alert(1)" onclick="alert(2)">safe</link></root>';
 		const mockResponse = new Response(maliciousXml, {
 			headers: { 'Content-Type': ContentType.XML }
 		});
@@ -60,15 +59,136 @@ describe('Response Handlers', () => {
 		const doc = await transportr.getXml('/test') as Document;
 
 		expect(doc).toBeInstanceOf(Document);
-		// After sanitization, the script tag should be gone.
-		// Note: Depending on the strictness of the parser in this env, other tags might be affected.
-		// The primary goal is ensuring the script is removed.
+		expect(doc.querySelector('parsererror')).toBeNull();
+
+		// The XML vocabulary survives sanitization, including attributes that are unknown to HTML.
+		expect(doc.documentElement.nodeName).toBe('root');
+		expect(doc.querySelector('user')?.textContent).toBe('test');
+		expect(doc.querySelector('user')?.getAttribute('role')).toBe('admin');
+
+		// Dangerous elements and attributes do not.
 		expect(doc.querySelector('script')).toBeNull();
-		// We can check if the 'user' tag survived, but the main point is security.
-		const userTag = doc.querySelector('user');
-		if (userTag) {
-			expect(userTag.textContent).toBe('test');
-		}
+		expect(doc.querySelector('link')).toBeNull();
+	});
+
+	it('should preserve element namespaces when sanitizing XML', async () => {
+		const namespacedXml = '<catalog xmlns="urn:example:catalog"><item id="1">Kind of Blue</item></catalog>';
+		mockFetch.mockResolvedValue(new Response(namespacedXml, { headers: { 'Content-Type': ContentType.XML } }));
+
+		const doc = await transportr.getXml('/test') as Document;
+
+		expect(doc.documentElement.namespaceURI).toBe('urn:example:catalog');
+		expect(doc.getElementsByTagNameNS('urn:example:catalog', 'item')[0]?.textContent).toBe('Kind of Blue');
+	});
+
+	it('should strip event handler attributes from XML without discarding the element', async () => {
+		const xmlWithHandler = '<root><node onclick="alert(1)" data-keep="yes">text</node></root>';
+		mockFetch.mockResolvedValue(new Response(xmlWithHandler, { headers: { 'Content-Type': ContentType.XML } }));
+
+		const doc = await transportr.getXml('/test') as Document;
+		const node = doc.querySelector('node');
+
+		expect(node?.textContent).toBe('text');
+		expect(node?.getAttribute('data-keep')).toBe('yes');
+		expect(node?.getAttribute('onclick')).toBeNull();
+	});
+
+	it('should sanitize XML the same way when the strict preset is requested explicitly', async () => {
+		const xml = '<root><node id="1">text</node><script>alert(1)</script></root>';
+		mockFetch.mockResolvedValue(new Response(xml, { headers: { 'Content-Type': ContentType.XML } }));
+
+		const doc = await transportr.getXml('/test', { sanitizePreset: 'strict' }) as Document;
+
+		expect(doc.querySelector('node')?.getAttribute('id')).toBe('1');
+		expect(doc.querySelector('script')).toBeNull();
+	});
+
+	it.each([ 'SCRIPT', 'ScRiPt', 'IFRAME', 'Object', 'EMBED', 'Base' ])('should strip unsafe XML elements spelled as <%s>', async (tagName) => {
+		const xml = `<root><${tagName}>payload</${tagName}><keep>ok</keep></root>`;
+		mockFetch.mockResolvedValue(new Response(xml, { headers: { 'Content-Type': ContentType.XML } }));
+
+		const doc = await transportr.getXml('/test') as Document;
+
+		expect(doc.getElementsByTagName(tagName)).toHaveLength(0);
+		expect(doc.querySelector('keep')?.textContent).toBe('ok');
+	});
+
+	it('should strip case-varied event handler attributes from XML', async () => {
+		const xml = '<root><node onClick="alert(1)" ONERROR="alert(2)" data-keep="yes">text</node></root>';
+		mockFetch.mockResolvedValue(new Response(xml, { headers: { 'Content-Type': ContentType.XML } }));
+
+		const node = (await transportr.getXml('/test') as Document).querySelector('node');
+
+		expect(node?.getAttribute('data-keep')).toBe('yes');
+		expect(node?.getAttribute('onClick')).toBeNull();
+		expect(node?.getAttribute('ONERROR')).toBeNull();
+	});
+
+	describe('selectors', () => {
+		it('should return the matching element from an HTML document', async () => {
+			mockFetch.mockResolvedValue(new Response('<html><body><p class="target">found</p></body></html>', { headers: { 'Content-Type': ContentType.HTML } }));
+
+			const element = await transportr.getHtml('/test', {}, '.target') as Element;
+
+			expect(element.textContent).toBe('found');
+		});
+
+		it('should return null when the HTML selector matches nothing', async () => {
+			mockFetch.mockResolvedValue(new Response('<html><body><p>content</p></body></html>', { headers: { 'Content-Type': ContentType.HTML } }));
+
+			await expect(transportr.getHtml('/test', {}, '.missing')).resolves.toBeNull();
+		});
+
+		it('should return the matching element from an HTML fragment', async () => {
+			mockFetch.mockResolvedValue(new Response('<span class="target">found</span>', { headers: { 'Content-Type': ContentType.HTML } }));
+
+			const element = await transportr.getHtmlFragment('/test', {}, '.target') as Element;
+
+			expect(element.textContent).toBe('found');
+		});
+
+		it('should return null when the fragment selector matches nothing', async () => {
+			mockFetch.mockResolvedValue(new Response('<span>content</span>', { headers: { 'Content-Type': ContentType.HTML } }));
+
+			await expect(transportr.getHtmlFragment('/test', {}, '.missing')).resolves.toBeNull();
+		});
+	});
+
+	describe('options as the first argument', () => {
+		it('should apply options passed to getHtml without a path', async () => {
+			mockFetch.mockResolvedValue(new Response('<p>Hello</p><script>alert(1)</script>', { headers: { 'Content-Type': ContentType.HTML } }));
+
+			const doc = await transportr.getHtml({ sanitizePreset: 'bypass' }) as Document;
+
+			expect(doc.querySelector('p')?.textContent).toBe('Hello');
+			expect(doc.querySelector('script')).not.toBeNull();
+		});
+
+		it('should apply options passed to getHtmlFragment without a path', async () => {
+			mockFetch.mockResolvedValue(new Response('<p>Hello</p><script>alert(1)</script>', { headers: { 'Content-Type': ContentType.HTML } }));
+
+			const fragment = await transportr.getHtmlFragment({ sanitizePreset: 'bypass' }) as DocumentFragment;
+
+			expect(fragment.querySelector('p')?.textContent).toBe('Hello');
+			expect(fragment.querySelector('script')).not.toBeNull();
+		});
+
+		it('should apply options passed to getXml without a path', async () => {
+			mockFetch.mockResolvedValue(new Response('<root><script>alert(1)</script></root>', { headers: { 'Content-Type': ContentType.XML } }));
+
+			const doc = await transportr.getXml({ sanitizePreset: 'bypass' }) as Document;
+
+			expect(doc.querySelector('script')).not.toBeNull();
+		});
+
+		it('should still sanitize when options are passed without a path', async () => {
+			mockFetch.mockResolvedValue(new Response('<p>Hello</p><script>alert(1)</script>', { headers: { 'Content-Type': ContentType.HTML } }));
+
+			const doc = await transportr.getHtml({ timeout: 5000 }) as Document;
+
+			expect(doc.querySelector('p')?.textContent).toBe('Hello');
+			expect(doc.querySelector('script')).toBeNull();
+		});
 	});
 
 	it('should handle and sanitize HTML fragments', async () => {

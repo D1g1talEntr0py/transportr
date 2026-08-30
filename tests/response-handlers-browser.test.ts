@@ -213,4 +213,73 @@ describe('Response Handlers (browser)', () => {
 			expect(fragment.querySelector('script')).toBeNull();
 		});
 	});
+
+	// jsdom never fetches subresources, so `<script>`, `<link>` and `<img>` built from object URLs
+	// never emit load/error events there. Only a real browser can exercise these success paths.
+	describe('resource-loading handlers', () => {
+		afterEach(() => {
+			for (const link of document.head.querySelectorAll('link[rel="stylesheet"]')) { link.remove() }
+			Reflect.deleteProperty(globalThis, '__transportrScriptRan');
+		});
+
+		it('should execute the script and remove the injected element', async () => {
+			mockFetch.mockResolvedValue(new Response(
+				'globalThis.__transportrScriptRan = true;',
+				{ headers: { 'Content-Type': ContentType.JAVA_SCRIPT } }
+			));
+
+			await transportr.getScript('/script.js');
+
+			expect(Reflect.get(globalThis, '__transportrScriptRan')).toBe(true);
+			expect(document.head.querySelector('script[src^="blob:"]')).toBeNull();
+		});
+
+		it('should apply the stylesheet to the document', async () => {
+			mockFetch.mockResolvedValue(new Response(
+				'body { color: rgb(1, 2, 3); }',
+				{ headers: { 'Content-Type': ContentType.CSS } }
+			));
+
+			await transportr.getStylesheet('/style.css');
+
+			expect(getComputedStyle(document.body).color).toBe('rgb(1, 2, 3)');
+		});
+
+		it('should resolve to a decoded image element', async () => {
+			// A real 1x1 transparent PNG.
+			const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), (character) => character.charCodeAt(0));
+			mockFetch.mockResolvedValue(new Response(png, { headers: { 'Content-Type': ContentType.PNG } }));
+
+			const image = await transportr.getImage('/image.png') as HTMLImageElement;
+
+			expect(image).toBeInstanceOf(HTMLImageElement);
+			expect(image.naturalWidth).toBe(1);
+			expect(image.naturalHeight).toBe(1);
+		});
+
+		it('should reject when the payload cannot be decoded as an image', async () => {
+			mockFetch.mockResolvedValue(new Response('not an image', { headers: { 'Content-Type': ContentType.PNG } }));
+
+			await expect(transportr.getImage('/image.png')).rejects.toMatchObject({ cause: { message: 'Image failed to load' } });
+		});
+	});
+
+	describe('getXml', () => {
+		it('should preserve the XML vocabulary while stripping dangerous nodes', async () => {
+			mockFetch.mockResolvedValue(new Response(
+				'<?xml version="1.0" encoding="UTF-8"?><catalog xmlns="urn:example:catalog"><artist id="1" ref="a"><name>Miles Davis</name></artist><script>alert("XSS")</script><note onclick="alert(1)">hi</note></catalog>',
+				{ headers: { 'Content-Type': ContentType.XML } }
+			));
+
+			const document_ = await transportr.getXml('/catalog.xml') as Document;
+
+			expect(document_.querySelector('parsererror')).toBeNull();
+			expect(document_.documentElement.nodeName).toBe('catalog');
+			expect(document_.documentElement.namespaceURI).toBe('urn:example:catalog');
+			expect(document_.querySelector('artist')?.getAttribute('ref')).toBe('a');
+			expect(document_.querySelector('name')?.textContent).toBe('Miles Davis');
+			expect(document_.querySelector('script')).toBeNull();
+			expect(document_.querySelector('note')?.getAttribute('onclick')).toBeNull();
+		});
+	});
 });

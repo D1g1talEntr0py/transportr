@@ -270,6 +270,21 @@ describe('Streaming Features', () => {
 			expect(records[0]).toEqual({ id: 1 });
 		});
 
+		it('should trim the complete final line when flushing the buffer', async () => {
+			const transportr = new Transportr('https://api.example.com');
+			mockFetch.mockResolvedValueOnce(new Response(
+				createStream(['  {"id":1}  ']),
+				{ status: 200, headers: { 'content-type': 'application/x-ndjson' } }
+			));
+
+			const records: unknown[] = [];
+			for await (const record of await transportr.getJsonStream('/export')) {
+				records.push(record);
+			}
+
+			expect(records).toEqual([{ id: 1 }]);
+		});
+
 		it('should skip empty lines', async () => {
 			const transportr = new Transportr('https://api.example.com');
 			mockFetch.mockResolvedValueOnce(new Response(

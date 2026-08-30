@@ -201,6 +201,57 @@ const parseSanitizedDocument = async (response: Response, mimeType: DOMParserSup
 	return parseDocumentWithPreset(response, mimeType, 'strict');
 };
 
+/** MIME types parsed as arbitrary XML rather than with DOMPurify's HTML element allowlist. */
+const xmlMimeTypes = new Set<DOMParserSupportedType>([ 'application/xml', 'text/xml' ]);
+/** Elements that must never survive XML sanitization, even though arbitrary element names are allowed. */
+const unsafeXmlTags = new Set([ 'script', 'iframe', 'object', 'embed', 'applet', 'base', 'meta', 'link', 'frame', 'frameset' ]);
+/** The namespace DOMPurify's XHTML parser stamps onto the root element. */
+const xhtmlNamespace = 'http://www.w3.org/1999/xhtml';
+/** Namespaces DOMPurify accepts without being told about them. */
+const defaultXmlNamespaces = [ xhtmlNamespace, 'http://www.w3.org/2000/svg', 'http://www.w3.org/1998/Math/MathML' ];
+const xmlProlog = /^\s*<\?xml[^>]*\?>\s*/;
+const namespaceDeclaration = /xmlns(?::[\w.-]+)?\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+
+/**
+ * Collects the namespaces a document declares so DOMPurify does not reject its own elements.
+ * @param markup The source markup.
+ * @returns The declared namespaces, plus the ones DOMPurify allows by default.
+ */
+const collectXmlNamespaces = (markup: string): string[] => {
+	const namespaces = [ ...defaultXmlNamespaces ];
+	for (const [ , quoted, apostrophed ] of markup.matchAll(namespaceDeclaration)) {
+		const namespace = quoted ?? apostrophed;
+		if (namespace !== undefined && namespace !== '') { namespaces.push(namespace) }
+	}
+
+	return namespaces;
+};
+
+/**
+ * Returns DOMPurify options for sanitizing arbitrary XML. XML vocabularies are open-ended, so every
+ * element and attribute name is permitted except those that are inherently unsafe; DOMPurify's value
+ * checks (unsafe URI schemes, DOM clobbering) still apply.
+ * @param policy The resolved sanitization policy.
+ * @param markup The source markup, used to discover the namespaces it declares.
+ * @returns DOMPurify options for an XML document.
+ */
+const getXmlSanitizerOptions = (policy: Required<SanitizationPolicy>, markup: string): SanitizerOptions => {
+	const forbiddenTags = new Set(unsafeXmlTags);
+	if (policy.allowScripts) { forbiddenTags.delete('script') }
+	if (policy.allowStyles) { forbiddenTags.delete('link') }
+
+	return {
+		PARSER_MEDIA_TYPE: 'application/xhtml+xml',
+		ALLOWED_NAMESPACES: collectXmlNamespaces(markup),
+		// XHTML parsing is case-sensitive, so DOMPurify never case-folds tag/attribute names here and
+		// a lowercase FORBID_TAGS entry alone would not match `<SCRIPT>`. FORBID_TAGS still overrides
+		// ALLOWED_TAGS for the canonical spelling; the predicate declines to add any other casing.
+		FORBID_TAGS: [ ...forbiddenTags ],
+		ADD_TAGS: (tagName: string) => !forbiddenTags.has(tagName.toLowerCase()),
+		ADD_ATTR: (attributeName: string) => policy.allowScripts || !attributeName.toLowerCase().startsWith('on')
+	};
+};
+
 /**
  * Returns DOMPurify options for the resolved policy. When `allowScripts` is set, `script` is
  * added to DOMPurify's own allowed-tags list (`ADD_TAGS`) so real, executable `<script>` elements
@@ -299,28 +350,49 @@ const sanitizeWithAllowedAttributes = (sanitizer: DOMPurify, markup: string, san
  * while the rest of DOMPurify sanitization remains active.
  * @param markup The source markup.
  * @param policy The sanitization policy.
+ * @param mimeType The MIME type the sanitized markup will be parsed as.
  * @returns Sanitized (or raw) markup as a string.
  */
-const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPreset | SanitizationPolicy): Promise<string> => {
+const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPreset | SanitizationPolicy, mimeType: DOMParserSupportedType = 'text/html'): Promise<string> => {
 	const resolvedPolicy = normalizeSanitizationPolicy(policy);
 	if (resolvedPolicy.preset === 'bypass') { return markup }
 
+	const isXml = xmlMimeTypes.has(mimeType);
+	const presetOptions = getSanitizerOptionsForPreset(resolvedPolicy);
 	// DOMPurify drops everything outside <body> unless told otherwise — needed even for fragments, since
-	// the source markup may be a full page (e.g. a stylesheet <link> living in <head>).
-	const sanitizerOptions = { ...getSanitizerOptionsForPreset(resolvedPolicy), WHOLE_DOCUMENT: true };
+	// the source markup may be a full page (e.g. a stylesheet <link> living in <head>). XML has no such
+	// wrapper, and WHOLE_DOCUMENT would graft one onto the sanitized output.
+	const sanitizerOptions = isXml ? { ...presetOptions, ...getXmlSanitizerOptions(resolvedPolicy, markup) } : { ...presetOptions, WHOLE_DOCUMENT: true };
+	// A prolog is only valid at the very start of a document; DOMPurify wraps its input, which would
+	// make the markup malformed and sanitize to nothing.
+	const sourceMarkup = isXml ? markup.replace(xmlProlog, '') : markup;
 	const sanitizer = await env.getSanitizer();
 	sanitizer.clearConfig();
 
 	// ADD_TAGS already allows every <script> natively, so there's nothing left to extract/restore here.
-	if (resolvedPolicy.allowScripts) { return sanitizeWithAllowedAttributes(sanitizer, markup, sanitizerOptions, true, resolvedPolicy.allowStyles) }
+	if (resolvedPolicy.allowScripts) { return finalizeXmlNamespace(sanitizeWithAllowedAttributes(sanitizer, sourceMarkup, sanitizerOptions, true, resolvedPolicy.allowStyles), isXml, markup) }
 
-	const { markup: extractedMarkup, placeholders } = extractTemplateScriptsFromMarkup(markup, buildTemplateScriptTypeSet(resolvedPolicy));
+	const { markup: extractedMarkup, placeholders } = extractTemplateScriptsFromMarkup(sourceMarkup, buildTemplateScriptTypeSet(resolvedPolicy));
 	const sanitized = resolvedPolicy.allowStyles ?
 		sanitizeWithAllowedAttributes(sanitizer, extractedMarkup, sanitizerOptions, false, true) :
 		sanitizer.sanitize(extractedMarkup, sanitizerOptions);
 	const sanitizedMarkup = typeof sanitized === 'string' ? sanitized : String(sanitized);
 
-	return restoreTemplateScriptsInMarkup(sanitizedMarkup, placeholders);
+	return finalizeXmlNamespace(restoreTemplateScriptsInMarkup(sanitizedMarkup, placeholders), isXml, markup);
+};
+
+/**
+ * Removes the XHTML namespace DOMPurify's XML parser stamps onto the root element when the source
+ * document did not declare it, so element namespaces survive sanitization unchanged.
+ * @param sanitizedMarkup The sanitized markup.
+ * @param isXml Whether the markup was sanitized as XML.
+ * @param sourceMarkup The original markup.
+ * @returns The markup with the injected namespace removed.
+ */
+const finalizeXmlNamespace = (sanitizedMarkup: string, isXml: boolean, sourceMarkup: string): string => {
+	if (!isXml || sourceMarkup.includes(xhtmlNamespace)) { return sanitizedMarkup }
+
+	return sanitizedMarkup.replace(` xmlns="${xhtmlNamespace}"`, '');
 };
 
 /**
@@ -333,7 +405,7 @@ const sanitizeMarkupForPreset = async (markup: string, policy: SanitizationPrese
 const parseDocumentWithPreset = async (response: Response, mimeType: DOMParserSupportedType, policy: SanitizationPreset | SanitizationPolicy): Promise<Document> => {
 	await env.domReady();
 
-	const markup = await sanitizeMarkupForPreset(await response.text(), policy);
+	const markup = await sanitizeMarkupForPreset(await response.text(), policy, mimeType);
 
 	return new DOMParser().parseFromString(markup, mimeType);
 };
@@ -364,7 +436,8 @@ const withObjectURL = async <T>(response: Response, executor: (objectURL: string
 
 	const objectURL = URL.createObjectURL(await response.blob());
 	try {
-		return new Promise<T>((res, rej) => executor(objectURL, res, rej));
+		// Awaited so the URL is not revoked while the browser is still loading it.
+		return await new Promise<T>((res, rej) => executor(objectURL, res, rej));
 	} finally {
 		URL.revokeObjectURL(objectURL);
 	}
@@ -597,8 +670,7 @@ async function* readDelimited(body: ReadableStream<Uint8Array>, delimiter: strin
 		}
 
 		if (flushRemaining) {
-			const tail = (cursor < buffer.length ? buffer.slice(cursor) : '') + decoder.decode();
-			const remaining = tail.trim();
+			const remaining = ((cursor < buffer.length ? buffer.slice(cursor) : '') + decoder.decode()).trim();
 			if (remaining) { yield remaining }
 		}
 	} finally {
